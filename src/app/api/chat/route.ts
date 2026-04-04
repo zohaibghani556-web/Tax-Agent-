@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
   // TODO: Implement Claude API chat
   return NextResponse.json({ message: 'Chat endpoint ready' });
 }

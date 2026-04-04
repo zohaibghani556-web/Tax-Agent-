@@ -8,7 +8,7 @@ const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: "--font-inter",
   display: 'swap',
 });
 
