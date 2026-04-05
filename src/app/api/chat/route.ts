@@ -7,45 +7,17 @@
  *
  * Security:
  *   - Requires valid Supabase JWT (Authorization: Bearer <token>)
- *   - Rate limited: 10 messages per user per minute (in-process token bucket)
+ *   - Rate limited: 10 messages per user per minute (shared in-process token bucket)
+ *   - Total conversation history capped at 50 KB / 100 messages to control costs
+ *   - Message role validated to prevent prompt injection via role spoofing
  */
 
 import { NextRequest } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { TAX_AGENT_SYSTEM_PROMPT } from '@/lib/ai/system-prompt';
 import type { TaxProfile } from '@/lib/tax-engine/types';
-
-// ============================================================
-// RATE LIMITER (in-process token bucket — replace with Redis/Upstash in prod)
-// ============================================================
-
-interface Bucket {
-  tokens: number;
-  lastRefill: number;
-}
-
-const buckets = new Map<string, Bucket>();
-const RATE_LIMIT_MAX = 10;          // max tokens per window
-const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  let bucket = buckets.get(userId);
-
-  if (!bucket || now - bucket.lastRefill > RATE_LIMIT_WINDOW_MS) {
-    bucket = { tokens: RATE_LIMIT_MAX, lastRefill: now };
-  }
-
-  if (bucket.tokens <= 0) {
-    buckets.set(userId, bucket);
-    return false;
-  }
-
-  bucket.tokens -= 1;
-  buckets.set(userId, bucket);
-  return true;
-}
 
 // ============================================================
 // ANTHROPIC CLIENT
@@ -89,7 +61,7 @@ export async function POST(req: NextRequest) {
   }
 
   // --- Rate limit ---
-  if (!checkRateLimit(user.id)) {
+  if (!checkRateLimit(`chat:${user.id}`, 10, 60_000)) {
     return new Response(
       JSON.stringify({ error: 'Too many messages. Please wait a minute.' }),
       {
@@ -136,6 +108,22 @@ export async function POST(req: NextRequest) {
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
+  }
+
+  // --- Guard total conversation size (cost control) ---
+  // Per-message limit is 8 KB; total history is capped at 50 KB / 100 messages.
+  const totalChars = messages.reduce((sum, m) => sum + m.content.length, 0);
+  if (totalChars > 50_000) {
+    return new Response(
+      JSON.stringify({ error: 'Conversation history too large. Please start a new session.' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+  if (messages.length > 100) {
+    return new Response(
+      JSON.stringify({ error: 'Too many messages. Please start a new session.' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 
   // --- Build context injection ---

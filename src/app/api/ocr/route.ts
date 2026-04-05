@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { routeSlipType } from '@/lib/slips/slip-router';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -67,6 +68,14 @@ export async function POST(req: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // --- Rate limit: 20 OCR uploads per user per hour ---
+  if (!checkRateLimit(`ocr:${user.id}`, 20, 60 * 60_000)) {
+    return NextResponse.json(
+      { error: 'OCR limit reached. You can upload up to 20 documents per hour.' },
+      { status: 429, headers: { 'Retry-After': '3600' } },
+    );
   }
 
   // --- Parse multipart ---

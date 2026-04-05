@@ -331,7 +331,14 @@ export interface CorporateReturn {
 
 export interface PayrollEmployee {
   name: string;
-  sin: string;                 // Encrypted
+  /**
+   * SIN MUST be encrypted via Supabase Vault before persistence.
+   * Never store in plaintext. Never log. Display masked (***-***-XXX) only.
+   * See: CLAUDE.md Security Checklist, PIPEDA s.4.7
+   *
+   * TODO: encrypt with Vault.encrypt() before INSERT, decrypt on SELECT.
+   */
+  sin: string;
   grossPay: number;
   cppDeducted: number;
   eiDeducted: number;

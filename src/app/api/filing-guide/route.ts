@@ -8,14 +8,45 @@
  * AI is only used for natural-language generation of instructions — all
  * dollar values come from the deterministic engine result passed in.
  *
- * TODO: require Supabase JWT; cache guide per (userId, taxYear).
+ * Security:
+ *   - Requires valid Supabase JWT
+ *   - Rate limited: 5 guide generations per user per hour
+ *   - User-supplied strings are sanitized before prompt interpolation
+ *     to prevent prompt injection (ITA s.150 is not a hacking tool)
+ *
+ * TODO: cache generated guide in Supabase filing_guides table (user_id, tax_year).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { checkRateLimit } from '@/lib/rate-limit';
 import type { TaxCalculationResult, TaxProfile, FilingGuide } from '@/lib/tax-engine/types';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ── Allowed enum values (validated server-side) ──────────────────────────────
+
+const VALID_MARITAL = new Set([
+  'single', 'married', 'common-law', 'separated', 'divorced', 'widowed',
+]);
+const VALID_RESIDENCY = new Set([
+  'citizen', 'permanent-resident', 'deemed-resident', 'newcomer', 'non-resident',
+]);
+
+/**
+ * Strip control characters and newlines from a user-supplied string before
+ * interpolating into a prompt. Prevents prompt injection attacks where an
+ * attacker could inject new instructions via profile fields.
+ */
+function sanitize(value: string | undefined | null, maxLen = 80): string {
+  if (!value) return '';
+  return value
+    .replace(/[\u0000-\u001F\u007F]/g, ' ') // strip control chars including \n \r \t
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLen);
+}
 
 interface FilingGuideRequest {
   profile: Partial<TaxProfile>;
@@ -23,6 +54,26 @@ interface FilingGuideRequest {
 }
 
 export async function POST(req: NextRequest) {
+  // --- Auth ---
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // --- Rate limit: 5 guide generations per user per hour ---
+  if (!checkRateLimit(`guide:${user.id}`, 5, 60 * 60_000)) {
+    return NextResponse.json(
+      { error: 'Guide generation limit reached. Try again in an hour.' },
+      { status: 429, headers: { 'Retry-After': '3600' } },
+    );
+  }
+
+  // --- Parse body ---
   let body: FilingGuideRequest;
   try {
     body = (await req.json()) as FilingGuideRequest;
@@ -35,6 +86,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'result is required' }, { status: 400 });
   }
 
+  // --- Sanitize and validate all user-supplied strings used in prompt ---
+  // Only allow known-safe enum values for maritalStatus and residencyStatus.
+  // Free-text fields (legalName) are sanitized to strip injection vectors.
+  const safeName = sanitize(profile.legalName) || 'Taxpayer';
+  const safeMarital = VALID_MARITAL.has(profile.maritalStatus ?? '')
+    ? profile.maritalStatus!
+    : 'unknown';
+  const safeResidency = VALID_RESIDENCY.has(profile.residencyStatus ?? '')
+    ? profile.residencyStatus!
+    : 'unknown';
+  const safeDependants = Math.max(0, Math.min(20, profile.dependants?.length ?? 0));
+
   const refundOrBalance =
     result.balanceOwing < 0
       ? `Refund of $${Math.abs(result.balanceOwing).toFixed(2)}`
@@ -43,10 +106,10 @@ export async function POST(req: NextRequest) {
   const prompt = `You are a Canadian tax expert helping an Ontario resident file their 2025 T1 General return (deadline: April 30, 2026).
 
 TAXPAYER PROFILE:
-- Name: ${profile.legalName ?? 'Taxpayer'}
-- Marital status: ${profile.maritalStatus ?? 'single'}
-- Residency: ${profile.residencyStatus ?? 'citizen'}
-- Dependants: ${profile.dependants?.length ?? 0}
+- Name: ${safeName}
+- Marital status: ${safeMarital}
+- Residency: ${safeResidency}
+- Dependants: ${safeDependants}
 
 PRE-CALCULATED AMOUNTS (from deterministic engine — do NOT recalculate):
 - Line 15000 — Total income: $${result.totalIncome.toFixed(2)}
@@ -65,11 +128,11 @@ PRE-CALCULATED AMOUNTS (from deterministic engine — do NOT recalculate):
 - OUTCOME: ${refundOrBalance}
 - Estimated Ontario Trillium Benefit: $${result.estimatedOTB.toFixed(2)} (paid starting Jul 2026)
 
-Generate a personalized, step-by-step T1 filing guide with 8–12 practical steps. Each step must reference the specific CRA form and line number, and include the exact dollar value where applicable.
+Generate a personalized, step-by-step T1 filing guide with 8-12 practical steps. Each step must reference the specific CRA form and line number, and include the exact dollar value where applicable.
 
 Return ONLY valid JSON with no markdown fences, matching this structure exactly:
 {
-  "profileSummary": "1–2 sentence plain-language summary of this taxpayer's situation",
+  "profileSummary": "1-2 sentence plain-language summary of this taxpayer's situation",
   "requiredForms": ["T1 General", "Schedule 1", "ON428"],
   "steps": [
     {
@@ -101,14 +164,14 @@ Return ONLY valid JSON with no markdown fences, matching this structure exactly:
     // Claude may wrap in code fences despite instruction — strip them
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error('[filing-guide] No JSON in response:', raw.slice(0, 200));
+      console.error('[filing-guide] No JSON in Claude response');
       return NextResponse.json({ error: 'Failed to extract guide from AI response' }, { status: 500 });
     }
 
     const guide = JSON.parse(jsonMatch[0]) as FilingGuide;
     return NextResponse.json(guide);
   } catch (err) {
-    console.error('[filing-guide] Error:', err);
+    console.error('[filing-guide] Error:', (err as Error).message);
     return NextResponse.json({ error: 'Failed to generate guide' }, { status: 502 });
   }
 }
