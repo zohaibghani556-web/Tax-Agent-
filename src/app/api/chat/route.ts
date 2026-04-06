@@ -17,6 +17,11 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { TAX_AGENT_SYSTEM_PROMPT } from '@/lib/ai/system-prompt';
+import {
+  TAX_KNOWLEDGE_2025,
+  getRelevantCreditKeys,
+  getRelevantMistakes,
+} from '@/lib/ai/canadian-tax-knowledge';
 import type { TaxProfile } from '@/lib/tax-engine/types';
 
 // ============================================================
@@ -39,6 +44,127 @@ interface ChatMessage {
 interface ChatRequest {
   messages: ChatMessage[];
   taxProfile?: Partial<TaxProfile>;
+  // Assessment phase (1–9). Used to inject phase-specific knowledge.
+  // If omitted, the engine infers context from the taxProfile.
+  currentPhase?: number;
+}
+
+// ============================================================
+// VALIDATION RESULT
+// ============================================================
+
+interface ValidationResult {
+  valid: boolean;
+  issues: string[];
+}
+
+// ============================================================
+// KNOWLEDGE INJECTION
+// ============================================================
+
+/**
+ * Builds a context-enriched system prompt by appending relevant knowledge
+ * sections from TAX_KNOWLEDGE_2025 based on the user's profile and phase.
+ *
+ * Injects:
+ * - Credits relevant to the user's profile (age, marital status, dependants)
+ * - Common mistakes filtered to the user's situation
+ * - Full credit eligibility rules during the credits phase (phase 7)
+ * - Ontario-specific rules always (Ontario-only product)
+ */
+function buildContextualSystemPrompt(
+  basePrompt: string,
+  profile: Partial<TaxProfile>,
+  currentPhase: number,
+): string {
+  let context = basePrompt;
+
+  // Always inject relevant credits (concise — just names and amounts)
+  const relevantKeys = getRelevantCreditKeys(profile);
+  const relevantCredits = relevantKeys.map(k => {
+    const rule = TAX_KNOWLEDGE_2025.CREDITS_AND_ELIGIBILITY[k];
+    return rule ? `${rule.name} (${rule.craLine}): ${rule.amount2025}` : null;
+  }).filter(Boolean);
+
+  if (relevantCredits.length > 0) {
+    context += '\n\n---\nCREDITS RELEVANT TO THIS USER:\n';
+    context += relevantCredits.join('\n');
+  }
+
+  // In credits phase, inject full eligibility rules to improve accuracy
+  if (currentPhase === 7) {
+    context += '\n\nFULL CREDIT ELIGIBILITY RULES:\n';
+    context += JSON.stringify(TAX_KNOWLEDGE_2025.CREDITS_AND_ELIGIBILITY, null, 2);
+  }
+
+  // Always inject Ontario-specific rules
+  context += '\n\nONTARIO-SPECIFIC RULES:\n';
+  const ontarioSummary = Object.entries(TAX_KNOWLEDGE_2025.ONTARIO_SPECIFIC)
+    .map(([, rule]) => `${rule.description}: ${rule.amount2025}`)
+    .join('\n');
+  context += ontarioSummary;
+
+  // Always inject filtered common mistakes
+  const relevantMistakes = getRelevantMistakes(profile);
+  if (relevantMistakes.length > 0) {
+    context += '\n\nCOMMON MISTAKES TO WATCH FOR IN THIS CONVERSATION:\n';
+    context += relevantMistakes
+      .map(m => `- SITUATION: ${m.situation}\n  CORRECTION: ${m.correction}`)
+      .join('\n');
+  }
+
+  return context;
+}
+
+// ============================================================
+// RESPONSE VALIDATION
+// ============================================================
+
+/**
+ * Post-processing guard for assessment responses.
+ * Checks for content that violates the assessment model's boundaries.
+ *
+ * Returns valid=false if any hard rule is violated. Max 2 regeneration attempts
+ * are made in the route handler; after that the response is returned with a warning.
+ */
+function validateAssessmentResponse(response: string): ValidationResult {
+  const issues: string[] = [];
+
+  // 1. Tax amount leak: Claude should never state dollar refund/owing amounts
+  const taxAmountPattern = /\$[\d,]+(\.\d{2})?\s*(refund|owing|payable|tax|back|owe)/i;
+  if (taxAmountPattern.test(response)) {
+    issues.push('TAX_AMOUNT_LEAK: Response contains a specific tax dollar amount');
+  }
+
+  // 2. Multiple questions: assessment should ask one question at a time
+  const questionCount = (response.match(/\?/g) ?? []).length;
+  if (questionCount > 2) {
+    // Allow up to 2 (e.g., a clarifying sub-question) but not full multi-part lists
+    issues.push(`MULTIPLE_QUESTIONS: Response contains ${questionCount} question marks`);
+  }
+
+  // 3. US jurisdiction error: wrong country references
+  const usTerms = /\b(IRS|Form 1040|W-2|W2|1099|Schedule [A-Z]|federal return|U\.S\. tax|American tax)\b/i;
+  if (usTerms.test(response)) {
+    issues.push('JURISDICTION_ERROR: Response references US tax forms or the IRS');
+  }
+
+  // 4. Wrong tax year: only 2025 tax year is in scope
+  const wrongYearPattern = /\b(202[0-4])\s*tax\s*year\b/i;
+  if (wrongYearPattern.test(response)) {
+    issues.push('WRONG_TAX_YEAR: Response mentions an incorrect tax year');
+  }
+
+  // 5. Advice giving: assessment should gather facts, not give planning advice
+  const advicePattern = /\b(you should|I recommend|I suggest|consider doing|you might want to|it would be better)\b/i;
+  if (advicePattern.test(response)) {
+    issues.push('ADVICE_PATTERN: Response gives financial advice instead of gathering information');
+  }
+
+  return {
+    valid: issues.length === 0,
+    issues,
+  };
 }
 
 // ============================================================
@@ -85,7 +211,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const { messages, taxProfile } = body;
+  const { messages, taxProfile, currentPhase = 1 } = body;
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return new Response(JSON.stringify({ error: 'messages array is required' }), {
@@ -110,6 +236,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Validate phase is in range
+  if (typeof currentPhase !== 'number' || currentPhase < 1 || currentPhase > 9) {
+    return new Response(
+      JSON.stringify({ error: 'currentPhase must be a number between 1 and 9' }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
   // --- Guard total conversation size (cost control) ---
   // Per-message limit is 8 KB; total history is capped at 50 KB / 100 messages.
   const totalChars = messages.reduce((sum, m) => sum + m.content.length, 0);
@@ -126,45 +260,82 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // --- Build context injection ---
+  // --- Build enriched system prompt ---
+  const enrichedSystemPrompt = buildContextualSystemPrompt(
+    TAX_AGENT_SYSTEM_PROMPT,
+    taxProfile ?? {},
+    currentPhase,
+  );
+
   // Append current tax profile state as a system-level context block
   const profileContext = taxProfile
     ? `\n\n---\nCURRENT TAX PROFILE STATE:\n${JSON.stringify(taxProfile, null, 2)}\n---`
     : '';
 
-  // --- Stream from Claude ---
-  try {
-    const stream = await anthropic.messages.stream({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      system: TAX_AGENT_SYSTEM_PROMPT + profileContext,
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    });
+  const systemPrompt = enrichedSystemPrompt + profileContext;
 
-    // Return a ReadableStream so the client can consume text/event-stream
+  // --- Call Claude with response validation (up to 2 regeneration attempts) ---
+  const anthropicMessages = messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  try {
+    let finalResponse: string | null = null;
+    let validationWarning: string | null = null;
+
+    // Attempt generation with post-validation, max 2 retries
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: attempt === 0
+          ? systemPrompt
+          : systemPrompt + '\n\nIMPORTANT REMINDER: Ask only ONE question per response. Do NOT state specific tax dollar amounts. Do NOT reference IRS or US tax forms.',
+        messages: anthropicMessages,
+      });
+
+      const text = response.content
+        .filter(b => b.type === 'text')
+        .map(b => (b as { type: 'text'; text: string }).text)
+        .join('');
+
+      const validation = validateAssessmentResponse(text);
+      if (validation.valid) {
+        finalResponse = text;
+        break;
+      }
+
+      // On last attempt, use the response anyway but log and warn
+      if (attempt === 2) {
+        console.warn('[chat] Validation failed after 3 attempts:', validation.issues);
+        finalResponse = text;
+        validationWarning = validation.issues.join('; ');
+      }
+    }
+
+    // Stream the final response as SSE
     const readable = new ReadableStream({
-      async start(controller) {
+      start(controller) {
         const encoder = new TextEncoder();
 
-        for await (const event of stream) {
-          if (
-            event.type === 'content_block_delta' &&
-            event.delta.type === 'text_delta'
-          ) {
-            // SSE format: data: <payload>\n\n
-            const payload = JSON.stringify({ text: event.delta.text });
+        if (finalResponse) {
+          // Chunk the response to simulate streaming for client compatibility
+          const chunkSize = 50;
+          for (let i = 0; i < finalResponse.length; i += chunkSize) {
+            const chunk = finalResponse.slice(i, i + chunkSize);
+            const payload = JSON.stringify({ text: chunk });
             controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
           }
         }
 
+        if (validationWarning) {
+          const warnPayload = JSON.stringify({ validationWarning });
+          controller.enqueue(encoder.encode(`data: ${warnPayload}\n\n`));
+        }
+
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
-      },
-      cancel() {
-        stream.abort();
       },
     });
 

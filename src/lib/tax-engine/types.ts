@@ -397,6 +397,9 @@ export interface TaxCalculationResult {
   
   // Warnings
   warnings: TaxWarning[];
+
+  // Edge case flags — displayed as banners in the calculator UI
+  edgeCaseFlags: EdgeCaseFlag[];
 }
 
 export interface TaxWarning {
@@ -404,6 +407,14 @@ export interface TaxWarning {
   message: string;
   line?: number;               // Related CRA line
   action?: string;             // Suggested action
+}
+
+export interface EdgeCaseFlag {
+  type: 'warning' | 'error' | 'info';
+  code: string;                // Machine-readable code e.g. "CPP_OVER_DEDUCTED"
+  message: string;             // Plain-language explanation for the user
+  affectedAmount: number;      // Dollar amount involved (0 if not applicable)
+  resolution: string;          // What the user should do
 }
 
 // ============================================================

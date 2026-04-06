@@ -22,6 +22,9 @@ import {
   OSTC,
   OEPTC,
   RRSP,
+  CPP,
+  CPP2,
+  EI,
   CRA_LINES,
 } from './constants';
 
@@ -33,8 +36,10 @@ import type {
   DeductionsCreditsInput,
   TaxCalculationResult,
   TaxWarning,
+  EdgeCaseFlag,
   T4Slip,
   T5Slip,
+  T5008Slip,
   T3Slip,
   T4ASlip,
 } from './types';
@@ -59,6 +64,7 @@ import {
 } from './federal/credits';
 
 import { calculateDividendIncome } from './federal/dividends';
+import { calculateCapitalGains } from './federal/capital-gains';
 import { calculateOntarioTaxOnIncome } from './ontario/brackets';
 import { calculateOntarioSurtax } from './ontario/surtax';
 import { calculateOntarioHealthPremium } from './ontario/health-premium';
@@ -192,26 +198,83 @@ export function calculateTaxReturn(
   deductions: DeductionsCreditsInput,
 ): TaxCalculationResult {
   const warnings: TaxWarning[] = [];
+  const edgeCaseFlags: EdgeCaseFlag[] = [];
 
   // — Partition slips by type for downstream calculations —
   const t4Slips: T4Slip[] = [];
   const t5Slips: T5Slip[] = [];
+  const t5008Slips: T5008Slip[] = [];
   const t3Slips: T3Slip[] = [];
   const t4aSlips: T4ASlip[] = [];
 
   for (const slip of slips) {
     switch (slip.type) {
-      case 'T4':  t4Slips.push(slip.data);  break;
-      case 'T5':  t5Slips.push(slip.data);  break;
-      case 'T3':  t3Slips.push(slip.data);  break;
-      case 'T4A': t4aSlips.push(slip.data); break;
+      case 'T4':    t4Slips.push(slip.data);    break;
+      case 'T5':    t5Slips.push(slip.data);    break;
+      case 'T5008': t5008Slips.push(slip.data); break;
+      case 'T3':    t3Slips.push(slip.data);    break;
+      case 'T4A':   t4aSlips.push(slip.data);   break;
     }
   }
 
   const hasEmploymentIncome = t4Slips.some(s => s.box14 > 0);
-  // CPP/EI totals drive both the credit calculation and the net income floor check
-  const totalCPP = roundCRA(t4Slips.reduce((sum, s) => sum + s.box16, 0));
-  const totalEI  = roundCRA(t4Slips.reduce((sum, s) => sum + s.box18, 0));
+
+  // ── CPP1/CPP2/EI: cap over-deductions at annual maximums ─────────────────
+  // When a taxpayer has multiple T4s, each employer withholds as if it were the
+  // only employer. Combined deductions can exceed the annual maximum.
+  // The credit is capped at the maximum; the excess is refundable via line 44800.
+  // ITA s.118.7; CPP max 2025: $4,034.10 (CPP1), $396.00 (CPP2); EI max: $1,077.48
+
+  const rawCPP1 = roundCRA(t4Slips.reduce((sum, s) => sum + s.box16, 0));
+  const rawCPP2 = roundCRA(t4Slips.reduce((sum, s) => sum + s.box16A, 0));
+  const rawEI   = roundCRA(t4Slips.reduce((sum, s) => sum + s.box18, 0));
+
+  const totalCPP = Math.min(rawCPP1, CPP.maxEmployeeContribution);
+  const totalCPP2 = Math.min(rawCPP2, CPP2.maxEmployeeContribution);
+  const totalEI  = Math.min(rawEI, EI.maxPremium);
+
+  if (rawCPP1 > CPP.maxEmployeeContribution) {
+    const overDeducted = roundCRA(rawCPP1 - CPP.maxEmployeeContribution);
+    edgeCaseFlags.push({
+      type: 'info',
+      code: 'CPP_OVER_DEDUCTED',
+      message: `Your employers collectively over-deducted $${overDeducted.toFixed(2)} in CPP contributions above the 2025 maximum ($${CPP.maxEmployeeContribution.toFixed(2)}). The credit is capped at the maximum.`,
+      affectedAmount: overDeducted,
+      resolution: 'Claim the over-deducted CPP as a refund on line 44800 of your T1. The tax engine has already capped your CPP credit at the maximum.',
+    });
+  }
+
+  if (rawCPP2 > CPP2.maxEmployeeContribution) {
+    const overDeducted = roundCRA(rawCPP2 - CPP2.maxEmployeeContribution);
+    edgeCaseFlags.push({
+      type: 'info',
+      code: 'CPP2_OVER_DEDUCTED',
+      message: `Your employers over-deducted $${overDeducted.toFixed(2)} in CPP2 contributions above the 2025 maximum ($${CPP2.maxEmployeeContribution.toFixed(2)}).`,
+      affectedAmount: overDeducted,
+      resolution: 'Claim the over-deducted CPP2 as a refund on line 44800 of your T1.',
+    });
+  }
+
+  if (rawEI > EI.maxPremium) {
+    const overDeducted = roundCRA(rawEI - EI.maxPremium);
+    edgeCaseFlags.push({
+      type: 'info',
+      code: 'EI_OVER_DEDUCTED',
+      message: `Your employers collectively over-deducted $${overDeducted.toFixed(2)} in EI premiums above the 2025 maximum ($${EI.maxPremium.toFixed(2)}).`,
+      affectedAmount: overDeducted,
+      resolution: 'Claim the over-deducted EI as a refund on line 45000 of your T1.',
+    });
+  }
+
+  if (t4Slips.length > 1) {
+    edgeCaseFlags.push({
+      type: 'info',
+      code: 'MULTIPLE_T4S',
+      message: `${t4Slips.length} T4 slips detected. Employment income and deductions have been combined correctly across all employers.`,
+      affectedAmount: 0,
+      resolution: 'Review the combined totals carefully and ensure all T4s are included. Check that CPP/EI over-deductions (if any) are flagged above.',
+    });
+  }
   // Eligible pension income drives the $2,000 pension income credit (ITA s.118(3))
   const eligiblePensionIncome = roundCRA(t4aSlips.reduce((sum, s) => sum + s.box016, 0));
 
@@ -386,9 +449,43 @@ export function calculateTaxReturn(
       line: CRA_LINES.rrspDeduction,
       action: 'Withdraw the excess before the over-contribution penalty applies (ITA s.204.1).',
     });
+    const overContribution = roundCRA(deductions.rrspContributions - deductions.rrspContributionRoom);
+    edgeCaseFlags.push({
+      type: 'error',
+      code: 'RRSP_OVER_CONTRIBUTION',
+      message: `RRSP over-contribution detected: $${overContribution.toFixed(2)} contributed beyond your available room of $${deductions.rrspContributionRoom.toFixed(2)}.`,
+      affectedAmount: overContribution,
+      resolution: 'Withdraw the excess contribution as soon as possible — a 1% per month penalty applies on the excess above the $2,000 buffer. File Form T1-OVP to report the over-contribution.',
+    });
+  }
+
+  // ── Newcomer proration flag ───────────────────────────────────────────────
+  // If a residency start date is provided, personal credits must be prorated.
+  // ITA s.118.91 — Part-year residents prorate most non-refundable credits.
+  if (profile.residencyStartDate) {
+    const startDate = new Date(profile.residencyStartDate);
+    const yearStart = new Date(`${TAX_YEAR}-01-01`);
+    const yearEnd   = new Date(`${TAX_YEAR}-12-31`);
+    if (startDate > yearStart && startDate <= yearEnd) {
+      const daysResident = Math.round(
+        (yearEnd.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      ) + 1;
+      const prorationFactor = roundCRA(daysResident / 365);
+      edgeCaseFlags.push({
+        type: 'info',
+        code: 'NEWCOMER_PRORATION',
+        message: `Newcomer residency detected: arrived ${profile.residencyStartDate} (${daysResident} days in Canada in 2025). Personal credits (BPA, age amount, etc.) are prorated at ${(prorationFactor * 100).toFixed(1)}% per ITA s.118.91.`,
+        affectedAmount: daysResident,
+        resolution: 'Ensure your tax preparer applies the partial-year residency proration to all personal non-refundable credits. Only income earned from the date of arrival is reported.',
+      });
+    }
   }
 
   // ── CRA line-by-line reference ────────────────────────────────────────────
+
+  // Capital gains computed separately here for lineByLine exposure.
+  // The same calculation runs inside aggregateTotalIncome — results are identical.
+  const cgLineResult = calculateCapitalGains(t5008Slips, t3Slips);
 
   const rrspDeductionLine = Math.min(
     deductions.rrspContributions,
@@ -397,20 +494,21 @@ export function calculateTaxReturn(
   );
 
   const lineByLine: Record<number, number> = {
-    [CRA_LINES.employmentIncome]:  roundCRA(t4Slips.reduce((sum, s) => sum + s.box14, 0)),
-    [CRA_LINES.eligibleDividends]: divResult.eligibleTaxable,
-    [CRA_LINES.otherDividends]:    divResult.nonEligibleTaxable,
-    [CRA_LINES.interestIncome]:    roundCRA(
+    [CRA_LINES.employmentIncome]:    roundCRA(t4Slips.reduce((sum, s) => sum + s.box14, 0)),
+    [CRA_LINES.eligibleDividends]:   divResult.eligibleTaxable,
+    [CRA_LINES.otherDividends]:      divResult.nonEligibleTaxable,
+    [CRA_LINES.interestIncome]:      roundCRA(
       t5Slips.reduce((sum, s) => sum + s.box13, 0) +
       t3Slips.reduce((sum, s) => sum + s.box49, 0)
     ),
-    [CRA_LINES.totalIncome]:       totalIncome,
-    [CRA_LINES.rrspDeduction]:     rrspDeductionLine,
-    [CRA_LINES.netIncome]:         netIncome,
-    [CRA_LINES.taxableIncome]:     taxableIncome,
-    [CRA_LINES.totalTaxDeducted]:  totalTaxDeducted,
-    [CRA_LINES.totalPayable]:      totalTaxPayable,
-    [CRA_LINES.balanceOwing]:      balanceOwing,
+    [CRA_LINES.taxableCapitalGains]: cgLineResult.taxableGain,
+    [CRA_LINES.totalIncome]:         totalIncome,
+    [CRA_LINES.rrspDeduction]:       rrspDeductionLine,
+    [CRA_LINES.netIncome]:           netIncome,
+    [CRA_LINES.taxableIncome]:       taxableIncome,
+    [CRA_LINES.totalTaxDeducted]:    totalTaxDeducted,
+    [CRA_LINES.totalPayable]:        totalTaxPayable,
+    [CRA_LINES.balanceOwing]:        balanceOwing,
   };
 
   return {
@@ -448,5 +546,6 @@ export function calculateTaxReturn(
     averageTaxRate,
 
     warnings,
+    edgeCaseFlags,
   };
 }
