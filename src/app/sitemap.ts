@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = 'https://taxagent-pink.vercel.app';
+  const base = 'https://taxagent.ai';
   const now = new Date();
 
   return [
