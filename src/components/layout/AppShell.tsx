@@ -149,7 +149,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* ── Mobile bottom nav ─────────────────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[var(--border)] grid grid-cols-5 h-16 safe-area-inset-bottom">
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 h-16"
+        style={{ background: '#0a1628', borderTop: '1px solid rgba(255,255,255,0.08)' }}
+      >
         {MOBILE_NAV.map(({ href, icon: Icon, label }) => {
           const active = pathname === href || pathname.startsWith(href + '/');
           return (
@@ -158,7 +161,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               href={href}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 text-xs font-medium transition-colors',
-                active ? 'text-[var(--emerald)]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+                active ? 'text-[#10B981]' : 'text-white/40 hover:text-white/70',
               )}
             >
               <Icon className="h-5 w-5" />

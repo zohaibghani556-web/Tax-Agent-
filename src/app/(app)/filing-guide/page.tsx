@@ -117,11 +117,11 @@ export default function FilingGuidePage() {
       {/* ── Header ────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#1A2744] flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
             <BookOpen className="h-6 w-6" />
             Filing Guide
           </h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <p className="text-sm text-white/40 mt-0.5">
             Personalized T1 instructions for {profile.legalName} · 2025 tax year
           </p>
         </div>

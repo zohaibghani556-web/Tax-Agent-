@@ -38,42 +38,48 @@ function Section({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="bg-white rounded-xl border border-[var(--border)] overflow-hidden">
+    <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
       <button
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/5 transition-colors"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
       >
         <div className="flex items-baseline gap-3">
-          <span className="font-semibold text-sm text-[var(--text-primary)]">{title}</span>
-          {!open && <span className="text-sm tabular-nums text-[var(--text-secondary)]">{formatCad(total)}</span>}
+          <span className="font-semibold text-sm text-white/80">{title}</span>
+          {!open && <span className="text-sm tabular-nums text-white/50">{formatCad(total)}</span>}
         </div>
-        {open ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+        {open
+          ? <ChevronUp className="h-4 w-4 text-white/30" />
+          : <ChevronDown className="h-4 w-4 text-white/30" />}
       </button>
       {open && (
         <>
-          <div className="border-t border-[var(--border)]">
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
             {lines.map((item, i) => (
               <div
                 key={i}
-                className={`flex items-baseline justify-between px-5 py-2.5 border-b border-slate-50 last:border-0 ${item.indent ? 'pl-8' : ''}`}
+                className={`flex items-baseline justify-between px-5 py-2.5 ${item.indent ? 'pl-8' : ''}`}
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
               >
                 <div className="flex items-baseline gap-2">
-                  {item.line && <span className="text-xs text-[var(--text-muted)] tabular-nums w-12">L{item.line}</span>}
-                  <span className={`text-sm ${item.faint ? 'text-[var(--text-muted)]' : 'text-[var(--text-secondary)]'}`}>{item.label}</span>
+                  {item.line && <span className="text-xs text-white/25 tabular-nums w-12">L{item.line}</span>}
+                  <span className={`text-sm ${item.faint ? 'text-white/25' : 'text-white/55'}`}>{item.label}</span>
                 </div>
-                <span className={`text-sm tabular-nums shrink-0 ml-4 ${item.faint ? 'text-[var(--text-muted)]' : 'text-[var(--text-secondary)]'}`}>
+                <span className={`text-sm tabular-nums shrink-0 ml-4 ${item.faint ? 'text-white/25' : 'text-white/55'}`}>
                   {formatCad(item.amount)}
                 </span>
               </div>
             ))}
           </div>
-          <div className="flex items-baseline justify-between px-5 py-3 bg-slate-50 border-t border-[var(--border)]">
+          <div
+            className="flex items-baseline justify-between px-5 py-3"
+            style={{ background: 'rgba(255,255,255,0.04)', borderTop: '1px solid rgba(255,255,255,0.06)' }}
+          >
             <div className="flex items-baseline gap-2">
-              {totalLine && <span className="text-xs text-[var(--text-muted)] w-12">L{totalLine}</span>}
-              <span className="text-sm font-semibold text-[var(--text-primary)]">{totalLabel}</span>
+              {totalLine && <span className="text-xs text-white/30 w-12">L{totalLine}</span>}
+              <span className="text-sm font-semibold text-white/80">{totalLabel}</span>
             </div>
-            <span className="text-sm font-bold tabular-nums text-[var(--text-primary)]">{formatCad(total)}</span>
+            <span className="text-sm font-bold tabular-nums text-white">{formatCad(total)}</span>
           </div>
         </>
       )}
@@ -82,7 +88,7 @@ function Section({
 }
 
 function SkeletonCard() {
-  return <div className="h-14 bg-slate-100 animate-pulse rounded-xl" />;
+  return <div className="h-14 animate-pulse rounded-xl" style={{ background: 'rgba(255,255,255,0.06)' }} />;
 }
 
 export default function CalculatorPage() {

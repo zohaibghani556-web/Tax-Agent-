@@ -1,10 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { Pencil, Trash2, FileText } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Pencil, Trash2, FileText, Check, ArrowRight, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -12,15 +10,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Progress } from '@/components/ui/progress';
 import { SlipUpload } from '@/components/slips/SlipUpload';
 import { ManualEntryForm } from '@/components/slips/ManualEntryForm';
-import {
-  SLIP_TYPE_LABELS,
-  SLIP_PRIMARY_BOX,
-} from '@/lib/slips/slip-fields';
+import { SLIP_TYPE_LABELS, SLIP_PRIMARY_BOX } from '@/lib/slips/slip-fields';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface SavedSlip {
   id: string;
@@ -30,11 +26,13 @@ interface SavedSlip {
   enteredAt: string;
 }
 
-// Typical number of slips for progress calculation.
-// Shown as a soft target — users can have more or fewer slips.
-const EXPECTED_SLIP_COUNT = 3;
+interface SlipRec {
+  type: string;
+  description: string;
+  where: string;
+}
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatCad(n: number): string {
   return new Intl.NumberFormat('en-CA', {
@@ -48,189 +46,240 @@ function primaryAmount(slip: SavedSlip): string {
   const def = SLIP_PRIMARY_BOX[slip.type];
   if (!def) return '';
   const v = slip.data[def.key];
-  if (typeof v === 'number' && v > 0) {
-    return `${def.label}: ${formatCad(v)}`;
-  }
+  if (typeof v === 'number' && v > 0) return `${def.label}: ${formatCad(v)}`;
   return '';
+}
+
+function GlassCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={`rounded-2xl ${className}`}
+      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+    >
+      {children}
+    </div>
+  );
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SlipsPage() {
+  const router = useRouter();
   const [slips, setSlips] = useState<SavedSlip[]>([]);
   const [editTarget, setEditTarget] = useState<SavedSlip | null>(null);
   const [activeInputTab, setActiveInputTab] = useState('upload');
+  const [slipRecs, setSlipRecs] = useState<SlipRec[]>([]);
+  const [assessmentDone, setAssessmentDone] = useState(false);
 
-  // TODO: persist slips to Supabase (table: tax_slips, RLS by user_id)
-  const addSlip = (
-    type: string,
-    issuerName: string,
-    data: Record<string, number | string>
-  ) => {
-    const slip: SavedSlip = {
-      id: crypto.randomUUID(),
-      type,
-      issuerName,
-      data,
-      enteredAt: new Date().toISOString(),
-    };
-    setSlips((prev) => [...prev, slip]);
-    setActiveInputTab('upload'); // return to upload tab after adding
-  };
+  // Load slip recommendations from assessment (stored in localStorage)
+  useEffect(() => {
+    const recs = localStorage.getItem('taxagent_slip_recs');
+    if (recs) {
+      try { setSlipRecs(JSON.parse(recs) as SlipRec[]); } catch { /* ignore */ }
+    }
+    setAssessmentDone(!!localStorage.getItem('taxagent_assessment_done'));
+  }, []);
 
-  const updateSlip = (
-    type: string,
-    issuerName: string,
-    data: Record<string, number | string>
-  ) => {
+  function addSlip(type: string, issuerName: string, data: Record<string, number | string>) {
+    setSlips((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), type, issuerName, data, enteredAt: new Date().toISOString() },
+    ]);
+    setActiveInputTab('upload');
+  }
+
+  function updateSlip(type: string, issuerName: string, data: Record<string, number | string>) {
     if (!editTarget) return;
-    setSlips((prev) =>
-      prev.map((s) =>
-        s.id === editTarget.id ? { ...s, type, issuerName, data } : s
-      )
-    );
+    setSlips((prev) => prev.map((s) => s.id === editTarget.id ? { ...s, type, issuerName, data } : s));
     setEditTarget(null);
-  };
+  }
 
-  const deleteSlip = (id: string) => {
+  function deleteSlip(id: string) {
     setSlips((prev) => prev.filter((s) => s.id !== id));
-  };
+  }
 
-  const progressPct = Math.min(
-    100,
-    Math.round((slips.length / EXPECTED_SLIP_COUNT) * 100)
-  );
+  // Which recommended slip types have been entered already
+  const enteredTypes = new Set(slips.map((s) => s.type));
+  const recsDone = slipRecs.filter((r) => enteredTypes.has(r.type)).length;
+  const recsTotal = slipRecs.length;
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-10 space-y-8">
-      {/* ── Header ── */}
+    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+
+      {/* ── Header ─────────────────────────────────────────────────── */}
       <div>
-        <h1 className="text-2xl font-bold text-[#1A2744]">Tax Slips</h1>
-        <p className="text-slate-500 mt-1 text-sm">
-          Upload or manually enter your 2025 tax slips.
+        <h1 className="text-2xl font-bold text-white">Tax Slips</h1>
+        <p className="text-white/40 mt-1 text-sm">
+          Upload or manually enter your 2025 CRA slips.
         </p>
       </div>
 
-      {/* ── Progress ── */}
-      <Card>
-        <CardContent className="pt-5 pb-4 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-600 font-medium">
-              {slips.length === 0
-                ? 'No slips added yet'
-                : `${slips.length} slip${slips.length !== 1 ? 's' : ''} entered`}
-            </span>
-            <span className="text-slate-400">{progressPct}%</span>
-          </div>
-          <Progress value={progressPct} className="h-2" />
-          {slips.length === 0 && (
-            <p className="text-xs text-slate-400">
-              Add all your slips to get an accurate refund calculation.
+      {/* ── If no assessment: prompt to start ─────────────────────── */}
+      {!assessmentDone && slipRecs.length === 0 && (
+        <GlassCard className="px-5 py-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-white">Complete your assessment first</p>
+            <p className="text-xs text-white/40 mt-0.5">
+              The AI assessment will tell you exactly which slips to upload.
             </p>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+          <Link
+            href="/onboarding"
+            className="flex-shrink-0 flex items-center gap-1.5 rounded-full bg-[#10B981] px-4 py-2 text-xs font-semibold text-white hover:bg-[#059669] transition-colors"
+          >
+            Start assessment
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </GlassCard>
+      )}
 
-      {/* ── Input tabs: Upload vs Manual ── */}
-      <Card>
-        <CardHeader className="pb-0">
-          <CardTitle className="text-base text-[#1A2744]">Add a Slip</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <Tabs value={activeInputTab} onValueChange={setActiveInputTab}>
-            <TabsList className="mb-6 w-full">
-              <TabsTrigger value="upload" className="flex-1">
-                Upload Slip
-              </TabsTrigger>
-              <TabsTrigger value="manual" className="flex-1">
-                Enter Manually
-              </TabsTrigger>
-            </TabsList>
+      {/* ── Slip checklist from assessment ────────────────────────── */}
+      {slipRecs.length > 0 && (
+        <GlassCard className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-semibold text-white">Slips from your assessment</p>
+            <span className="text-xs text-white/40">{recsDone}/{recsTotal} uploaded</span>
+          </div>
+          <div className="space-y-2">
+            {slipRecs.map((rec) => {
+              const done = enteredTypes.has(rec.type);
+              return (
+                <div
+                  key={rec.type}
+                  className="flex items-center gap-3 rounded-xl px-4 py-3 transition-all"
+                  style={{
+                    background: done ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${done ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.06)'}`,
+                  }}
+                >
+                  <div className={`h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0 ${done ? 'bg-[#10B981]' : 'bg-white/10'}`}>
+                    {done ? <Check className="h-3.5 w-3.5 text-white" /> : <FileText className="h-3.5 w-3.5 text-white/40" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-semibold ${done ? 'text-[#10B981]' : 'text-white/70'}`}>{rec.type}</p>
+                    <p className="text-xs text-white/40 truncate">{rec.description}</p>
+                  </div>
+                  {!done && (
+                    <span className="text-[10px] text-white/30 text-right max-w-[120px] leading-tight">
+                      {rec.where}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </GlassCard>
+      )}
 
-            <TabsContent value="upload">
-              <SlipUpload onAdd={addSlip} />
-            </TabsContent>
+      {/* ── Upload / Manual entry ─────────────────────────────────── */}
+      <GlassCard className="p-5">
+        <p className="text-sm font-semibold text-white mb-4">Add a Slip</p>
+        <Tabs value={activeInputTab} onValueChange={setActiveInputTab}>
+          <TabsList
+            className="w-full mb-5 rounded-xl p-1"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <TabsTrigger
+              value="upload"
+              className="flex-1 rounded-lg text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50"
+            >
+              Upload Slip
+            </TabsTrigger>
+            <TabsTrigger
+              value="manual"
+              className="flex-1 rounded-lg text-sm data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/50"
+            >
+              Enter Manually
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="upload">
+            <SlipUpload onAdd={addSlip} />
+          </TabsContent>
+          <TabsContent value="manual">
+            <ManualEntryForm onAdd={addSlip} />
+          </TabsContent>
+        </Tabs>
+      </GlassCard>
 
-            <TabsContent value="manual">
-              <ManualEntryForm onAdd={addSlip} />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-
-      {/* ── Slip list ── */}
+      {/* ── Entered slips list ────────────────────────────────────── */}
       {slips.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base text-[#1A2744]">Entered Slips</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 divide-y divide-slate-100">
+        <GlassCard className="overflow-hidden">
+          <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <p className="text-sm font-semibold text-white">
+              {slips.length} slip{slips.length !== 1 ? 's' : ''} entered
+            </p>
+          </div>
+          <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
             {slips.map((slip) => (
-              <div
-                key={slip.id}
-                className="flex items-center gap-4 py-4 first:pt-2"
-              >
-                <FileText className="h-8 w-8 text-slate-400 shrink-0" />
+              <div key={slip.id} className="flex items-center gap-4 px-5 py-4">
+                <div
+                  className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'rgba(16,185,129,0.1)' }}
+                >
+                  <FileText className="h-5 w-5 text-[#10B981]" />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge
-                      variant="secondary"
-                      className="bg-[#1A2744]/10 text-[#1A2744] font-semibold text-xs"
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="text-xs font-bold px-2 py-0.5 rounded-full text-[#10B981]"
+                      style={{ background: 'rgba(16,185,129,0.12)' }}
                     >
                       {slip.type}
-                    </Badge>
-                    <span className="text-sm font-medium text-slate-800 truncate">
+                    </span>
+                    <span className="text-sm text-white/70 truncate">
                       {slip.issuerName || SLIP_TYPE_LABELS[slip.type] || slip.type}
                     </span>
                   </div>
                   {primaryAmount(slip) && (
-                    <p className="text-xs text-slate-500 mt-0.5">{primaryAmount(slip)}</p>
+                    <p className="text-xs text-white/40 mt-0.5">{primaryAmount(slip)}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Edit ${slip.type} slip`}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
                     onClick={() => setEditTarget(slip)}
+                    className="h-8 w-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                    aria-label={`Edit ${slip.type}`}
                   >
-                    <Pencil className="h-4 w-4 text-slate-500" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Delete ${slip.type} slip`}
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
                     onClick={() => deleteSlip(slip.id)}
+                    className="h-8 w-8 rounded-lg flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                    aria-label={`Delete ${slip.type}`}
                   >
-                    <Trash2 className="h-4 w-4 text-red-400" />
-                  </Button>
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </GlassCard>
       )}
 
-      {/* ── Edit dialog ── */}
-      <Dialog
-        open={editTarget !== null}
-        onOpenChange={(open) => { if (!open) setEditTarget(null); }}
-      >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* ── Go to calculator CTA ─────────────────────────────────── */}
+      {slips.length > 0 && (
+        <button
+          onClick={() => router.push('/calculator')}
+          className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-semibold text-white transition-colors"
+          style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)' }}
+        >
+          <Check className="h-4 w-4 text-[#10B981]" />
+          Calculate my taxes
+          <ArrowRight className="h-4 w-4 text-[#10B981]" />
+        </button>
+      )}
+
+      {/* ── Edit dialog ─────────────────────────────────────────── */}
+      <Dialog open={editTarget !== null} onOpenChange={(open) => { if (!open) setEditTarget(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#0d1828] border-white/10">
           <DialogHeader>
-            <DialogTitle className="text-[#1A2744]">
-              Edit {editTarget?.type} Slip
-            </DialogTitle>
+            <DialogTitle className="text-white">Edit {editTarget?.type} Slip</DialogTitle>
           </DialogHeader>
           {editTarget && (
-            <ManualEntryForm
-              key={editTarget.id}
-              onAdd={updateSlip}
-              defaultType={editTarget.type}
-            />
+            <ManualEntryForm key={editTarget.id} onAdd={updateSlip} defaultType={editTarget.type} />
           )}
         </DialogContent>
       </Dialog>
-    </main>
+    </div>
   );
 }

@@ -1,8 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist } from 'next/font/google';
-import { NavBar } from '@/components/nav-bar';
-import { LenisProvider } from '@/components/ui/lenis-provider';
-import { ScrollProgressBar } from '@/components/ui/scroll-progress-bar';
+import { ConditionalLayout } from '@/components/layout/ConditionalLayout';
 import './globals.css';
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
@@ -195,13 +193,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="antialiased font-sans">
         <a href="#main-content" className="skip-link">Skip to content</a>
-        <LenisProvider>
-          <ScrollProgressBar />
-          <NavBar />
+        <ConditionalLayout>
           <main id="main-content">
             {children}
           </main>
-        </LenisProvider>
+        </ConditionalLayout>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
