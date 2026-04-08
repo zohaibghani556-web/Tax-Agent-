@@ -29,13 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import {
-  DEMO_BUSINESS,
-  DEMO_DEDUCTIONS,
-  DEMO_PROFILE,
-  DEMO_RENTAL,
-  DEMO_SLIPS,
-} from '@/lib/demo-data';
+import { createClient } from '@/lib/supabase/client';
 import type { FilingGuide, TaxCalculationResult } from '@/lib/tax-engine/types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -55,39 +49,34 @@ export default function FilingGuidePage() {
   const [calcResult, setCalcResult] = useState<TaxCalculationResult | null>(null);
   const [guide, setGuide] = useState<FilingGuide | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [calcLoading, setCalcLoading] = useState(true);
+  const [calcLoading, setCalcLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<number>>(new Set());
+  const [userName, setUserName] = useState('');
 
-  // TODO: replace DEMO_PROFILE with Supabase session profile
-  const profile = DEMO_PROFILE;
-
-  // Step 1: calculate first to have numbers for Claude
+  // Get real user name from auth
   useEffect(() => {
-    async function calc() {
-      setCalcLoading(true);
-      try {
-        const res = await fetch('/api/calculate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            profile: DEMO_PROFILE,
-            slips: DEMO_SLIPS,
-            business: DEMO_BUSINESS,
-            rental: DEMO_RENTAL,
-            deductions: DEMO_DEDUCTIONS,
-          }),
-        });
-        if (!res.ok) throw new Error();
-        setCalcResult(await res.json());
-      } catch {
-        setError('Could not run tax calculation. Check your connection and try again.');
-      } finally {
-        setCalcLoading(false);
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        const name = (data.user.user_metadata?.full_name as string | undefined)
+          ?? data.user.email?.split('@')[0]
+          ?? 'You';
+        setUserName(name);
       }
-    }
-    calc();
+    });
   }, []);
+
+  // Build a minimal profile for the filing guide API using the user's real auth data.
+  // Once Supabase tax_profiles table exists, replace this with a DB query.
+  const profile = {
+    legalName: userName || 'Taxpayer',
+    taxYear: 2025,
+    province: 'ON' as const,
+    residencyStatus: 'citizen' as const,
+    maritalStatus: 'single' as const,
+    dependants: [] as never[],
+  };
 
   async function generateGuide() {
     if (!calcResult) return;
@@ -159,7 +148,30 @@ export default function FilingGuidePage() {
       )}
 
       {/* ── Pre-generate state ────────────────────────────────────── */}
-      {!guide && !generating && (
+      {!guide && !generating && !calcResult && (
+        <Card className="border-dashed">
+          <CardContent className="pt-10 pb-10 flex flex-col items-center gap-5 text-center">
+            <BookOpen className="h-10 w-10 text-slate-300" />
+            <div className="space-y-1">
+              <p className="font-semibold text-slate-700">Complete your assessment first</p>
+              <p className="text-sm text-slate-400 max-w-xs">
+                We need your tax data to generate a personalized filing guide. Complete your
+                assessment to get started.
+              </p>
+            </div>
+            <a
+              href="/onboarding"
+              className="inline-flex items-center gap-2 rounded-full bg-[#1A2744] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1A2744]/90 transition-colors"
+            >
+              Start assessment
+              <ChevronRight className="h-4 w-4" />
+            </a>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Ready to generate ─────────────────────────────────────── */}
+      {!guide && !generating && calcResult && (
         <Card className="border-dashed">
           <CardContent className="pt-10 pb-10 flex flex-col items-center gap-5 text-center">
             <BookOpen className="h-10 w-10 text-slate-300" />
@@ -174,7 +186,7 @@ export default function FilingGuidePage() {
             </div>
             <Button
               onClick={generateGuide}
-              disabled={calcLoading || !calcResult}
+              disabled={calcLoading}
               className="bg-[#1A2744] hover:bg-[#1A2744]/90 gap-2"
             >
               {calcLoading ? (
@@ -189,17 +201,15 @@ export default function FilingGuidePage() {
                 </>
               )}
             </Button>
-            {calcResult && !calcLoading && (
-              <p className="text-xs text-slate-400">
-                Based on your{' '}
-                <span className="font-medium">
-                  {calcResult.balanceOwing < 0
-                    ? `${formatCad(Math.abs(calcResult.balanceOwing))} refund`
-                    : `${formatCad(calcResult.balanceOwing)} balance owing`}
-                </span>{' '}
-                calculation
-              </p>
-            )}
+            <p className="text-xs text-slate-400">
+              Based on your{' '}
+              <span className="font-medium">
+                {calcResult.balanceOwing < 0
+                  ? `${formatCad(Math.abs(calcResult.balanceOwing))} refund`
+                  : `${formatCad(calcResult.balanceOwing)} balance owing`}
+              </span>{' '}
+              calculation
+            </p>
           </CardContent>
         </Card>
       )}

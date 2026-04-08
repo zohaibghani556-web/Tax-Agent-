@@ -30,9 +30,9 @@ interface SavedSlip {
   enteredAt: string;
 }
 
-// How many unique slip types are "typical" — used as the progress denominator.
-// TODO: replace with the count surfaced from the chat assessment (taxProfile.expectedSlips)
-const EXPECTED_SLIP_COUNT = 5;
+// Typical number of slips for progress calculation.
+// Shown as a soft target — users can have more or fewer slips.
+const EXPECTED_SLIP_COUNT = 3;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -116,7 +116,9 @@ export default function SlipsPage() {
         <CardContent className="pt-5 pb-4 space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-slate-600 font-medium">
-              {slips.length} of {EXPECTED_SLIP_COUNT} slips entered
+              {slips.length === 0
+                ? 'No slips added yet'
+                : `${slips.length} slip${slips.length !== 1 ? 's' : ''} entered`}
             </span>
             <span className="text-slate-400">{progressPct}%</span>
           </div>

@@ -49,10 +49,16 @@ export default function SignupPage() {
     setLoading(true);
     setError('');
     const supabase = createClient();
+    // emailRedirectTo must point to /auth/callback so Supabase can exchange
+    // the one-time code for a session — see src/app/auth/callback/route.ts
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin;
     const { error: authError } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: name } },
+      options: {
+        data: { full_name: name },
+        emailRedirectTo: `${siteUrl}/auth/callback`,
+      },
     });
     if (authError) {
       setError(authError.message);

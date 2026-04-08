@@ -925,10 +925,15 @@ export default function HomePage() {
             <div>
               <p className="text-xs font-semibold text-white/30 uppercase tracking-widest mb-4">Product</p>
               <ul className="space-y-2">
-                {['Features', 'Pricing', 'Calculator', 'Filing Guide'].map((l) => (
-                  <li key={l}>
-                    <Link href={`/${l.toLowerCase().replace(' ', '-')}`} className="text-sm text-white/50 hover:text-white transition-colors">
-                      {l}
+                {[
+                  { label: 'Features', href: '/#features' },
+                  { label: 'Pricing', href: '/pricing' },
+                  { label: 'Calculator', href: '/calculator' },
+                  { label: 'Filing Guide', href: '/filing-guide' },
+                ].map(({ label, href }) => (
+                  <li key={label}>
+                    <Link href={href} className="text-sm text-white/50 hover:text-white transition-colors">
+                      {label}
                     </Link>
                   </li>
                 ))}
