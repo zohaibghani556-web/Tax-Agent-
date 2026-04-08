@@ -44,9 +44,13 @@ function parseSlipRecommendations(text: string): SlipRecommendation[] | null {
   }
 }
 
-/** Strip hidden XML tags (tax-profile-update, slip-recommendations) from display text. */
+/** Strip hidden XML tags and markdown code blocks from display text. */
 function stripHiddenTags(text: string): string {
   return text
+    // Markdown code blocks for structured data
+    .replace(/```tax-profile-update[\s\S]*?```/g, '')
+    .replace(/```slip-recommendations[\s\S]*?```/g, '')
+    // XML tags (current format)
     .replace(/<tax-profile-update>[\s\S]*?<\/tax-profile-update>/g, '')
     .replace(/<slip-recommendations>[\s\S]*?<\/slip-recommendations>/g, '')
     .trim();

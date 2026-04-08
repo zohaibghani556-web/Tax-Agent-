@@ -54,7 +54,7 @@ export default function FilingGuidePage() {
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [userName, setUserName] = useState('');
 
-  // Get real user name from auth
+  // Get real user name from auth + load calc result from localStorage
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
@@ -65,6 +65,11 @@ export default function FilingGuidePage() {
         setUserName(name);
       }
     });
+    // Load the calculation result the calculator saved
+    const raw = localStorage.getItem('taxagent_calc_result');
+    if (raw) {
+      try { setCalcResult(JSON.parse(raw) as TaxCalculationResult); } catch { /* ignore */ }
+    }
   }, []);
 
   // Build a minimal profile for the filing guide API using the user's real auth data.

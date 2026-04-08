@@ -71,14 +71,23 @@ export default function SlipsPage() {
   const [slipRecs, setSlipRecs] = useState<SlipRec[]>([]);
   const [assessmentDone, setAssessmentDone] = useState(false);
 
-  // Load slip recommendations from assessment (stored in localStorage)
+  // Load slip recommendations and saved slips from localStorage
   useEffect(() => {
     const recs = localStorage.getItem('taxagent_slip_recs');
     if (recs) {
       try { setSlipRecs(JSON.parse(recs) as SlipRec[]); } catch { /* ignore */ }
     }
     setAssessmentDone(!!localStorage.getItem('taxagent_assessment_done'));
+    const saved = localStorage.getItem('taxagent_slips');
+    if (saved) {
+      try { setSlips(JSON.parse(saved) as SavedSlip[]); } catch { /* ignore */ }
+    }
   }, []);
+
+  // Persist slips to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('taxagent_slips', JSON.stringify(slips));
+  }, [slips]);
 
   function addSlip(type: string, issuerName: string, data: Record<string, number | string>) {
     setSlips((prev) => [

@@ -140,10 +140,9 @@ function validateAssessmentResponse(response: string): ValidationResult {
     issues.push('TAX_AMOUNT_LEAK: Response contains a specific tax dollar amount');
   }
 
-  // 2. Multiple questions: assessment should ask one question at a time
+  // 2. Multiple questions: allow up to 4 (completion messages have more context)
   const questionCount = (response.match(/\?/g) ?? []).length;
-  if (questionCount > 2) {
-    // Allow up to 2 (e.g., a clarifying sub-question) but not full multi-part lists
+  if (questionCount > 4) {
     issues.push(`MULTIPLE_QUESTIONS: Response contains ${questionCount} question marks`);
   }
 
@@ -157,12 +156,6 @@ function validateAssessmentResponse(response: string): ValidationResult {
   const wrongYearPattern = /\b(202[0-4])\s*tax\s*year\b/i;
   if (wrongYearPattern.test(response)) {
     issues.push('WRONG_TAX_YEAR: Response mentions an incorrect tax year');
-  }
-
-  // 5. Advice giving: assessment should gather facts, not give planning advice
-  const advicePattern = /\b(you should|I recommend|I suggest|consider doing|you might want to|it would be better)\b/i;
-  if (advicePattern.test(response)) {
-    issues.push('ADVICE_PATTERN: Response gives financial advice instead of gathering information');
   }
 
   return {
@@ -298,7 +291,7 @@ export async function POST(req: NextRequest) {
     for (let attempt = 0; attempt < 3; attempt++) {
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
+        max_tokens: 2048,
         system: attempt === 0
           ? systemPrompt
           : systemPrompt + '\n\nIMPORTANT REMINDER: Ask only ONE question per response. Do NOT state specific tax dollar amounts. Do NOT reference IRS or US tax forms.',

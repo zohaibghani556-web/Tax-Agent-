@@ -13,6 +13,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import type { TaxCalculationResult } from '@/lib/tax-engine/types';
 
 function formatCad(n: number): string {
   return new Intl.NumberFormat('en-CA', {
@@ -111,6 +112,9 @@ function ChecklistStep({
 export default function DashboardPage() {
   const [firstName, setFirstName] = useState('');
   const [userLoading, setUserLoading] = useState(true);
+  const [assessmentDone, setAssessmentDone] = useState(false);
+  const [hasSlips, setHasSlips] = useState(false);
+  const [calcResult, setCalcResult] = useState<TaxCalculationResult | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -122,13 +126,23 @@ export default function DashboardPage() {
       }
       setUserLoading(false);
     });
+
+    // Read progress from localStorage
+    setAssessmentDone(!!localStorage.getItem('taxagent_assessment_done'));
+    try {
+      const slips = localStorage.getItem('taxagent_slips');
+      if (slips) {
+        const parsed = JSON.parse(slips) as unknown[];
+        setHasSlips(Array.isArray(parsed) && parsed.length > 0);
+      }
+    } catch { /* ignore */ }
+    try {
+      const calc = localStorage.getItem('taxagent_calc_result');
+      if (calc) setCalcResult(JSON.parse(calc) as TaxCalculationResult);
+    } catch { /* ignore */ }
   }, []);
 
-  // Once Supabase tax_profiles + tax_calculations tables exist, replace these
-  // with a DB query. For now, new users always see the empty state with CTAs.
-  const assessmentDone = false;
-  const hasSlips = false;
-  const hasCalculation = false;
+  const hasCalculation = calcResult !== null;
 
   const progressSteps = [assessmentDone, hasSlips, hasCalculation].filter(Boolean).length;
   const progressPct = Math.round((progressSteps / 3) * 100);
@@ -178,11 +192,24 @@ export default function DashboardPage() {
       )}
 
       {/* ── Metric cards or empty state ────────────────────────────── */}
-      {hasCalculation ? (
+      {hasCalculation && calcResult ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <MetricCard label="Total Income" value="—" sub="Complete assessment to calculate" />
-          <MetricCard label="Estimated Tax" value="—" />
-          <MetricCard label="Balance Owing" value="—" sub="Due April 30, 2026" />
+          <MetricCard
+            label="Total Income"
+            value={formatCad(calcResult.totalIncome)}
+            sub="2025 total income"
+          />
+          <MetricCard
+            label="Total Tax Payable"
+            value={formatCad(calcResult.totalTaxPayable)}
+            sub={`Avg rate: ${(calcResult.averageTaxRate * 100).toFixed(1)}%`}
+          />
+          <MetricCard
+            label={calcResult.balanceOwing < 0 ? 'Estimated Refund' : 'Balance Owing'}
+            value={formatCad(Math.abs(calcResult.balanceOwing))}
+            sub="Due April 30, 2026"
+            highlight={calcResult.balanceOwing < 0 ? 'emerald' : 'red'}
+          />
         </div>
       ) : (
         <GlassCard className="px-6 py-10 text-center">
