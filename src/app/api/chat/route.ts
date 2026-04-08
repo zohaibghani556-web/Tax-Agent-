@@ -23,6 +23,7 @@ import {
   getRelevantMistakes,
 } from '@/lib/ai/canadian-tax-knowledge';
 import type { TaxProfile } from '@/lib/tax-engine/types';
+import type { TaxBreakdown } from '@/lib/taxEngine';
 
 // ============================================================
 // ANTHROPIC CLIENT
@@ -44,6 +45,9 @@ interface ChatMessage {
 interface ChatRequest {
   messages: ChatMessage[];
   taxProfile?: Partial<TaxProfile>;
+  // Pre-computed breakdown from /api/calculate — injected verbatim so Claude
+  // explains numbers rather than recalculating them.
+  taxBreakdown?: TaxBreakdown;
   // Assessment phase (1–9). Used to inject phase-specific knowledge.
   // If omitted, the engine infers context from the taxProfile.
   currentPhase?: number;
@@ -211,7 +215,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const { messages, taxProfile, currentPhase = 1 } = body;
+  const { messages, taxProfile, taxBreakdown, currentPhase = 1 } = body;
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return new Response(JSON.stringify({ error: 'messages array is required' }), {
@@ -272,7 +276,13 @@ export async function POST(req: NextRequest) {
     ? `\n\n---\nCURRENT TAX PROFILE STATE:\n${JSON.stringify(taxProfile, null, 2)}\n---`
     : '';
 
-  const systemPrompt = enrichedSystemPrompt + profileContext;
+  // Inject pre-computed tax breakdown so Claude explains numbers rather than recalculating.
+  // Architecture rule: AI explains deterministic engine output — never recalculates.
+  const breakdownContext = taxBreakdown
+    ? `\n\n---\nCOMPUTED TAX BREAKDOWN (authoritative — do NOT recalculate, only explain):\n${JSON.stringify(taxBreakdown, null, 2)}\n---`
+    : '';
+
+  const systemPrompt = enrichedSystemPrompt + profileContext + breakdownContext;
 
   // --- Call Claude with response validation (up to 2 regeneration attempts) ---
   const anthropicMessages = messages.map((m) => ({

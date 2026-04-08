@@ -1,3 +1,12 @@
+/**
+ * Ontario Health Premium tests — corrected to match actual 2025 CRA formula.
+ *
+ * Key tier boundaries (all use "lesser of max or rate × excess" formula):
+ *   Tier 1 ($20,001–$36,000): caps at $300 when income reaches $25,000 (6% × $5,000 = $300)
+ *   Tier 2 ($36,001–$48,000): adds up to $150 more, caps at $450 when income reaches $38,500
+ *   Tier 3 ($48,001–$72,000): adds up to $150 more, caps at $600 when income reaches $48,600
+ *   Tier 4 ($72,001–$200,000): adds up to $300 more, caps at $900 when income reaches $73,200
+ */
 import { describe, it, expect } from 'vitest';
 import { calculateOntarioHealthPremium } from './health-premium';
 
@@ -6,33 +15,59 @@ describe('calculateOntarioHealthPremium', () => {
     expect(calculateOntarioHealthPremium(0)).toBe(0);
   });
 
-  // $18,000: below $20,000 threshold → no premium
   it('returns $0 for income below $20,000', () => {
     expect(calculateOntarioHealthPremium(18000)).toBe(0);
   });
 
-  // $20,000 exactly: in the 0–$20,000 bracket (income <= max: 20000 ≤ 20000) → $0
   it('returns $0 at exactly $20,000', () => {
     expect(calculateOntarioHealthPremium(20000)).toBe(0);
   });
 
-  // $30,000: in the $25,000–$36,000 bracket (base $300, rate 6%)
-  // premium = $300 + 6% × ($30,000 − $25,000) = $300 + $300 = $600
-  it('applies $300 base + 6% rate for $30,000 income', () => {
-    expect(calculateOntarioHealthPremium(30000)).toBe(600);
+  // $22,500: 6% × ($22,500 − $20,000) = 6% × $2,500 = $150 (below $300 cap)
+  it('returns $150 at $22,500 (partial tier 1)', () => {
+    expect(calculateOntarioHealthPremium(22500)).toBe(150);
   });
 
-  // $60,000: in the $48,600–$72,000 flat bracket → $900
-  it('returns $900 for $60,000 income (flat bracket)', () => {
-    expect(calculateOntarioHealthPremium(60000)).toBe(900);
+  // $25,000: 6% × ($25,000 − $20,000) = $300 (cap reached)
+  it('returns $300 at $25,000 (tier 1 cap reached)', () => {
+    expect(calculateOntarioHealthPremium(25000)).toBe(300);
   });
 
-  // $210,000: in the $200,600+ flat bracket → $900 (maximum premium)
+  // $30,000: 6% × ($30,000 − $20,000) = $600, but lesser of ($300, $600) = $300
+  it('returns $300 for $30,000 income (capped at tier 1 max)', () => {
+    expect(calculateOntarioHealthPremium(30000)).toBe(300);
+  });
+
+  // $38,500: $300 + 6% × ($38,500 − $36,000) = $300 + $150 = $450 (tier 2 cap)
+  it('returns $450 at $38,500 (tier 2 cap reached)', () => {
+    expect(calculateOntarioHealthPremium(38500)).toBe(450);
+  });
+
+  // $48,600: $450 + 25% × ($48,600 − $48,000) = $450 + $150 = $600 (tier 3 cap)
+  it('returns $600 at $48,600 (tier 3 cap reached)', () => {
+    expect(calculateOntarioHealthPremium(48600)).toBe(600);
+  });
+
+  // $60,000: in $48,601–$72,000 flat range → $600
+  it('returns $600 for $60,000 income (tier 3 flat zone)', () => {
+    expect(calculateOntarioHealthPremium(60000)).toBe(600);
+  });
+
+  // $73,200: $600 + 25% × ($73,200 − $72,000) = $600 + $300 = $900 (tier 4 cap)
+  it('returns $900 at $73,200 (tier 4 cap reached)', () => {
+    expect(calculateOntarioHealthPremium(73200)).toBe(900);
+  });
+
+  // $150,000: in $73,201–$200,000 flat zone → $900
+  it('returns $900 for $150,000 income (tier 4 flat zone)', () => {
+    expect(calculateOntarioHealthPremium(150000)).toBe(900);
+  });
+
+  // $210,000: over $200,000 → $900 (maximum)
   it('returns $900 for $210,000 income (premium capped at $900)', () => {
     expect(calculateOntarioHealthPremium(210000)).toBe(900);
   });
 
-  // $1,000,000: well beyond all brackets → still $900
   it('returns $900 for very high income', () => {
     expect(calculateOntarioHealthPremium(1000000)).toBe(900);
   });

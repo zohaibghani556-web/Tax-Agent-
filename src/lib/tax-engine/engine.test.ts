@@ -9,28 +9,28 @@
  *   Charitable donations: $600
  *   Medical expenses: $1,200
  *
- * Manual calculation summary (verified against CRA bracket tables):
+ * Manual calculation summary (corrected for 2025 constants):
  *   Total income (L.15000)  : $73,554.00  (72,000 + 450 + 1,104)
  *   Net income   (L.23600)  : $68,554.00  (73,554 − 5,000 RRSP)
  *   Taxable income (L.26000): $68,554.00
  *
- *   Federal tax on income   : $10,611.08  (8,319.38 @ 14.5% + 2,291.70 @ 20.5%)
- *   Federal NRCs            :  $3,487.10  (BPA 16,129 + CPP 3,700 + EI 1,077 + Emp 1,368) × 15% + donations 146.00
- *   Federal DTC             :    $165.81  (1,104 taxable eligible × 15.0198%)
- *   Top-up credit           :    $111.37  (22,274 credit amounts × 0.5%)
- *   Net federal tax         :  $6,846.80
+ *   Federal tax on income   : $10,611.07  (IEEE 754: 57,375×14.5% = 8,319.37 + 11,179×20.5% = 2,291.70)
+ *   Federal NRCs            :  $3,496.85  (BPA 16,129 + CPP 3,700 + EI 1,077 + Emp 1,433) × 15% + donations 146
+ *   Federal DTC             :    $165.82  (1,104 × 15.0198%)
+ *   Top-up credit           :    $111.70  (22,339 credit amounts × 0.5%)
+ *   Net federal tax         :  $6,836.70
  *
- *   Ontario tax on income   :  $4,104.36  (2,670.74 @ 5.05% + 1,433.62 @ 9.15%)
- *   Ontario NRCs            :  $1,008.79  (ON-BPA 12,747 + CPP 3,700 + EI 1,077 + Emp 1,368) × 5.05% + ON-donations 54.74
- *   Ontario DTC             :    $110.40  (1,104 taxable eligible × 10%)
- *   Ontario LIR             :      $0.00  (clawback exceeds $294 base at income $68,554)
- *   Ontario surtax          :      $0.00  (basic Ontario tax $2,985.17 < $6,104 threshold)
- *   Ontario Health Premium  :    $900.00  (taxable income in $48,600–$72,000 bracket)
- *   Net Ontario tax         :  $3,885.17
+ *   Ontario tax on income   :  $4,163.40  (51,446×5.05% = 2,598.02 + 17,108×9.15% = 1,565.38)
+ *   Ontario NRCs            :    $967.53  (ON-BPA 11,865 + CPP 3,700 + EI 1,077 + Emp 1,433) × 5.05% + ON-donations 54.74
+ *   Ontario DTC             :    $110.40  (1,104 × 10%)
+ *   Ontario LITR            :      $0.00  (income $68,554 >> $18,569 threshold)
+ *   Ontario surtax          :      $0.00  (basic Ontario tax $3,085.47 < $5,818 threshold)
+ *   Ontario Health Premium  :    $600.00  (taxable income $48,601–$72,000 flat band)
+ *   Net Ontario tax         :  $3,685.47
  *
- *   Total tax payable       : $10,731.97
+ *   Total tax payable       : $10,522.17
  *   Total tax deducted      : $14,200.00
- *   Balance (refund)        : −$3,468.03
+ *   Balance (refund)        : −$3,677.83
  *
  *   OTB estimate (OEPTC)    :    $737.86  (energy $280 + rent $1,248 − income reduction $790.14)
  */
@@ -151,46 +151,46 @@ describe('calculateTaxReturn — single, age 28, T4 + T5, RRSP, rent', () => {
 
   describe('Federal tax', () => {
     it('federal tax on income = $10,611.07', () => {
-      // Bracket 1: roundCRA(57,375 × 0.145) = 8,319.37 (IEEE 754 rounds down)
-      // Bracket 2: roundCRA(11,179 × 0.205) = 2,291.70
+      // IEEE 754: 57,375 × 0.145 ≈ 8,319.37 (0.145 is slightly < 0.145 in double)
+      // Bracket 2: 11,179 × 0.205 = 2,291.70
       cent(result.federalTaxOnIncome, 10611.07, 'federalTaxOnIncome');
     });
 
-    it('federal non-refundable credits = $3,487.10', () => {
-      // (BPA 16,129 + CPP 3,700 + EI 1,077 + Employment 1,368) × 15% + donations 146
-      // = 22,274 × 15% + 146 = 3,341.10 + 146 = 3,487.10
-      cent(result.federalNonRefundableCredits, 3487.10, 'federalNRC');
+    it('federal non-refundable credits = $3,496.85', () => {
+      // (BPA 16,129 + CPP 3,700 + EI 1,077 + Employment 1,433) × 15% + donations 146
+      // = 22,339 × 15% + 146 = 3,350.85 + 146 = 3,496.85
+      cent(result.federalNonRefundableCredits, 3496.85, 'federalNRC');
     });
 
-    it('federal dividend tax credit = $165.81', () => {
-      // 1,104 taxable eligible × 15.0198% = 165.81
-      cent(result.federalDividendTaxCredit, 165.81, 'federalDTC');
+    it('federal dividend tax credit = $165.82', () => {
+      // 1,104 × 15.0198% = 165.818... → 165.82
+      cent(result.federalDividendTaxCredit, 165.82, 'federalDTC');
     });
 
-    it('top-up tax credit = $111.37 (2025 blended-rate adjustment)', () => {
-      // 22,274 credit amounts × (15% − 14.5%) = 22,274 × 0.5% = 111.37
-      cent(result.topUpTaxCredit, 111.37, 'topUpCredit');
+    it('top-up tax credit = $111.70 (2025 blended-rate adjustment)', () => {
+      // 22,339 × (15% − 14.5%) = 22,339 × 0.5% = 111.695 → 111.70
+      cent(result.topUpTaxCredit, 111.70, 'topUpCredit');
     });
 
-    it('net federal tax = $6,846.79', () => {
-      // 10,611.07 − 3,487.10 − 165.81 − 111.37 = 6,846.79
-      cent(result.netFederalTax, 6846.79, 'netFederalTax');
+    it('net federal tax = $6,836.70', () => {
+      // 10,611.07 − 3,496.85 − 165.82 − 111.70 = 6,836.70
+      cent(result.netFederalTax, 6836.70, 'netFederalTax');
     });
   });
 
   describe('Ontario tax', () => {
-    it('Ontario tax on income = $4,104.36', () => {
-      // Bracket 1: 52,886 × 5.05% = 2,670.74
-      // Bracket 2: (68,554 − 52,886) × 9.15% = 15,668 × 9.15% = 1,433.62
-      cent(result.ontarioTaxOnIncome, 4104.36, 'ontarioTaxOnIncome');
+    it('Ontario tax on income = $4,163.40', () => {
+      // Bracket 1: 51,446 × 5.05% = 2,598.02
+      // Bracket 2: (68,554 − 51,446) × 9.15% = 17,108 × 9.15% = 1,565.38
+      cent(result.ontarioTaxOnIncome, 4163.40, 'ontarioTaxOnIncome');
     });
 
-    it('Ontario non-refundable credits = $1,008.79', () => {
-      // (ON-BPA 12,747 + CPP 3,700 + EI 1,077 + Employment 1,368) × 5.05%
+    it('Ontario non-refundable credits = $967.53', () => {
+      // (ON-BPA 11,865 + CPP 3,700 + EI 1,077 + Employment 1,433) × 5.05%
       //   + (200 × 5.05% + 400 × 11.16%)
-      // = 18,892 × 5.05% + 54.74
-      // = 954.05 + 54.74 = 1,008.79
-      cent(result.ontarioNonRefundableCredits, 1008.79, 'ontarioNRC');
+      // = 18,075 × 5.05% + 54.74
+      // = 912.79 + 54.74 = 967.53
+      cent(result.ontarioNonRefundableCredits, 967.53, 'ontarioNRC');
     });
 
     it('Ontario dividend tax credit = $110.40', () => {
@@ -199,34 +199,36 @@ describe('calculateTaxReturn — single, age 28, T4 + T5, RRSP, rent', () => {
     });
 
     it('Ontario low-income reduction = $0 (income too high)', () => {
-      // clawback = (68,554 − 18,569) × 5.05% = 2,524.29 > $294 base → reduction = $0
+      // clawback = (68,554 − 18,569) × 5.05% = 2,524.24 > $294 base → reduction = $0
       cent(result.ontarioLowIncomeReduction, 0, 'ontarioLIR');
     });
 
-    it('Ontario surtax = $0 (basic tax $2,985.17 < $6,104 threshold)', () => {
+    it('Ontario surtax = $0 (basic tax $3,085.47 < $5,818 threshold)', () => {
       cent(result.ontarioSurtax, 0, 'ontarioSurtax');
     });
 
-    it('Ontario Health Premium = $900 (income in $48,600–$72,000 band)', () => {
-      cent(result.ontarioHealthPremium, 900, 'ontarioOHP');
+    it('Ontario Health Premium = $600 (income in $48,601–$72,000 flat band)', () => {
+      // CRA formula: $450 + min($150, 25%×(income−$48,000)); caps at $600 at income $48,600
+      // $68,554 is in the flat $600 zone
+      cent(result.ontarioHealthPremium, 600, 'ontarioOHP');
     });
 
-    it('net Ontario tax = $3,885.17 (basic $2,985.17 + OHP $900)', () => {
-      cent(result.netOntarioTax, 3885.17, 'netOntarioTax');
+    it('net Ontario tax = $3,685.47 (basic $3,085.47 + OHP $600)', () => {
+      cent(result.netOntarioTax, 3685.47, 'netOntarioTax');
     });
   });
 
   describe('Bottom line', () => {
-    it('total tax payable = $10,731.96', () => {
-      cent(result.totalTaxPayable, 10731.96, 'totalTaxPayable');
+    it('total tax payable = $10,522.17', () => {
+      cent(result.totalTaxPayable, 10522.17, 'totalTaxPayable');
     });
 
     it('total tax deducted = $14,200 (T4 box 22)', () => {
       cent(result.totalTaxDeducted, 14200, 'totalTaxDeducted');
     });
 
-    it('balance = −$3,468.04 (refund)', () => {
-      cent(result.balanceOwing, -3468.04, 'balanceOwing');
+    it('balance = −$3,677.83 (refund)', () => {
+      cent(result.balanceOwing, -3677.83, 'balanceOwing');
       expect(result.balanceOwing).toBeLessThan(0); // confirms it is a refund
     });
   });
@@ -291,7 +293,7 @@ describe('calculateTaxReturn — single, age 28, T4 + T5, RRSP, rent', () => {
 
   describe('Warnings', () => {
     it('emits a medical expense info warning (expenses below threshold)', () => {
-      // $1,200 medical < threshold of min($2,759, 3% × $68,554 = $2,056.62) = $2,056.62
+      // $1,200 medical < threshold of min($2,635, 3% × $68,554 = $2,056.62) = $2,056.62
       const medicalWarning = result.warnings.find(w => w.line === 33099);
       expect(medicalWarning).toBeDefined();
       expect(medicalWarning?.severity).toBe('info');

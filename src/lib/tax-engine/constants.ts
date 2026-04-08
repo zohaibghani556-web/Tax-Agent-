@@ -1,16 +1,17 @@
 /**
  * TaxAgent.ai — 2025 Canadian Tax Constants (Ontario)
  * SINGLE SOURCE OF TRUTH. To update for new tax year, modify ONLY this file.
- * 
+ *
  * Sources verified against:
- * - CRA federal rates: canada.ca/en/revenue-agency
- * - H&R Block 2025 brackets: hrblock.ca
- * - EY Ontario 2025 tax tables: ey.com
- * - TaxTips.ca: taxtips.ca/taxrates/on.htm
- * - Wealthsimple 2025 Ontario: wealthsimple.com/en-ca/learn/ontario-tax-brackets
- * 
+ *   CRA T4032 Payroll Deductions Tables (2025): canada.ca/en/revenue-agency/services/forms-publications/payroll/t4032-payroll-deductions-tables.html
+ *   CRA Schedule 1 Federal Tax (2025): canada.ca/en/revenue-agency/services/forms-publications/tax-packages-years/general-income-tax-benefit-package/5000-s1.html
+ *   CRA ON428 Ontario Tax (2025): canada.ca/en/revenue-agency/services/forms-publications/tax-packages-years/general-income-tax-benefit-package/ontario/5006-pc.html
+ *   CRA ON-BEN (2025): ontario trillium benefit
+ *   EY Ontario 2025 personal tax rates: ey.com/en_ca/tax/tax-calculators/personal-tax
+ *   Finance Canada Bill C-4 (2025): blended lowest federal rate 14.5%
+ *
  * 2025 SPECIAL NOTE: Federal lowest rate is BLENDED 14.5%
- * (15% Jan 1–Jun 30, 14% Jul 1–Dec 31)
+ * (15% Jan 1–Jun 30, 14% Jul 1–Dec 31, per Bill C-4)
  */
 
 export const TAX_YEAR = 2025;
@@ -33,285 +34,423 @@ export interface BenefitThreshold {
 }
 
 // ============================================================
-// FEDERAL TAX BRACKETS
+// FEDERAL TAX BRACKETS — ITA s.117
+// Bill C-4 blends 15% (Jan-Jun) and 14% (Jul-Dec) to 14.5% effective
 // ============================================================
 
 export const FEDERAL_BRACKETS: TaxBracket[] = [
-  { min: 0,       max: 57375,    rate: 0.145  },
-  { min: 57375,   max: 114750,   rate: 0.205  },
-  { min: 114750,  max: 177882,   rate: 0.26   },
-  { min: 177882,  max: 253414,   rate: 0.29   },
-  { min: 253414,  max: Infinity, rate: 0.33   },
+  { min: 0,       max: 57375,    rate: 0.145  },  // 14.5% blended
+  { min: 57375,   max: 114750,   rate: 0.205  },  // 20.5%
+  { min: 114750,  max: 177882,   rate: 0.26   },  // 26%
+  { min: 177882,  max: 253414,   rate: 0.29   },  // 29%
+  { min: 253414,  max: Infinity, rate: 0.33   },  // 33%
 ];
 
-// Credit rate: 15% preserved via Top-Up Tax Credit for 2025
+/**
+ * Non-refundable credit rate stays at 15% (pre-Bill C-4 rate) per Top-Up Tax Credit.
+ * This preserves the dollar value of personal credits in the transition year.
+ * CRA Schedule 1 line 30000–33500 all use 15%.
+ */
 export const FEDERAL_CREDIT_RATE = 0.15;
+
+/**
+ * Actual blended lowest bracket rate (14.5%).
+ * Used to compute the Top-Up Tax Credit = credit amounts × (15% − 14.5%).
+ */
 export const FEDERAL_LOWEST_RATE = 0.145;
 
 // ============================================================
-// ONTARIO TAX BRACKETS
+// ONTARIO TAX BRACKETS — Ontario Taxation Act s.8
+// Source: CRA T4032ON, effective Jan 1 2025
 // ============================================================
 
 export const ONTARIO_BRACKETS: TaxBracket[] = [
-  { min: 0,       max: 52886,    rate: 0.0505 },
-  { min: 52886,   max: 105775,   rate: 0.0915 },
-  { min: 105775,  max: 150000,   rate: 0.1116 },
-  { min: 150000,  max: 220000,   rate: 0.1216 },
-  { min: 220000,  max: Infinity, rate: 0.1316 },
+  { min: 0,       max: 51446,    rate: 0.0505 },  // 5.05%
+  { min: 51446,   max: 102894,   rate: 0.0915 },  // 9.15%
+  { min: 102894,  max: 150000,   rate: 0.1116 },  // 11.16%
+  { min: 150000,  max: 220000,   rate: 0.1216 },  // 12.16%
+  { min: 220000,  max: Infinity, rate: 0.1316 },  // 13.16%
 ];
 
 export const ONTARIO_CREDIT_RATE = 0.0505;
 
-// Ontario Surtax (applied to basic Ontario tax, NOT income)
+// Ontario Surtax — Ontario Taxation Act s.48
+// Applied on basic Ontario tax (after NRCs/DTC/LITR), before OHP
+// Source: CRA T4032ON Jan 2025
 export const ONTARIO_SURTAX = {
-  threshold1: 6104,
+  threshold1: 5818,   // 20% surtax on basic Ontario tax above this
   rate1: 0.20,
-  threshold2: 7812,
-  rate2: 0.36,  // Additional 36% (total 56% on amount over threshold2)
+  threshold2: 7446,   // additional 36% surtax on basic Ontario tax above this
+  rate2: 0.36,        // total 56% (20% + 36%) on amount above threshold2
 };
 
-// Ontario Health Premium (based on taxable income, NOT basic Ontario tax)
-export const ONTARIO_HEALTH_PREMIUM_BRACKETS = [
-  { min: 0,      max: 20000,  base: 0,   rate: 0,    prevMax: 0   },
-  { min: 20000,  max: 25000,  base: 0,   rate: 0.06, prevMax: 0   },
-  { min: 25000,  max: 36000,  base: 300, rate: 0.06, prevMax: 300 },
-  { min: 36000,  max: 38500,  base: 450, rate: 0.25, prevMax: 450 },
-  { min: 38500,  max: 48000,  base: 600, rate: 0.25, prevMax: 600 },
-  { min: 48000,  max: 48600,  base: 750, rate: 0.25, prevMax: 750 },
-  { min: 48600,  max: 72000,  base: 900, rate: 0,    prevMax: 900 },
-  { min: 72000,  max: 72600,  base: 900, rate: 0.25, prevMax: 900 },
-  { min: 72600,  max: 200000, base: 900, rate: 0,    prevMax: 900 },
-  { min: 200000, max: 200600, base: 900, rate: 0.25, prevMax: 900 },
-  { min: 200600, max: Infinity, base: 900, rate: 0,  prevMax: 900 },
-];
+// Ontario Health Premium — Ontario Taxation Act s.33.1
+// Uses graduated "lesser of" formula — do NOT use a simple bracket table.
+// Thresholds and max amounts by tier (see calculateOntarioHealthPremium function).
+export const ONTARIO_HEALTH_PREMIUM = {
+  tier1Start:  20000,  // premium is $0 for income at or below this
+  tier1End:    36000,  // first partial premium tier ends here
+  tier1Rate:   0.06,   // 6% of income above $20,000
+  tier1Max:    300,    // maximum premium added in tier 1
 
-// Ontario low-income tax reduction
+  tier2End:    48000,  // second partial premium tier ends here
+  tier2Rate:   0.06,   // 6% of income above $36,000
+  tier2Max:    150,    // maximum additional premium in tier 2 ($300 → $450)
+
+  tier3End:    72000,  // third partial premium tier ends here
+  tier3Rate:   0.25,   // 25% of income above $48,000
+  tier3Max:    150,    // maximum additional premium in tier 3 ($450 → $600)
+
+  tier4End:    200000, // fourth partial premium tier ends here
+  tier4Rate:   0.25,   // 25% of income above $72,000
+  tier4Max:    300,    // maximum additional premium in tier 4 ($600 → $900)
+
+  maxPremium:  900,    // absolute maximum premium ($200,001+)
+};
+
+// Ontario Low-Income Tax Reduction — Ontario Taxation Act s.8(3)
 export const ONTARIO_LOW_INCOME_REDUCTION = {
-  baseReduction: 294,        // Reduction in Ontario tax
-  clawbackStart: 18569,      // Taxable income threshold
-  clawbackRate: 0.0505,      // Clawed back at lowest Ontario rate
+  baseReduction: 294,      // maximum reduction in Ontario tax
+  clawbackStart: 18569,    // reduction clawed back above this taxable income
+  clawbackRate:  0.0505,   // clawback at lowest Ontario rate
 };
 
 // ============================================================
 // BASIC PERSONAL AMOUNTS
 // ============================================================
 
+/** Federal BPA — ITA s.118(1)(c). Full BPA at income ≤ $177,882; additional
+ *  $1,591 clawed back linearly between $177,882 and $253,414. */
 export const FEDERAL_BPA = {
-  base: 14538,
-  additional: 1591,
-  max: 16129,                 // base + additional
-  clawbackStart: 177882,     // Additional reduced above this
-  clawbackEnd: 253414,       // Additional fully eliminated
+  base:          14538,   // Base BPA (everyone)
+  additional:    1591,    // Additional BPA clawed back above $177,882
+  max:           16129,   // Full BPA = base + additional
+  clawbackStart: 177882,  // Clawback of additional begins here
+  clawbackEnd:   253414,  // Additional fully eliminated at this net income
 };
 
-export const ONTARIO_BPA = 12747;
+/** Ontario BPA — Ontario Taxation Act s.8(1). × 5.05% = $599.18 credit */
+export const ONTARIO_BPA = 11865;
 
 // ============================================================
-// CPP / CPP2 / EI (2025)
+// CPP / CPP2 / EI 2025 — source: CRA T4032
 // ============================================================
 
 export const CPP = {
-  maxPensionableEarnings: 71300,
-  basicExemption: 3500,
-  employeeRate: 0.0595,
-  selfEmployedRate: 0.1190,   // Both portions
-  maxEmployeeContribution: 4034.10,
-  maxSelfEmployedContribution: 8068.20,
+  maxPensionableEarnings:     71300,
+  basicExemption:             3500,
+  employeeRate:               0.0595,
+  selfEmployedRate:           0.1190,    // pays both employee + employer
+  maxEmployeeContribution:    4034.10,   // (71300 - 3500) × 5.95%
+  maxSelfEmployedContribution: 8068.20,  // both halves
 };
 
 export const CPP2 = {
-  secondCeiling: 81200,
-  rate: 0.04,
-  selfEmployedRate: 0.08,
-  maxEmployeeContribution: 396.00,
+  secondCeiling:               81200,    // YAMPE
+  rate:                        0.04,
+  selfEmployedRate:            0.08,
+  maxEmployeeContribution:     396.00,   // (81200 - 71300) × 4%
   maxSelfEmployedContribution: 792.00,
 };
 
 export const EI = {
   maxInsurableEarnings: 65700,
-  premiumRate: 0.0164,
-  maxPremium: 1077.48,
+  premiumRate:          0.0164,
+  maxPremium:           1077.48,         // 65700 × 1.64%
+  employerRateMultiple: 1.4,             // employer pays 1.4× employee rate
 };
 
 // ============================================================
-// RRSP / FHSA
+// RRSP / FHSA 2025
 // ============================================================
 
 export const RRSP = {
-  maxContribution: 32490,
-  earnedIncomeRate: 0.18,
+  maxContribution:    32490,   // dollar limit; actual room also capped at 18% prior-year earned income
+  earnedIncomeRate:   0.18,
 };
 
 export const FHSA = {
-  annualLimit: 8000,
-  lifetimeLimit: 40000,
+  annualLimit:         8000,
+  lifetimeLimit:       40000,
+  carryForwardMax:     8000,   // one year unused room carries forward
 };
 
 // ============================================================
-// CAPITAL GAINS (2025)
+// CAPITAL GAINS (2025) — ITA s.38
+// Two-tier system per user specification:
+//   First $250,000 net gains: 50% inclusion
+//   Above $250,000: 66.67% inclusion (Budget 2024)
+// LCGE for qualifying small business shares: $1,250,000
 // ============================================================
 
-// For 2025, the inclusion rate increase to 2/3 was DEFERRED to Jan 1, 2026
-// So for 2025 tax year: flat 50% inclusion rate for all individuals
 export const CAPITAL_GAINS = {
-  inclusionRate: 0.50,
-  lcge: 1250000,             // Lifetime Capital Gains Exemption (QSBC/farm/fishing)
+  inclusionRateLow:  0.50,      // first $250,000 of net gains
+  inclusionRateHigh: 0.6667,    // net gains above $250,000
+  threshold:         250000,    // threshold between rates
+  lcge:              1250000,   // Lifetime Capital Gains Exemption (QSBC/farm/fishing)
   principalResidenceExempt: true,
 };
 
 // ============================================================
-// DIVIDENDS
+// DIVIDENDS 2025 — ITA s.82, s.121
 // ============================================================
 
 export const DIVIDENDS = {
   eligible: {
-    grossUpRate: 0.38,        // Gross-up by 38%
-    federalCreditRate: 0.150187,  // 15.0198% of taxable amount
-    ontarioCreditRate: 0.10,   // 10% of taxable amount
+    grossUpRate:         0.38,       // actual dividend × 1.38 = taxable amount (line 12000)
+    federalCreditRate:   0.150198,   // % of grossed-up dividend (ITA s.121(a))
+    ontarioCreditRate:   0.100,      // % of grossed-up dividend (Ontario Taxation Act s.19.1)
   },
   nonEligible: {
-    grossUpRate: 0.15,        // Gross-up by 15%
-    federalCreditRate: 0.090301,  // 9.0301% of taxable amount
-    ontarioCreditRate: 0.028571,  // 2.8571% of taxable amount
+    grossUpRate:         0.15,       // actual dividend × 1.15 = taxable amount (line 12010)
+    federalCreditRate:   0.090301,   // % of grossed-up dividend (ITA s.121(b))
+    ontarioCreditRate:   0.03282,    // % of grossed-up dividend (Ontario Taxation Act s.19.1)
   },
 };
 
 // ============================================================
-// NON-REFUNDABLE CREDIT AMOUNTS (FEDERAL)
+// FEDERAL NON-REFUNDABLE CREDIT AMOUNTS — ITA s.118–118.62
+// All multiplied by FEDERAL_CREDIT_RATE (15%) to get credit value.
+// Exceptions: donations (tiered rates), top-up credit.
 // ============================================================
 
 export const FEDERAL_CREDITS = {
-  canadaEmploymentAmount: 1368,
+  /** Canada Employment Amount — ITA s.118(10) */
+  canadaEmploymentAmount: 1433,
+
+  /** Pension Income Amount — ITA s.118(3) */
   pensionIncomeMax: 2000,
-  
+
+  /** Age Amount — ITA s.118(2). Clawed back 15% above $44,325; eliminated at ~$103,325. */
   ageAmount: {
-    max: 9028,
-    clawbackStart: 44325,
-    clawbackRate: 0.15,       // Reduced by 15% of net income over clawbackStart
+    max:             8790,
+    clawbackStart:   44325,
+    clawbackRate:    0.15,
+    eliminationIncome: 103325,   // approx: $44,325 + $8,790/0.15
   },
 
+  /** Disability Tax Credit — ITA s.118.3. Requires CRA-approved T2201. */
   disabilityAmount: {
-    base: 9872,
-    supplementUnder18: 5758,
-    supplementClawbackRate: 1.0, // Reduced $ for $ by child care + attendant care over threshold
-    supplementClawbackThreshold: 3464,
+    base:                       9872,
+    supplementUnder18:          5758,
+    supplementClawbackThreshold: 3302,  // supplement reduced $ for $ above this
+    supplementClawbackRate:     1.0,
   },
 
-  interestOnStudentLoans: true, // Deductible at federal credit rate
-
+  /** Canada Caregiver Amount — ITA s.118(1)(d)/(e). For infirm dependant 18+. */
   caregiver: {
-    canadaCaregiver: 8375,    // For infirm dependant 18+
-    clawbackStart: 0,         // Reduced by dependant's net income over BPA
+    canadaCaregiver: 7999,
+    clawbackStart:   0,
   },
 
+  /** Home Accessibility Tax Credit — ITA s.118.041 */
   homeAccessibility: {
-    max: 20000,               // Qualifying expenses
+    max: 20000,
   },
 
+  /** First Home Buyers' Amount — ITA s.118.05. Credit = $10,000 × 15% = $1,500 */
   homeBuyers: {
-    amount: 10000,            // First-time home buyer (credit = amount × 15%)
+    amount: 10000,
   },
 
+  /** Digital News Subscription Credit — ITA s.118.02 */
   digitalNewsSubscription: {
     max: 500,
   },
 
-  volunteerFirefighter: 3000, // Or search and rescue volunteer
+  /** Volunteer Firefighter / Search and Rescue — ITA s.118.06/118.07 */
+  volunteerFirefighter: 3000,
+  searchAndRescue:      3000,
+
+  /** Spouse/Common-law Partner Amount — ITA s.118(1)(a) */
+  spouseAmountMax: 16129,
+
+  /** Eligible Dependant Amount — ITA s.118(1)(b) */
+  eligibleDependantMax: 16129,
+
+  /** Adoption Expenses — ITA s.118.02 */
+  adoptionExpensesMax: 19350,
 };
 
 // ============================================================
-// DONATION CREDITS (FEDERAL)
+// ONTARIO NON-REFUNDABLE CREDIT AMOUNTS
+// All multiplied by ONTARIO_CREDIT_RATE (5.05%).
+// ============================================================
+
+export const ONTARIO_CREDITS = {
+  /** Ontario Age Amount — Ontario Taxation Act s.4(3.1) */
+  ageAmount: {
+    max:           5994,
+    clawbackStart: 44325,
+    clawbackRate:  0.15,
+  },
+
+  /** Ontario Disability Amount */
+  disabilityAmount: {
+    base:            9286,
+    supplementChild: 5416,
+  },
+
+  /** Ontario Pension Income Amount — max $1,595 */
+  pensionIncomeMax: 1595,
+
+  /** Ontario Spouse/Common-law Partner Amount */
+  spouseAmountMax: 10582,
+
+  /** Ontario Eligible Dependant Amount */
+  eligibleDependantMax: 10582,
+
+  /** Ontario Caregiver Amount */
+  caregiverAmount: 5443,
+
+  /** Ontario Political Contribution Credit — tiered; max credit $1,316 */
+  politicalContributionMaxCredit: 1316,
+};
+
+// ============================================================
+// DONATIONS — ITA s.118.1
 // ============================================================
 
 export const DONATIONS = {
-  firstTierLimit: 200,
-  firstTierRate: 0.15,
-  secondTierRate: 0.29,
-  highIncomeRate: 0.33,       // On amounts over $200 if income > top bracket
-  topBracketThreshold: 253414,
-  maxClaimRate: 0.75,         // Max 75% of net income (100% in year of death)
-  carryForwardYears: 5,
-  firstTimeSuperCredit: false, // Expired after 2017
+  firstTierLimit:         200,
+  firstTierRate:          0.15,     // 15% on first $200 (federal)
+  secondTierRate:         0.29,     // 29% on amounts above $200
+  highIncomeRate:         0.33,     // 33% on amounts above $200 if taxable income > $253,414
+  topBracketThreshold:    253414,
+  maxClaimRate:           0.75,     // max 75% of net income (100% in year of death)
+  carryForwardYears:      5,
 };
 
-// Ontario donation credit
 export const ONTARIO_DONATIONS = {
-  firstTierLimit: 200,
-  firstTierRate: 0.0505,
-  secondTierRate: 0.1116,
+  firstTierLimit:  200,
+  firstTierRate:   0.0505,  // 5.05% on first $200
+  secondTierRate:  0.1116,  // 11.16% on amounts above $200
 };
 
 // ============================================================
-// MEDICAL EXPENSES
+// MEDICAL EXPENSES — ITA s.118.2
 // ============================================================
 
 export const MEDICAL_EXPENSES = {
-  threshold: 2759,            // Or 3% of net income, whichever is LESS
-  thresholdRate: 0.03,
-  dependantMax: 7999,         // Max per dependant 18+ (other than spouse)
-  dependantThreshold: 2759,
+  threshold:         2635,   // lesser of $2,635 or 3% of net income
+  thresholdRate:     0.03,
+  dependantMax:      7999,   // max per dependant 18+ (not spouse)
+  dependantThreshold: 2635,
 };
 
 // ============================================================
-// TUITION (FEDERAL)
+// TUITION — ITA s.118.5 / s.118.61
+// NOTE: Ontario eliminated tuition credit after 2017 tax year.
 // ============================================================
 
 export const TUITION = {
-  creditRate: 0.15,           // Federal credit rate
-  maxTransfer: 5000,          // Max transfer to parent/grandparent/spouse
-  carryForward: true,         // Unused amounts carry forward indefinitely
-  // Full-time students: $500 scholarship exemption
-  scholarshipExemptionFullTime: Infinity,  // Fully exempt for full-time
-  scholarshipExemptionPartTime: 500,
+  creditRate:                      0.15,   // Federal only
+  maxTransfer:                     5000,   // Max transfer to parent/grandparent/spouse
+  carryForward:                    true,
+  scholarshipExemptionFullTime:    Infinity,
+  scholarshipExemptionPartTime:    500,
 };
 
 // ============================================================
-// ONTARIO TRILLIUM BENEFIT (OTB) — 2025 tax year → 2026 payments
+// ALTERNATIVE MINIMUM TAX (AMT) — ITA s.127.5
+// Reformed since June 2024 (Budget 2024): higher rate + higher exemption
+// ============================================================
+
+export const AMT = {
+  rate:      0.205,    // 20.5% flat rate (was 15%)
+  exemption: 173205,   // basic exemption (was $40,000, indexed)
+};
+
+// ============================================================
+// OAS CLAWBACK (Social Benefits Repayment) — ITA s.180.2
+// ============================================================
+
+export const OAS_CLAWBACK = {
+  threshold:    90997,  // 2025: 15% repayment on net income above this
+  rate:         0.15,
+};
+
+// ============================================================
+// CANADA WORKERS BENEFIT (CWB) — ITA s.122.7
+// Refundable federal credit for low-income workers
+// ============================================================
+
+export const CWB = {
+  basicSingleMax:     1518,
+  basicFamilyMax:     2616,
+  disabilitySingle:   784,
+  disabilityFamily:   784,
+  singleClawStart:    22944,
+  familyClawStart:    26177,
+  clawRate:           0.15,
+  workingIncomeMin:   3000,
+};
+
+// ============================================================
+// GST/HST CREDIT — ITA s.122.5
+// Quarterly refundable federal credit
+// ============================================================
+
+export const GST_CREDIT = {
+  baseAdult:  349,    // per adult
+  baseChild:  184,    // per child under 19
+  clawRate:   0.05,   // 5% reduction per dollar above threshold
+  clawStart:  40000,  // adjusted family net income threshold
+};
+
+// ============================================================
+// CANADA CHILD BENEFIT (CCB) — ITA s.122.61
+// Monthly; not reported as income
+// ============================================================
+
+export const CCB = {
+  under6Max:         7787,   // per year per child under 6
+  aged6to17Max:      6570,   // per year per child 6–17
+  clawStart1Child:   36502,  // family net income threshold (1 child)
+  clawRate1:         0.135,  // clawback rate for 1 child (13.5%)
+  clawRate2Plus:     0.059,  // clawback rate per additional child (5.9%)
+};
+
+// ============================================================
+// ONTARIO TRILLIUM BENEFIT (OTB) — ON-BEN
+// Paid monthly from Jul 2026 based on 2025 return
 // ============================================================
 
 // Ontario Sales Tax Credit (OSTC)
 export const OSTC = {
-  adultAmount: 345,
-  childAmount: 345,
-  singleReductionThreshold: 29047,
-  familyReductionThreshold: 36309,
-  reductionRate: 0.04,
+  adultAmount:               345,
+  childAmount:               345,
+  singleReductionThreshold:  29047,
+  familyReductionThreshold:  36309,
+  reductionRate:             0.04,
 };
 
 // Ontario Energy and Property Tax Credit (OEPTC)
 export const OEPTC = {
-  // Non-senior (under 65)
-  energyComponent: 280,
+  energyComponent:           280,
   propertyTaxComponent: {
-    maxRent: 0.20,            // 20% of rent paid counts as "property tax"
-    maxPropertyTax: Infinity, // Actual property tax paid
-    maxCredit: 1248,          // Maximum property tax credit (non-senior)
+    maxRent:    0.20,   // 20% of rent paid = deemed property tax
+    maxCredit:  1248,   // maximum property tax credit (non-senior)
   },
-  // Senior (65+)
-  seniorEnergyComponent: 280,
-  seniorPropertyTaxMax: 1421,
-  // Reduction
-  singleReductionThreshold: 29047,
-  familyReductionThreshold: 36309,
-  reductionRate: 0.02,        // 2% of adjusted family net income over threshold
-  // Student residence
-  studentResidenceEligible: true, // Students in designated residence can claim energy component
+  seniorEnergyComponent:     280,
+  seniorPropertyTaxMax:      1421,
+  singleReductionThreshold:  29047,
+  familyReductionThreshold:  36309,
+  reductionRate:             0.02,
 };
 
 // ============================================================
-// CORPORATE TAX (CCPC)
+// CORPORATE TAX (CCPC) — reference rates
 // ============================================================
 
 export const CORPORATE = {
-  federalGeneralRate: 0.15,     // After 10% provincial abatement
-  federalSmallBusinessRate: 0.09,
-  smallBusinessLimit: 500000,
-  ontarioGeneralRate: 0.115,
-  ontarioSmallBusinessRate: 0.032,
-  ontarioSmallBusinessLimit: 500000,
-  // Combined rates
-  combinedGeneralRate: 0.265,   // 15% + 11.5%
-  combinedSmallBusinessRate: 0.122, // 9% + 3.2%
+  federalGeneralRate:         0.15,
+  federalSmallBusinessRate:   0.09,
+  smallBusinessLimit:         500000,
+  ontarioGeneralRate:         0.115,
+  ontarioSmallBusinessRate:   0.032,
+  combinedGeneralRate:        0.265,
+  combinedSmallBusinessRate:  0.122,
 };
 
 // ============================================================
@@ -319,14 +458,10 @@ export const CORPORATE = {
 // ============================================================
 
 export const HST = {
-  rate: 0.13,
-  federalComponent: 0.05,     // GST
-  provincialComponent: 0.08,  // PST
-  registrationThreshold: 30000, // Must register if >$30K in 12 months
-  quickMethodRates: {
-    retail: 0.044,             // 4.4% for resellers of goods
-    service: 0.088,            // 8.8% for service providers
-  },
+  rate:                   0.13,
+  federalComponent:       0.05,
+  provincialComponent:    0.08,
+  registrationThreshold:  30000,
 };
 
 // ============================================================
@@ -334,10 +469,10 @@ export const HST = {
 // ============================================================
 
 export const DEADLINES = {
-  filingDeadline: '2026-04-30',
-  selfEmployedFilingDeadline: '2026-06-15',
-  paymentDeadline: '2026-04-30',         // Payment always Apr 30
-  rrspContributionDeadline: '2026-03-02', // First 60 days of 2026
+  filingDeadline:              '2026-04-30',
+  selfEmployedFilingDeadline:  '2026-06-15',
+  paymentDeadline:             '2026-04-30',
+  rrspContributionDeadline:    '2026-03-02',
 };
 
 // ============================================================
@@ -346,73 +481,73 @@ export const DEADLINES = {
 
 export const CRA_LINES = {
   // Total income
-  employmentIncome: 10100,
-  otherEmploymentIncome: 10400,
-  oldAgeSecurity: 11300,
-  cppBenefits: 11400,
-  otherPensions: 11500,
-  electedPensionSplit: 11600,
-  eiIncome: 11900,
-  eligibleDividends: 12000,
-  otherDividends: 12010,
-  interestIncome: 12100,
-  rentalIncome: 12600,
-  taxableCapitalGains: 12700,
-  rrspIncome: 12900,
-  otherIncome: 13000,
-  selfEmploymentBusiness: 13500,
+  employmentIncome:          10100,
+  otherEmploymentIncome:     10400,
+  oldAgeSecurity:            11300,
+  cppBenefits:               11400,
+  otherPensions:             11500,
+  electedPensionSplit:       11600,
+  eiIncome:                  11900,
+  eligibleDividends:         12000,
+  otherDividends:            12010,
+  interestIncome:            12100,
+  rentalIncome:              12600,
+  taxableCapitalGains:       12700,
+  rrspIncome:                12900,
+  otherIncome:               13000,
+  selfEmploymentBusiness:    13500,
   selfEmploymentProfessional: 13700,
-  selfEmploymentCommission: 13900,
-  selfEmploymentFarming: 14100,
-  selfEmploymentFishing: 14300,
-  totalIncome: 15000,
+  selfEmploymentCommission:  13900,
+  selfEmploymentFarming:     14100,
+  selfEmploymentFishing:     14300,
+  totalIncome:               15000,
 
   // Net income
-  pensionAdjustment: 20600,
-  rppContributions: 20700,
-  rrspDeduction: 20800,
-  fhsaDeduction: 20805,
-  unionDues: 21200,
-  childcareExpenses: 21400,
-  movingExpenses: 21900,
-  supportPaymentsMade: 22000,
-  carryingCharges: 22100,
-  cppSelfEmployed: 22200,
-  employmentExpenses: 22900,
-  otherDeductions: 23200,
-  netIncome: 23600,
+  pensionAdjustment:         20600,
+  rppContributions:          20700,
+  rrspDeduction:             20800,
+  fhsaDeduction:             20805,
+  unionDues:                 21200,
+  childcareExpenses:         21400,
+  movingExpenses:            21900,
+  supportPaymentsMade:       22000,
+  carryingCharges:           22100,
+  cppSelfEmployed:           22200,
+  employmentExpenses:        22900,
+  otherDeductions:           23200,
+  netIncome:                 23600,
 
   // Taxable income
-  canadianForcesDeduction: 24400,
-  socialBenefitsRepayment: 23500,
-  capitalGainsDeduction: 25400,
-  northernResidents: 25500,
-  lossesOtherYears: 25200,
-  taxableIncome: 26000,
+  canadianForcesDeduction:   24400,
+  socialBenefitsRepayment:   23500,
+  capitalGainsDeduction:     25400,
+  northernResidents:         25500,
+  lossesOtherYears:          25200,
+  taxableIncome:             26000,
 
   // Federal tax (Schedule 1)
-  basicPersonalAmount: 30000,
-  ageAmount: 30100,
-  spouseAmount: 30300,
-  eligibleDependantAmount: 30400,
-  cppContributions: 30800,
-  cpp2Contributions: 30900,
-  eiPremiums: 31200,
-  canadaEmployment: 31260,
-  pensionIncomeAmount: 31400,
-  disabilityAmount: 31600,
-  studentLoanInterest: 31900,
-  tuitionAmount: 32300,
-  tuitionTransfer: 32400,
-  medicalExpenses: 33099,
+  basicPersonalAmount:       30000,
+  ageAmount:                 30100,
+  spouseAmount:              30300,
+  eligibleDependantAmount:   30400,
+  cppContributions:          30800,
+  cpp2Contributions:         30900,
+  eiPremiums:                31200,
+  canadaEmployment:          31260,
+  pensionIncomeAmount:       31400,
+  disabilityAmount:          31600,
+  studentLoanInterest:       31900,
+  tuitionAmount:             32300,
+  tuitionTransfer:           32400,
+  medicalExpenses:           33099,
   medicalExpensesSupplement: 33199,
-  donationsCredits: 34900,
-  
+  donationsCredits:          34900,
+
   // Tax deducted
-  totalTaxDeducted: 43700,
-  
+  totalTaxDeducted:          43700,
+
   // Refund or balance
-  totalPayable: 43500,
-  refund: 48400,
-  balanceOwing: 48500,
+  totalPayable:              43500,
+  refund:                    48400,
+  balanceOwing:              48500,
 } as const;

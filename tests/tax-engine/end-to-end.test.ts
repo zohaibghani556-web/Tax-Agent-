@@ -167,21 +167,21 @@ describe('end-to-end: single, age 28, T4 + T5 interest only, RRSP + union dues',
       expect(result.ontarioTaxOnIncome).toBeGreaterThan(0);
     });
 
-    it('Ontario surtax = $0 (basic ON tax well below $6,104 threshold)', () => {
+    it('Ontario surtax = $0 (basic ON tax well below $5,818 threshold)', () => {
       expect(result.ontarioSurtax).toBe(0);
     });
 
-    it('Ontario Health Premium = $900 (taxable income in $48,600–$72,000 band)', () => {
-      expect(result.ontarioHealthPremium).toBe(900);
+    it('Ontario Health Premium = $600 (taxable income $48,601–$72,000 flat band)', () => {
+      expect(result.ontarioHealthPremium).toBe(600);
     });
 
     it('Ontario dividend tax credit = $0 (no dividends)', () => {
       expect(result.ontarioDividendTaxCredit).toBe(0);
     });
 
-    it('net Ontario tax is in the $3,500–$4,200 range', () => {
-      expect(result.netOntarioTax).toBeGreaterThanOrEqual(3500);
-      expect(result.netOntarioTax).toBeLessThanOrEqual(4200);
+    it('net Ontario tax is in the $3,400–$4,000 range', () => {
+      expect(result.netOntarioTax).toBeGreaterThanOrEqual(3400);
+      expect(result.netOntarioTax).toBeLessThanOrEqual(4000);
     });
   });
 
@@ -194,8 +194,8 @@ describe('end-to-end: single, age 28, T4 + T5 interest only, RRSP + union dues',
       expect(result.balanceOwing).toBeLessThan(0);
     });
 
-    it('refund is in the $3,000–$4,500 range (given $14,200 withheld on ~$67K taxable income)', () => {
-      expect(result.balanceOwing).toBeLessThanOrEqual(-3000);
+    it('refund is in the $3,200–$4,500 range (given $14,200 withheld on ~$67K taxable income)', () => {
+      expect(result.balanceOwing).toBeLessThanOrEqual(-3200);
       expect(result.balanceOwing).toBeGreaterThanOrEqual(-4500);
     });
   });

@@ -337,12 +337,13 @@ describe('RRSP over-contribution', () => {
 });
 
 // ──────────────────────────────────────────────────────────────
-// TEST: Capital gains apply at 50% flat inclusion rate (2025)
+// TEST: Capital gains two-tier inclusion rate (2025)
+//   First $250,000 net gain: 50% inclusion
+//   Above $250,000: 66.67% inclusion (Budget 2024 spec)
 // ──────────────────────────────────────────────────────────────
 
 describe('Capital gains inclusion rate', () => {
-  it('applies 50% inclusion rate for gains above $250,000 (2/3 rate was deferred to 2026)', () => {
-    // Large capital gain — should still be 50% inclusion for 2025
+  it('applies two-tier rate for $350,000 gain (first $250K at 50%, remaining $100K at 66.67%)', () => {
     const slips: TaxSlip[] = [
       {
         type: 'T5008',
@@ -365,15 +366,13 @@ describe('Capital gains inclusion rate', () => {
       baseDeductions(),
     );
 
-    // Taxable capital gain should be exactly 50% of $350,000 = $175,000
+    // Taxable: 250,000 × 50% + 100,000 × 66.67% = 125,000 + 66,670 = 191,670
     const taxableGain = result.lineByLine[12700];
-    expect(taxableGain).toBeCloseTo(175000, 0);
-
-    // Total income should match the taxable gain
-    expect(result.totalIncome).toBeCloseTo(175000, 0);
+    expect(taxableGain).toBeCloseTo(191670, 0);
+    expect(result.totalIncome).toBeCloseTo(191670, 0);
   });
 
-  it('applies 50% inclusion for a gain exactly at $250,000', () => {
+  it('applies 50% inclusion for a gain exactly at $250,000 (at the tier boundary)', () => {
     const slips: TaxSlip[] = [
       {
         type: 'T5008',
@@ -382,7 +381,7 @@ describe('Capital gains inclusion rate', () => {
           box15: '3',
           box16: 'ETF',
           box20: 0,
-          box21: 250000,   // ACB = 0, gain = $250,000
+          box21: 250000,   // ACB = 0, gain = $250,000 exactly
           box22: 100,
         },
       },
@@ -396,12 +395,12 @@ describe('Capital gains inclusion rate', () => {
       baseDeductions(),
     );
 
-    // 50% of $250,000 = $125,000 taxable
+    // 50% of $250,000 = $125,000 taxable (all in first tier)
     const taxableGain = result.lineByLine[12700];
     expect(taxableGain).toBeCloseTo(125000, 0);
   });
 
-  it('applies 50% inclusion for a small capital gain', () => {
+  it('applies 50% inclusion for a small capital gain (well below $250,000 threshold)', () => {
     const slips: TaxSlip[] = [
       {
         type: 'T5008',

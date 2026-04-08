@@ -16,6 +16,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateTaxReturn } from '@/lib/tax-engine/engine';
+import { calculateTaxes } from '@/lib/taxEngine';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 import type {
@@ -25,14 +26,25 @@ import type {
   RentalIncome,
   DeductionsCreditsInput,
 } from '@/lib/tax-engine/types';
+import type { TaxInput } from '@/lib/taxEngine';
 
-interface CalculateRequest {
+// Slip-based request (existing format)
+interface SlipCalculateRequest {
+  mode?: 'slips';
   profile: TaxProfile;
   slips: TaxSlip[];
   business?: BusinessIncome[];
   rental?: RentalIncome[];
   deductions: DeductionsCreditsInput;
 }
+
+// Flat-input request (new format from taxEngine.ts)
+interface FlatCalculateRequest {
+  mode: 'flat';
+  input: TaxInput;
+}
+
+type CalculateRequest = SlipCalculateRequest | FlatCalculateRequest;
 
 export async function POST(req: NextRequest) {
   // --- Auth ---
@@ -62,28 +74,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  if (!body.profile || !body.slips || !body.deductions) {
-    return NextResponse.json(
-      { error: 'profile, slips, and deductions are required' },
-      { status: 400 },
-    );
-  }
-
-  // --- Validate tax year ---
-  if (body.profile.taxYear !== 2025) {
-    return NextResponse.json(
-      { error: 'Only tax year 2025 is supported' },
-      { status: 400 },
-    );
-  }
-
+  // --- Route to correct engine based on mode ---
   try {
+    if ('mode' in body && body.mode === 'flat') {
+      // Flat-input mode: new taxEngine.ts
+      if (!body.input) {
+        return NextResponse.json({ error: 'input is required for flat mode' }, { status: 400 });
+      }
+      const result = calculateTaxes(body.input);
+      return NextResponse.json(result);
+    }
+
+    // Slip-based mode (existing format)
+    const slipBody = body as SlipCalculateRequest;
+    if (!slipBody.profile || !slipBody.slips || !slipBody.deductions) {
+      return NextResponse.json(
+        { error: 'profile, slips, and deductions are required' },
+        { status: 400 },
+      );
+    }
+    if (slipBody.profile.taxYear !== 2025) {
+      return NextResponse.json(
+        { error: 'Only tax year 2025 is supported' },
+        { status: 400 },
+      );
+    }
     const result = calculateTaxReturn(
-      body.profile,
-      body.slips,
-      body.business ?? [],
-      body.rental ?? [],
-      body.deductions,
+      slipBody.profile,
+      slipBody.slips,
+      slipBody.business ?? [],
+      slipBody.rental ?? [],
+      slipBody.deductions,
     );
     return NextResponse.json(result);
   } catch (err) {

@@ -485,8 +485,8 @@ describe('calculateDividendIncome', () => {
     );
     expect(result.eligibleTaxable).toBe(1380);
     expect(result.nonEligibleTaxable).toBe(0);
-    // Federal DTC: 1380 × 0.150187 = 207.26 (rounded)
-    expect(result.federalDTC).toBe(207.26);
+    // Federal DTC: 1380 × 0.150198 = 207.27 (rounded)
+    expect(result.federalDTC).toBe(207.27);
     // Ontario DTC: 1380 × 0.10 = 138
     expect(result.ontarioDTC).toBe(138);
   });
@@ -500,8 +500,8 @@ describe('calculateDividendIncome', () => {
     expect(result.nonEligibleTaxable).toBe(230);
     // Federal DTC: 230 × 0.090301 = 20.77
     expect(result.federalNonEligibleDTC).toBe(20.77);
-    // Ontario DTC: 230 × 0.028571 = 6.57
-    expect(result.ontarioNonEligibleDTC).toBe(6.57);
+    // Ontario DTC: 230 × 0.03282 = 7.55
+    expect(result.ontarioNonEligibleDTC).toBe(7.55);
   });
 
   it('T5 with both eligible and non-eligible dividends', () => {
@@ -521,14 +521,14 @@ describe('calculateDividendIncome', () => {
     );
     expect(result.eligibleTaxable).toBe(2760);
     expect(result.nonEligibleTaxable).toBe(460);
-    // Federal DTC eligible: 2760 × 0.150187 ≈ 414.52
-    expect(result.federalDTC).toBe(414.52);
+    // Federal DTC eligible: 2760 × 0.150198 ≈ 414.55
+    expect(result.federalDTC).toBe(414.55);
     // Federal DTC non-eligible: 460 × 0.090301 ≈ 41.54
     expect(result.federalNonEligibleDTC).toBe(41.54);
     // Ontario DTC eligible: 2760 × 0.10 = 276
     expect(result.ontarioDTC).toBe(276);
-    // Ontario DTC non-eligible: 460 × 0.028571 ≈ 13.14
-    expect(result.ontarioNonEligibleDTC).toBe(13.14);
+    // Ontario DTC non-eligible: 460 × 0.03282 ≈ 15.10
+    expect(result.ontarioNonEligibleDTC).toBe(15.10);
   });
 
   it('T3 eligible and non-eligible dividends', () => {
@@ -547,8 +547,8 @@ describe('calculateDividendIncome', () => {
     );
     expect(result.eligibleTaxable).toBe(690);
     expect(result.nonEligibleTaxable).toBe(115);
-    // Federal DTC eligible: 690 × 0.150187 ≈ 103.63
-    expect(result.federalDTC).toBe(103.63);
+    // Federal DTC eligible: 690 × 0.150198 ≈ 103.64
+    expect(result.federalDTC).toBe(103.64);
     // Ontario DTC eligible: 690 × 0.10 = 69
     expect(result.ontarioDTC).toBe(69);
   });
@@ -562,8 +562,8 @@ describe('calculateDividendIncome', () => {
       []
     );
     expect(result.eligibleTaxable).toBe(1380);
-    // Federal DTC: 1380 × 0.150187 = 207.26
-    expect(result.federalDTC).toBe(207.26);
+    // Federal DTC: 1380 × 0.150198 = 207.27
+    expect(result.federalDTC).toBe(207.27);
     expect(result.ontarioDTC).toBe(138);
   });
 
