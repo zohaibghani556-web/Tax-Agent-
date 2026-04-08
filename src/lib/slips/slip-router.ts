@@ -7,9 +7,55 @@ import type { TaxSlip } from '../tax-engine/types';
 
 export type SlipTypeCode = TaxSlip['type'] | 'unknown';
 
+
 // Phrase patterns that definitively identify each CRA slip type.
 // Ordered from most-specific to least-specific to avoid false positives.
 const SLIP_PATTERNS: Array<{ type: SlipTypeCode; patterns: RegExp[] }> = [
+  {
+    // T4A(P) — CPP benefits — must come before T4A
+    type: 'T4AP',
+    patterns: [
+      /t-?4a\s*\(p\)/i,
+      /statement\s+of\s+canada\s+pension\s+plan\s+benefits/i,
+      /canada\s+pension\s+plan\s+benefits/i,
+      /cpp\s+benefits/i,
+    ],
+  },
+  {
+    // T4A(OAS) — OAS — must come before T4A
+    type: 'T4AOAS',
+    patterns: [
+      /t-?4a\s*\(oas\)/i,
+      /statement\s+of\s+old\s+age\s+security/i,
+      /old\s+age\s+security/i,
+    ],
+  },
+  {
+    // RRSP-Receipt — contribution receipt from financial institution
+    type: 'RRSP-Receipt',
+    patterns: [
+      /rrsp.*contribution.*receipt/i,
+      /registered\s+retirement\s+savings\s+plan.*contribution/i,
+      /rrsp.*receipt/i,
+      /contribution.*rrsp/i,
+    ],
+  },
+  {
+    // T4RSP — RRSP income (withdrawal) — before T4A
+    type: 'T4RSP',
+    patterns: [
+      /t-?4rsp/i,
+      /statement\s+of\s+rrsp\s+income/i,
+    ],
+  },
+  {
+    // T4RIF — RRIF income — before T4A
+    type: 'T4RIF',
+    patterns: [
+      /t-?4rif/i,
+      /statement\s+of\s+income\s+from\s+a\s+(registered\s+retirement\s+income\s+fund|rrif)/i,
+    ],
+  },
   {
     // T4A must come before T4 to prevent "T4A" from matching T4's regex
     type: 'T4A',

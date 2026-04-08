@@ -47,13 +47,29 @@ function parseSlipRecommendations(text: string): SlipRecommendation[] | null {
 /** Strip hidden XML tags and markdown code blocks from display text. */
 function stripHiddenTags(text: string): string {
   return text
-    // Markdown code blocks for structured data
     .replace(/```tax-profile-update[\s\S]*?```/g, '')
     .replace(/```slip-recommendations[\s\S]*?```/g, '')
-    // XML tags (current format)
     .replace(/<tax-profile-update>[\s\S]*?<\/tax-profile-update>/g, '')
+    .replace(/<deductions-update>[\s\S]*?<\/deductions-update>/g, '')
     .replace(/<slip-recommendations>[\s\S]*?<\/slip-recommendations>/g, '')
     .trim();
+}
+
+/** Parse <deductions-update> XML block and persist to localStorage. */
+function applyDeductionsUpdate(text: string) {
+  const match = text.match(/<deductions-update>([\s\S]*?)<\/deductions-update>/);
+  if (!match) return;
+  try {
+    const update = JSON.parse(match[1]) as Record<string, number>;
+    const existing = localStorage.getItem('taxagent_deductions');
+    const current = existing ? (JSON.parse(existing) as Record<string, number>) : {};
+    // Merge: only overwrite fields that are explicitly set in the update
+    const merged = { ...current };
+    for (const [k, v] of Object.entries(update)) {
+      if (typeof v === 'number' && v > 0) merged[k] = v;
+    }
+    localStorage.setItem('taxagent_deductions', JSON.stringify(merged));
+  } catch { /* ignore malformed */ }
 }
 
 /** Detect whether the AI has signalled the assessment is complete. */
@@ -256,6 +272,9 @@ export default function OnboardingPage() {
           }
         }
       }
+
+      // Apply any deductions update emitted by the AI
+      applyDeductionsUpdate(fullText);
 
       // Check for completion and parse slip recommendations
       const recs = parseSlipRecommendations(fullText);

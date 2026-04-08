@@ -32,11 +32,16 @@ import type {
  *   T3  box 32  — Taxable non-eligible dividends
  *   T3  box 21  — Capital gains (trust-allocated, flows into Schedule 3)
  *   T3  box 26  — Other income
- *   T4A box 016 — Pension/superannuation (line 11500)
- *   T4A box 028 — Other income (line 13000)
- *   T4A box 105 — Scholarships/bursaries (full-time: exempt; partial not handled here)
- *   T4E box 14  — EI benefits (line 11900)
+ *   T4A  box 016 — Pension/superannuation (line 11500)
+ *   T4A  box 028 — Other income (line 13000)
+ *   T4A  box 105 — Scholarships/bursaries (full-time: exempt; partial not handled here)
+ *   T4AP box 16  — CPP retirement/disability pension (line 11400)
+ *   T4AOAS box 18 — OAS pension (line 11300); box 21 (GIS supplements) excluded
+ *   T4RSP box 22 — RRSP withdrawal income (line 12900)
+ *   T4RIF box 16 — RRIF withdrawal income (line 13000)
+ *   T4E  box 14  — EI benefits (line 11900)
  *   T5007 box 10 — Social assistance (included in income but often offset by deductions)
+ *   RRSP-Receipt — contribution receipt, produces deduction not income (handled in deductions)
  */
 export function aggregateTotalIncome(
   slips: TaxSlip[],
@@ -100,8 +105,31 @@ export function aggregateTotalIncome(
         socialAssistance = roundCRA(socialAssistance + slip.data.box10);
         break;
 
+      case 'T4AP':
+        // CPP retirement/disability/survivor pension → line 11400
+        // Also qualifies for pension income credit for all ages (ITA s.118(3)(b))
+        pension = roundCRA(pension + slip.data.box16 + slip.data.box20);
+        break;
+
+      case 'T4AOAS':
+        // OAS → line 11300; GIS supplements (box21) are NOT taxable income
+        otherIncome = roundCRA(otherIncome + slip.data.box18);
+        break;
+
+      case 'T4RSP':
+        // RRSP withdrawal → line 12900 (fully taxable)
+        otherIncome = roundCRA(otherIncome + slip.data.box22);
+        break;
+
+      case 'T4RIF':
+        // RRIF mandatory withdrawal → line 13000
+        otherIncome = roundCRA(otherIncome + slip.data.box16);
+        break;
+
       case 'T2202':
-        // T2202 produces credits, not income
+      case 'RRSP-Receipt':
+        // T2202 → credits only (handled in engine.ts)
+        // RRSP-Receipt → deduction only (handled in engine.ts via deductions input)
         break;
     }
   }
@@ -165,12 +193,14 @@ export function calculateNetIncome(
   totalIncome: number,
   deductions: DeductionsCreditsInput
 ): number {
-  // RRSP deduction capped at lesser of: contributions made or available room
-  const rrspDeduction = Math.min(
-    deductions.rrspContributions,
-    deductions.rrspContributionRoom,
-    RRSP.maxContribution
-  );
+  // RRSP deduction capped at: lesser of contributions, available room, and annual max.
+  // If rrspContributionRoom is 0 (not entered), use the annual maximum as the room —
+  // we cannot deny the deduction just because the user didn't enter their NOA room.
+  // The annual cap (RRSP.maxContribution) always applies regardless.
+  const roomToUse = deductions.rrspContributionRoom > 0
+    ? deductions.rrspContributionRoom
+    : RRSP.maxContribution;
+  const rrspDeduction = Math.min(deductions.rrspContributions, roomToUse, RRSP.maxContribution);
 
   const totalDeductions = roundCRA(
     rrspDeduction +

@@ -44,6 +44,11 @@ import type {
   T4ASlip,
   T4ESlip,
   T2202Slip,
+  T4APSlip,
+  T4AOASSlip,
+  T4RSPSlip,
+  T4RIFSlip,
+  RRSPReceiptSlip,
 } from './types';
 
 import {
@@ -210,18 +215,33 @@ export function calculateTaxReturn(
   const t4aSlips: T4ASlip[] = [];
   const t4eSlips: T4ESlip[] = [];
   const t2202Slips: T2202Slip[] = [];
+  const t4apSlips: T4APSlip[] = [];
+  const t4aoasSlips: T4AOASSlip[] = [];
+  const t4rspSlips: T4RSPSlip[] = [];
+  const t4rifSlips: T4RIFSlip[] = [];
+  const rrspReceiptSlips: RRSPReceiptSlip[] = [];
 
   for (const slip of slips) {
     switch (slip.type) {
-      case 'T4':    t4Slips.push(slip.data);    break;
-      case 'T5':    t5Slips.push(slip.data);    break;
-      case 'T5008': t5008Slips.push(slip.data); break;
-      case 'T3':    t3Slips.push(slip.data);    break;
-      case 'T4A':   t4aSlips.push(slip.data);   break;
-      case 'T4E':   t4eSlips.push(slip.data);   break;
-      case 'T2202': t2202Slips.push(slip.data); break;
+      case 'T4':          t4Slips.push(slip.data);          break;
+      case 'T5':          t5Slips.push(slip.data);          break;
+      case 'T5008':       t5008Slips.push(slip.data);       break;
+      case 'T3':          t3Slips.push(slip.data);          break;
+      case 'T4A':         t4aSlips.push(slip.data);         break;
+      case 'T4E':         t4eSlips.push(slip.data);         break;
+      case 'T2202':       t2202Slips.push(slip.data);       break;
+      case 'T4AP':        t4apSlips.push(slip.data);        break;
+      case 'T4AOAS':      t4aoasSlips.push(slip.data);      break;
+      case 'T4RSP':       t4rspSlips.push(slip.data);       break;
+      case 'T4RIF':       t4rifSlips.push(slip.data);       break;
+      case 'RRSP-Receipt': rrspReceiptSlips.push(slip.data); break;
     }
   }
+
+  // RRSP contributions from uploaded receipts augment any manually entered amount
+  const rrspFromReceipts = roundCRA(
+    rrspReceiptSlips.reduce((sum, s) => sum + s.amount, 0)
+  );
 
   // ITA s.118.5 — current-year tuition from uploaded T2202 slips (Box A)
   const tuitionCurrentYear = roundCRA(
@@ -286,21 +306,31 @@ export function calculateTaxReturn(
       resolution: 'Review the combined totals carefully and ensure all T4s are included. Check that CPP/EI over-deductions (if any) are flagged above.',
     });
   }
-  // Eligible pension income drives the $2,000 pension income credit (ITA s.118(3))
-  const eligiblePensionIncome = roundCRA(t4aSlips.reduce((sum, s) => sum + s.box016, 0));
+  // Eligible pension income drives the $2,000 pension income credit (ITA s.118(3)).
+  // T4A pension, CPP (T4AP), and OAS (T4AOAS) all qualify.
+  const eligiblePensionIncome = roundCRA(
+    t4aSlips.reduce((sum, s) => sum + s.box016, 0) +
+    t4apSlips.reduce((sum, s) => sum + s.box16 + s.box20, 0) +
+    t4aoasSlips.reduce((sum, s) => sum + s.box18, 0)
+  );
+
+  // Merge RRSP receipt amounts into the deductions input so income.ts can apply them
+  const mergedDeductions: DeductionsCreditsInput = rrspFromReceipts > 0
+    ? { ...deductions, rrspContributions: roundCRA(deductions.rrspContributions + rrspFromReceipts) }
+    : deductions;
 
   const totalMedicalExpenses = roundCRA(
-    deductions.medicalExpenses.reduce((sum, e) => sum + e.amount, 0)
+    mergedDeductions.medicalExpenses.reduce((sum, e) => sum + e.amount, 0)
   );
   const totalDonations = roundCRA(
-    deductions.donations.reduce((sum, d) => sum + d.amount, 0)
+    mergedDeductions.donations.reduce((sum, d) => sum + d.amount, 0)
   );
 
   // ── STEPS 1–3: Income aggregation ────────────────────────────────────────
 
   const totalIncome   = aggregateTotalIncome(slips, business, rental);
-  const netIncome     = calculateNetIncome(totalIncome, deductions);
-  const taxableIncome = calculateTaxableIncome(netIncome, deductions);
+  const netIncome     = calculateNetIncome(totalIncome, mergedDeductions);
+  const taxableIncome = calculateTaxableIncome(netIncome, mergedDeductions);
 
   // ── STEP 4: Federal tax on taxable income (Schedule 1) ───────────────────
 
@@ -319,9 +349,9 @@ export function calculateTaxReturn(
     totalMedicalExpenses,
     totalDonations,
     tuitionAmount: tuitionCurrentYear,  // ITA s.118.5 — current-year T2202 Box A
-    tuitionCarryforward: deductions.tuitionCarryforward ?? 0,
-    studentLoanInterest: deductions.studentLoanInterest ?? 0,
-    hasDisability: deductions.hasDisabilityCredit,
+    tuitionCarryforward: mergedDeductions.tuitionCarryforward ?? 0,
+    studentLoanInterest: mergedDeductions.studentLoanInterest ?? 0,
+    hasDisability: mergedDeductions.hasDisabilityCredit,
   });
 
   const federalNonRefundableCredits = fedCredits.totalCreditValue;
@@ -366,7 +396,7 @@ export function calculateTaxReturn(
     eligiblePensionIncome,
     totalMedicalExpenses,
     totalDonations,
-    hasDisability: deductions.hasDisabilityCredit,
+    hasDisability: mergedDeductions.hasDisabilityCredit,
   });
 
   // ── STEP 11: Ontario dividend tax credit (ON428) ──────────────────────────
@@ -403,12 +433,16 @@ export function calculateTaxReturn(
   const totalTaxPayable = roundCRA(netFederalTax + netOntarioTax);
 
   // ── STEP 18: Total tax deducted at source ─────────────────────────────────
-  // T4 box 22 + T4A box 022 + T4E box 22 (all are "income tax deducted")
+  // All CRA slips that report "income tax deducted at source"
 
   const totalTaxDeducted = roundCRA(
     t4Slips.reduce((sum, s) => sum + s.box22, 0) +
     t4aSlips.reduce((sum, s) => sum + s.box022, 0) +
-    t4eSlips.reduce((sum, s) => sum + s.box22, 0)
+    t4eSlips.reduce((sum, s) => sum + s.box22, 0) +
+    t4apSlips.reduce((sum, s) => sum + s.box22, 0) +
+    t4aoasSlips.reduce((sum, s) => sum + s.box22, 0) +
+    t4rspSlips.reduce((sum, s) => sum + s.box30, 0) +
+    t4rifSlips.reduce((sum, s) => sum + s.box30, 0)
   );
 
   // ── STEP 19: Balance owing / refund ──────────────────────────────────────
@@ -431,9 +465,9 @@ export function calculateTaxReturn(
 
   const estimatedOTB = estimateOTB(
     netIncome,
-    deductions.rentPaid ?? 0,
-    deductions.propertyTaxPaid ?? 0,
-    deductions.studentResidence ?? false,
+    mergedDeductions.rentPaid ?? 0,
+    mergedDeductions.propertyTaxPaid ?? 0,
+    mergedDeductions.studentResidence ?? false,
     isSenior,
   );
 

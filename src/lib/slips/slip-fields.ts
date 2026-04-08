@@ -86,6 +86,33 @@ export const SLIP_FIELDS: Record<string, SlipFieldDef[]> = {
   T5007: [
     { key: 'box10', label: 'Box 10 — Social Assistance Payments', valueType: 'number', required: true },
   ],
+  T4AP: [
+    { key: 'issuerName', label: 'Payer (usually "Service Canada")', valueType: 'text', required: false },
+    { key: 'box16', label: 'Box 16 — CPP Retirement/Disability Pension', valueType: 'number', required: true },
+    { key: 'box20', label: 'Box 20 — CPP Death Benefit (rare)', valueType: 'number', required: false },
+    { key: 'box22', label: 'Box 22 — Income Tax Deducted', valueType: 'number', required: false },
+  ],
+  'T4AOAS': [
+    { key: 'issuerName', label: 'Payer (usually "Service Canada")', valueType: 'text', required: false },
+    { key: 'box18', label: 'Box 18 — OAS Pension', valueType: 'number', required: true },
+    { key: 'box21', label: 'Box 21 — Net Supplements (GIS — not taxable, do not include in income)', valueType: 'number', required: false },
+    { key: 'box22', label: 'Box 22 — Income Tax Deducted', valueType: 'number', required: false },
+  ],
+  T4RSP: [
+    { key: 'issuerName', label: 'Financial Institution Name', valueType: 'text', required: true },
+    { key: 'box22', label: 'Box 22 — Total RRSP Income (Amount Withdrawn)', valueType: 'number', required: true },
+    { key: 'box30', label: 'Box 30 — Income Tax Deducted', valueType: 'number', required: false },
+  ],
+  T4RIF: [
+    { key: 'issuerName', label: 'Financial Institution Name', valueType: 'text', required: true },
+    { key: 'box16', label: 'Box 16 — Taxable RRIF Amounts', valueType: 'number', required: true },
+    { key: 'box30', label: 'Box 30 — Income Tax Deducted', valueType: 'number', required: false },
+  ],
+  'RRSP-Receipt': [
+    { key: 'issuerName', label: 'Financial Institution (e.g. TD, Wealthsimple)', valueType: 'text', required: true },
+    { key: 'amount', label: 'Contribution Amount', valueType: 'number', required: true },
+    { key: 'planType', label: 'Plan Type (RRSP or SPOUSAL-RRSP)', valueType: 'text', required: false, placeholder: 'RRSP' },
+  ],
 };
 
 export const SLIP_TYPE_LABELS: Record<string, string> = {
@@ -95,8 +122,13 @@ export const SLIP_TYPE_LABELS: Record<string, string> = {
   T3: 'T3 — Trust Income',
   T4A: 'T4A — Pension & Other Income',
   T2202: 'T2202 — Tuition Certificate',
-  T4E: 'T4E — Employment Insurance',
+  T4E: 'T4E — Employment Insurance Benefits',
   T5007: 'T5007 — Social Assistance',
+  T4AP: 'T4A(P) — CPP Pension Benefits',
+  'T4AOAS': 'T4A(OAS) — Old Age Security',
+  T4RSP: 'T4RSP — RRSP Income (Withdrawal)',
+  T4RIF: 'T4RIF — RRIF Income',
+  'RRSP-Receipt': 'RRSP Contribution Receipt',
 };
 
 /** Key box to surface as the "primary amount" in the slip list. */
@@ -109,6 +141,11 @@ export const SLIP_PRIMARY_BOX: Record<string, { key: string; label: string }> = 
   T2202: { key: 'boxA', label: 'Tuition fees' },
   T4E: { key: 'box14', label: 'EI benefits' },
   T5007: { key: 'box10', label: 'Social assistance' },
+  T4AP: { key: 'box16', label: 'CPP pension' },
+  'T4AOAS': { key: 'box18', label: 'OAS pension' },
+  T4RSP: { key: 'box22', label: 'RRSP withdrawal' },
+  T4RIF: { key: 'box16', label: 'RRIF income' },
+  'RRSP-Receipt': { key: 'amount', label: 'RRSP contribution' },
 };
 
 /** Build a zero-filled values object for a given slip type. */

@@ -137,7 +137,45 @@ export interface T5007Slip {
   box10: number;   // Social assistance payments
 }
 
-export type TaxSlip = 
+// T4A(P) — Statement of Canada Pension Plan Benefits (ITA s.56(1)(a))
+export interface T4APSlip {
+  issuerName: string;
+  box16: number;   // CPP retirement, survivor, or disability pension → line 11400
+  box20: number;   // CPP death benefit (taxable, one-time)
+  box22: number;   // Income tax deducted
+}
+
+// T4A(OAS) — Statement of Old Age Security (ITA s.56(1)(a))
+export interface T4AOASSlip {
+  issuerName: string;
+  box18: number;   // OAS pension → line 11300
+  box21: number;   // Net federal supplements (GIS) — NOT included in income
+  box22: number;   // Income tax deducted
+}
+
+// T4RSP — Statement of RRSP Income (withdrawal from RRSP, ITA s.146(8))
+export interface T4RSPSlip {
+  issuerName: string;
+  box22: number;   // Total RRSP income withdrawn → line 12900
+  box30: number;   // Income tax deducted at source
+}
+
+// T4RIF — Statement of Income from a Registered Retirement Income Fund
+export interface T4RIFSlip {
+  issuerName: string;
+  box16: number;   // Taxable RRIF amounts → line 13000
+  box30: number;   // Income tax deducted at source
+}
+
+// RRSP-Receipt — RRSP contribution receipt (not a CRA slip, but a deduction document)
+// Contribution amount flows to DeductionsCreditsInput.rrspContributions
+export interface RRSPReceiptSlip {
+  issuerName: string;
+  amount: number;       // Total contribution amount → line 20800 deduction
+  planType: string;     // 'RRSP' or 'SPOUSAL-RRSP'
+}
+
+export type TaxSlip =
   | { type: 'T4'; data: T4Slip }
   | { type: 'T5'; data: T5Slip }
   | { type: 'T5008'; data: T5008Slip }
@@ -145,7 +183,12 @@ export type TaxSlip =
   | { type: 'T4A'; data: T4ASlip }
   | { type: 'T2202'; data: T2202Slip }
   | { type: 'T4E'; data: T4ESlip }
-  | { type: 'T5007'; data: T5007Slip };
+  | { type: 'T5007'; data: T5007Slip }
+  | { type: 'T4AP'; data: T4APSlip }
+  | { type: 'T4AOAS'; data: T4AOASSlip }
+  | { type: 'T4RSP'; data: T4RSPSlip }
+  | { type: 'T4RIF'; data: T4RIFSlip }
+  | { type: 'RRSP-Receipt'; data: RRSPReceiptSlip };
 
 // ============================================================
 // SELF-EMPLOYMENT (T2125)
