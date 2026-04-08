@@ -42,6 +42,8 @@ import type {
   T5008Slip,
   T3Slip,
   T4ASlip,
+  T4ESlip,
+  T2202Slip,
 } from './types';
 
 import {
@@ -206,6 +208,8 @@ export function calculateTaxReturn(
   const t5008Slips: T5008Slip[] = [];
   const t3Slips: T3Slip[] = [];
   const t4aSlips: T4ASlip[] = [];
+  const t4eSlips: T4ESlip[] = [];
+  const t2202Slips: T2202Slip[] = [];
 
   for (const slip of slips) {
     switch (slip.type) {
@@ -214,8 +218,15 @@ export function calculateTaxReturn(
       case 'T5008': t5008Slips.push(slip.data); break;
       case 'T3':    t3Slips.push(slip.data);    break;
       case 'T4A':   t4aSlips.push(slip.data);   break;
+      case 'T4E':   t4eSlips.push(slip.data);   break;
+      case 'T2202': t2202Slips.push(slip.data); break;
     }
   }
+
+  // ITA s.118.5 — current-year tuition from uploaded T2202 slips (Box A)
+  const tuitionCurrentYear = roundCRA(
+    t2202Slips.reduce((sum, s) => sum + (s.boxA || 0), 0)
+  );
 
   const hasEmploymentIncome = t4Slips.some(s => s.box14 > 0);
 
@@ -307,7 +318,7 @@ export function calculateTaxReturn(
     eligiblePensionIncome,
     totalMedicalExpenses,
     totalDonations,
-    tuitionAmount: 0,  // T2202 tuition amount flows through carryforward only
+    tuitionAmount: tuitionCurrentYear,  // ITA s.118.5 — current-year T2202 Box A
     tuitionCarryforward: deductions.tuitionCarryforward ?? 0,
     studentLoanInterest: deductions.studentLoanInterest ?? 0,
     hasDisability: deductions.hasDisabilityCredit,
@@ -392,11 +403,12 @@ export function calculateTaxReturn(
   const totalTaxPayable = roundCRA(netFederalTax + netOntarioTax);
 
   // ── STEP 18: Total tax deducted at source ─────────────────────────────────
-  // T4 box 22 + T4A box 022 (both are "income tax deducted")
+  // T4 box 22 + T4A box 022 + T4E box 22 (all are "income tax deducted")
 
   const totalTaxDeducted = roundCRA(
     t4Slips.reduce((sum, s) => sum + s.box22, 0) +
-    t4aSlips.reduce((sum, s) => sum + s.box022, 0)
+    t4aSlips.reduce((sum, s) => sum + s.box022, 0) +
+    t4eSlips.reduce((sum, s) => sum + s.box22, 0)
   );
 
   // ── STEP 19: Balance owing / refund ──────────────────────────────────────

@@ -157,6 +157,31 @@ export default function OnboardingPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const hydratedRef = useRef(false);
+
+  // Restore conversation from localStorage on mount
+  useEffect(() => {
+    const savedMessages = localStorage.getItem('taxagent_assessment_messages');
+    const savedComplete = localStorage.getItem('taxagent_assessment_done');
+    const savedRecs = localStorage.getItem('taxagent_slip_recs');
+    if (savedMessages) {
+      try {
+        const parsed = JSON.parse(savedMessages) as Message[];
+        if (parsed.length > 1) setMessages(parsed); // only restore if there's actual conversation
+      } catch { /* ignore */ }
+    }
+    if (savedComplete) setIsComplete(true);
+    if (savedRecs) {
+      try { setSlipRecs(JSON.parse(savedRecs) as SlipRecommendation[]); } catch { /* ignore */ }
+    }
+    hydratedRef.current = true;
+  }, []);
+
+  // Persist messages to localStorage whenever they change (after hydration)
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    localStorage.setItem('taxagent_assessment_messages', JSON.stringify(messages));
+  }, [messages]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -280,6 +305,9 @@ export default function OnboardingPage() {
     setStreaming(false);
     setIsComplete(false);
     setSlipRecs([]);
+    localStorage.removeItem('taxagent_assessment_messages');
+    localStorage.removeItem('taxagent_assessment_done');
+    localStorage.removeItem('taxagent_slip_recs');
   }
 
   return (
