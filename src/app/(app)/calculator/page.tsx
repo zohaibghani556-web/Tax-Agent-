@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   ChevronDown, ChevronUp, Download, RefreshCw,
-  XCircle, AlertTriangle, FileText, Settings2,
+  XCircle, AlertTriangle, FileText, Settings2, CheckCircle2,
 } from 'lucide-react';
 import { WhatIfEngine } from '@/components/calculator/WhatIfEngine';
 import { CreditFinder } from '@/components/calculator/CreditFinder';
 import { createClient } from '@/lib/supabase/client';
+import { validateTaxReturn } from '@/lib/tax-engine/validator';
 import type { TaxProfile, TaxSlip, DeductionsCreditsInput, TaxCalculationResult } from '@/lib/tax-engine/types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -196,6 +197,81 @@ function SkeletonCard() {
   return <div className="h-14 animate-pulse rounded-xl" style={{ background: 'rgba(255,255,255,0.06)' }} />;
 }
 
+// ── ValidatorPanel ────────────────────────────────────────────────────────────
+
+import type { ValidationResult } from '@/lib/tax-engine/validator';
+
+function ValidatorPanel({ validation }: { validation: ValidationResult }) {
+  const [open, setOpen] = useState(false);
+  const { completionPct, errors, warnings, isFileable } = validation;
+  const issueCount = errors.length + warnings.length;
+
+  const barColour =
+    completionPct >= 80 ? '#10B981'
+    : completionPct >= 50 ? '#F59E0B'
+    : '#EF4444';
+
+  return (
+    <div className="mb-4 rounded-xl overflow-hidden print:hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      {/* Status bar row */}
+      <div className="px-5 py-3 flex items-center gap-4">
+        {/* Completion label + % */}
+        <div className="flex items-center gap-2 shrink-0">
+          {isFileable
+            ? <CheckCircle2 className="h-4 w-4" style={{ color: barColour }} />
+            : <XCircle className="h-4 w-4 text-red-400" />}
+          <span className="text-xs font-semibold" style={{ color: barColour }}>
+            {completionPct}% complete
+          </span>
+        </div>
+
+        {/* Progress bar */}
+        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${completionPct}%`, background: barColour }}
+          />
+        </div>
+
+        {/* Issue toggle */}
+        {issueCount > 0 && (
+          <button
+            onClick={() => setOpen(!open)}
+            className="flex items-center gap-1.5 text-xs shrink-0 transition-colors hover:opacity-80"
+            style={{ color: errors.length > 0 ? '#FCA5A5' : '#FCD34D' }}
+          >
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {issueCount} issue{issueCount !== 1 ? 's' : ''}
+            {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+        )}
+        {issueCount === 0 && (
+          <span className="text-xs text-white/25 shrink-0">No issues</span>
+        )}
+      </div>
+
+      {/* Collapsible issues panel */}
+      {open && issueCount > 0 && (
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }} className="divide-y divide-white/5">
+          {[...errors, ...warnings].map((issue, i) => (
+            <div key={i} className={`px-5 py-3 flex gap-3 ${issue.severity === 'error' ? 'bg-red-500/5' : 'bg-amber-500/5'}`}>
+              <AlertTriangle className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${issue.severity === 'error' ? 'text-red-400' : 'text-amber-400'}`} />
+              <div className="min-w-0">
+                <p className={`text-xs font-medium ${issue.severity === 'error' ? 'text-red-300' : 'text-amber-300'}`}>
+                  {issue.message}
+                </p>
+                {issue.suggestion && (
+                  <p className="text-[10px] text-white/35 mt-0.5 leading-snug">{issue.suggestion}</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Simple number input styled for the dark theme */
 function DeductionField({
   label, hint, value, onChange, prefix = '$',
@@ -370,6 +446,13 @@ export default function CalculatorPage() {
   const isRefund = result && result.balanceOwing < 0;
   const hasSlips = savedSlips.length > 0;
 
+  // Compute validation result reactively whenever slips or deductions change
+  const validation = useMemo(
+    () => validateTaxReturn(currentProfile, savedSlips.map(savedToTaxSlip), buildDeductions()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [savedSlips, userDeductions, profileName]
+  );
+
   const currentProfile: TaxProfile = {
     id: userId || 'local',
     userId: userId || 'local',
@@ -420,6 +503,9 @@ export default function CalculatorPage() {
           </button>
         </div>
       </div>
+
+      {/* ── Return Completeness Validator ────────────────────────────────────── */}
+      <ValidatorPanel validation={validation} />
 
       {/* ── Deductions & Credits panel ────────────────────────────────────────── */}
       <div className="mb-6 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>

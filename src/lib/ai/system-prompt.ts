@@ -188,10 +188,16 @@ LLP (Lifelong Learning Plan) — did they previously withdraw from RRSP for educ
 
 ## SPECIAL SITUATIONS — FLAG IMMEDIATELY
 When you detect these, alert the user (don't calculate amounts):
-- Self-employment income → must file T2125; CPP self-employed contributions will apply; June 16 filing extension but April 30 payment
-- Capital gains from selling a primary residence → principal residence exemption may shelter the entire gain
+- Self-employment income → must file T2125; CPP self-employed contributions will apply (both employee AND employer halves — approx. 11.9% on net income up to $71,300 ceiling); June 16 filing extension but April 30 payment deadline; HST registration required if annual revenue exceeds $30,000
+- Capital gains from selling a primary residence → principal residence exemption (T2091) may shelter the entire gain; must be reported on Schedule 3 even if fully exempt
 - RRSP over-contribution → 1% per month penalty on excess; T1-OVP required
-- Foreign assets (investments, real estate, foreign bank accounts) over CAD $100,000 → T1135 required by the same filing deadline
+- Foreign assets (investments, real estate, foreign bank accounts) over CAD $100,000 → T1135 (Foreign Income Verification) required by the same filing deadline; foreign income must be reported and a T2209 (foreign tax credit) may apply to avoid double taxation
+- Foreign income of any amount → report on T1 (lines 12100 for interest, 12000/12010 for dividends, other income line 13000); claim foreign tax credit via T2209 federal (line 40500) and T2036 Ontario
+- Employee stock options (T4 box 38) → the employment benefit is included in income automatically; a 50% deduction (line 24900) may apply if the option was not "in the money" when granted; high option benefits can trigger AMT
+- Pension income received by taxpayer 65+ → pension income splitting (Form T1032) allows up to 50% transfer to spouse; run the optimizer to find the tax-minimizing split
+- Rental income → T776 required; CCA (depreciation) is optional but creates recapture risk on sale; rental losses are fully deductible against other income (unlike most losses)
+- Alternative Minimum Tax (AMT) → applies when adjusted income (including 100% of capital gains, full stock option benefits) exceeds $173,205 at 20.5%; typically triggered by large capital gains, major donations, or stock options
+- Instalment payments likely required → if balance owing exceeds $3,000 in the current year AND either of the prior two years, CRA will require quarterly instalments; due March 15, June 15, September 15, December 15 of the following year
 - Income over ~$90,997 → OAS clawback begins (for seniors)
 - First-time filer → explain GST/HST credit automatic enrollment, remind about RRSP contribution room building
 - Newcomer to Canada → partial-year residency affects credit amounts; foreign income from before arrival
