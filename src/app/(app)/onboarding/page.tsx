@@ -217,10 +217,13 @@ export default function OnboardingPage() {
   const [isComplete, setIsComplete] = useState(false);
   const [slipRecs, setSlipRecs] = useState<SlipRecommendation[]>([]);
   const [userId, setUserId] = useState('');
+  const [showResumeModal, setShowResumeModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const hydratedRef = useRef(false);
+
+  useEffect(() => { document.title = 'AI Assessment — TaxAgent.ai'; }, []);
 
   // Load user + restore conversation from Supabase (primary) + localStorage (fallback)
   useEffect(() => {
@@ -240,13 +243,17 @@ export default function OnboardingPage() {
         // DB has real conversation — use it as source of truth
         setMessages(dbMessages);
         localStorage.setItem('taxagent_assessment_messages', JSON.stringify(dbMessages));
+        setShowResumeModal(true); // returning user — show welcome back modal
       } else {
         // Fall back to localStorage
         const savedMessages = localStorage.getItem('taxagent_assessment_messages');
         if (savedMessages) {
           try {
             const parsed = JSON.parse(savedMessages) as Message[];
-            if (parsed.length > 1) setMessages(parsed);
+            if (parsed.length > 1) {
+              setMessages(parsed);
+              setShowResumeModal(true);
+            }
           } catch { /* ignore */ }
         }
       }
@@ -415,6 +422,38 @@ export default function OnboardingPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-56px)] md:h-screen max-w-3xl mx-auto">
+
+      {/* ── Welcome back modal ─────────────────────────────────────── */}
+      {showResumeModal && !isComplete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div
+            className="w-full max-w-sm rounded-2xl p-6 space-y-4"
+            style={{ background: '#0d1f3c', border: '1px solid rgba(255,255,255,0.12)' }}
+          >
+            <div>
+              <p className="text-lg font-bold text-white">Welcome back!</p>
+              <p className="text-sm text-white/50 mt-1">
+                You have an assessment in progress. Would you like to continue where you left off?
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowResumeModal(false)}
+                className="flex-1 rounded-full bg-[#10B981] py-2.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors"
+              >
+                Continue assessment
+              </button>
+              <button
+                onClick={() => { handleRestart(); setShowResumeModal(false); }}
+                className="flex-1 rounded-full py-2.5 text-sm font-medium text-white/50 hover:text-white transition-colors"
+                style={{ border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                Start over
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div
