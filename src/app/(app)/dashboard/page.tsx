@@ -18,6 +18,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { TaxCalculationResult } from '@/lib/tax-engine/types';
 import { getLatestCalculation, getSlips, getCalculationHistory } from '@/lib/supabase/tax-data';
 import { toast } from 'sonner';
+import { TaxCalendarCard } from '@/components/dashboard/TaxCalendarCard';
 
 function formatCad(n: number): string {
   return new Intl.NumberFormat('en-CA', {
@@ -202,6 +203,8 @@ export default function DashboardPage() {
   const [calcResult, setCalcResult] = useState<TaxCalculationResult | null>(null);
   const [onboardingDismissed, setOnboardingDismissed] = useState(true); // default true to avoid flash
   const [historyEntries, setHistoryEntries] = useState<Array<{ id: string; createdAt: string; result: TaxCalculationResult }>>([]);
+
+  useEffect(() => { document.title = 'Dashboard — TaxAgent.ai'; }, []);
 
   useEffect(() => {
     async function init() {
@@ -453,6 +456,9 @@ export default function DashboardPage() {
           </div>
         </GlassCard>
       )}
+
+      {/* ── Tax calendar ──────────────────────────────────────────── */}
+      <TaxCalendarCard />
 
       {/* ── Quick actions ─────────────────────────────────────────── */}
       <div>
