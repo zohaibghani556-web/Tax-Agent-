@@ -600,6 +600,12 @@ export const CRA_LINES = {
   medicalExpensesSupplement: 33199,
   donationsCredits:          34900,
 
+  // HBP/LLP repayments (ITA s.146.01/146.02)
+  rrspHbpLlpRepayment:       24600,
+
+  // AMT carryforward credit — prior years' minimum tax offset (ITA s.120.2)
+  amtCarryforwardCredit:     40425,
+
   // Tax deducted
   totalTaxDeducted:          43700,
 

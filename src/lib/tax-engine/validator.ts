@@ -186,20 +186,31 @@ export function validateTaxReturn(
       'Over-deduction occurs when you work multiple jobs. The engine will calculate any refund.'));
   }
 
-  // ── Foreign income checks ─────────────────────────────────────────────────
+  // ── Foreign income checks — enhanced T1135 trigger (ITA s.233.3) ─────────
   const hasT5 = slips.some(s => s.type === 'T5');
   if (hasT5) {
-    // Check for foreign box data on T5 slips
-    const t5Foreign = slips
+    // Aggregate all foreign income from T5 box 14 (other income from foreign sources)
+    const totalForeignIncome = slips
       .filter(s => s.type === 'T5')
-      .map(s => s.data as { box14?: number })
-      .some(d => (d.box14 ?? 0) > 0);
+      .reduce((sum, s) => sum + ((s.data as { box14?: number }).box14 ?? 0), 0);
 
-    if (t5Foreign) {
-      issues.push(issue('warning', 'FOREIGN_INCOME_DETECTED',
-        'Foreign income detected on a T5 slip. If your total foreign property cost exceeds CAD $100,000, you must file T1135 (Foreign Income Verification).',
-        'foreignIncome',
-        'Review all foreign assets, bank accounts, and investments. File T1135 by April 30, 2026 if required.'));
+    const t5HasForeignIncome = totalForeignIncome > 0;
+
+    if (t5HasForeignIncome) {
+      if (totalForeignIncome > 100000) {
+        // Above $100,000 aggregate threshold → T1135 required (ITA s.233.3)
+        issues.push(issue('error', 'T1135_REQUIRED',
+          'Your foreign income suggests total foreign property may exceed CAD $100,000. ' +
+          'T1135 (Foreign Income Verification Statement) is required by April 30, 2026 — ' +
+          'same deadline as your T1. Penalties: $25/day, minimum $100, maximum $2,500 (ITA s.233.3).',
+          'foreignIncome',
+          'Complete and file T1135 (Foreign Income Verification Statement) reporting all foreign property with a cost over CAD $100,000.'));
+      } else {
+        issues.push(issue('warning', 'FOREIGN_INCOME_DETECTED',
+          'Foreign income detected on a T5 slip. If your total foreign property cost exceeds CAD $100,000, you must file T1135 (Foreign Income Verification).',
+          'foreignIncome',
+          'Review all foreign assets, bank accounts, and investments. File T1135 by April 30, 2026 if required.'));
+      }
     }
   }
 

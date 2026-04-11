@@ -354,6 +354,18 @@ export interface DeductionsCreditsInput {
   // Tax instalments paid in 2025 (line 47600)
   instalmentsPaid?: number;
 
+  // HBP/LLP repayments (line 24600) — ITA s.146.01/146.02
+  hbpRepaymentAmount?: number;          // Line 24600 — HBP amount being repaid this year
+  llpRepaymentAmount?: number;          // Line 24600 — LLP amount being repaid this year (combined with HBP)
+  hbpTotalOwing?: number;               // Total HBP balance from prior NOA
+  hbpYearOfFirstWithdrawal?: number;    // Calendar year of first HBP withdrawal
+  llpTotalOwing?: number;               // Total LLP balance from prior NOA
+  llpYearOfFirstWithdrawal?: number;    // Calendar year of first LLP withdrawal
+
+  // AMT carryforward credit — prior years' minimum tax credit (line 40425)
+  // Max 7-year carryforward per ITA s.120.2
+  amtCarryforwardCredit?: number;
+
   // Other credits already in constants
   politicalContributions: number;
   digitalNewsSubscription: number;

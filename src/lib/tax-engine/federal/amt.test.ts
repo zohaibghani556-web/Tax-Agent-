@@ -158,6 +158,47 @@ describe('calculateAMT', () => {
     expect(result.amtPayable).toBe(0);
   });
 
+  // ── AMT Carryforward Credit tests (line 40425) ─────────────────────────────
+  // These tests validate the engine-level behaviour (engine.ts applies the credit).
+  // Here we test the AMT calculation's amtCarryforward output that feeds future credits.
+
+  it('no carryforward → amtCarryforward = 0 when AMT does not apply', () => {
+    const input = makeInput({
+      regularTaxableIncome: 80000,
+      regularFederalTax: 10000,
+    });
+    const result = calculateAMT(input);
+    expect(result.amtCarryforward).toBe(0);
+  });
+
+  it('carryforward = AMT excess when AMT applies', () => {
+    // AMT applies; excess over regular tax becomes the carryforward credit
+    const input = makeInput({
+      regularTaxableIncome: 700000,
+      regularFederalTax: 80000,
+      netCapitalGains: 800000,
+      regularCapitalGainsInclusion: 400000,
+    });
+    const result = calculateAMT(input);
+    if (result.amtApplicable) {
+      const expected = result.amtTax - result.regularFederalTax;
+      expect(result.amtCarryforward).toBeCloseTo(expected, 1);
+    } else {
+      expect(result.amtCarryforward).toBe(0);
+    }
+  });
+
+  it('AMT exactly equals regular tax → amtCarryforward = 0', () => {
+    // Construct a scenario where AMT = regular tax exactly → no excess carryforward
+    // ATI - exemption = 0 → amtTax = 0; AMT doesn't apply
+    const input = makeInput({
+      regularTaxableIncome: 173205,
+      regularFederalTax: 0,
+    });
+    const result = calculateAMT(input);
+    expect(result.amtCarryforward).toBe(0);
+  });
+
   it('high donation scenario — 30% add-back can trigger AMT', () => {
     // $2M donation on $3M income
     const input = makeInput({

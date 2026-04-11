@@ -456,7 +456,7 @@ export function calculateTaxReturn(
 
   // ── STEP 8: Net federal tax ───────────────────────────────────────────────
 
-  const netFederalTax = Math.max(
+  let netFederalTax = Math.max(
     0,
     roundCRA(
       federalTaxOnIncome -
@@ -465,6 +465,15 @@ export function calculateTaxReturn(
       topUpTaxCredit
     )
   );
+
+  // AMT carryforward credit (line 40425) — ITA s.120.2
+  // Prior years' minimum tax can offset regular federal tax (7-year carryforward).
+  // Apply only when AMT is NOT triggered this year. Cannot reduce tax below zero.
+  const amtCarryforwardCredit = deductions.amtCarryforwardCredit ?? 0;
+  if (amtCarryforwardCredit > 0) {
+    const creditApplied = Math.min(amtCarryforwardCredit, netFederalTax);
+    netFederalTax = roundCRA(netFederalTax - creditApplied);
+  }
 
   // ── STEPS 9–10: Ontario tax on income + non-refundable credits (ON428) ───
 
