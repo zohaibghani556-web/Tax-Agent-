@@ -19,6 +19,7 @@ import {
   ExternalLink,
   FileText,
   Loader2,
+  Printer,
   RefreshCw,
   Square,
   XCircle,
@@ -154,16 +155,27 @@ export default function FilingGuidePage() {
           </p>
         </div>
         {guide && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={generateGuide}
-            disabled={generating}
-            className="gap-1.5 shrink-0"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${generating ? 'animate-spin' : ''}`} />
-            Regenerate
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.print()}
+              className="gap-1.5"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              Print
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={generateGuide}
+              disabled={generating}
+              className="gap-1.5"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${generating ? 'animate-spin' : ''}`} />
+              Regenerate
+            </Button>
+          </div>
         )}
       </div>
 

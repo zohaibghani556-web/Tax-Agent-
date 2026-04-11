@@ -4,10 +4,12 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   ChevronDown, ChevronUp, Download, RefreshCw,
   XCircle, AlertTriangle, FileText, Settings2, CheckCircle2, Cloud,
+  Share2, Sparkles,
 } from 'lucide-react';
 import { WhatIfEngine } from '@/components/calculator/WhatIfEngine';
 import { CreditFinder } from '@/components/calculator/CreditFinder';
 import { TaxOptimizer } from '@/components/calculator/TaxOptimizer';
+import { PrintSummary } from '@/components/calculator/PrintSummary';
 import { createClient } from '@/lib/supabase/client';
 import { validateTaxReturn } from '@/lib/tax-engine/validator';
 import { calculateInstalments } from '@/lib/tax-engine/federal/instalments';
@@ -324,6 +326,71 @@ function DeductionField({
           onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
           className="flex-1 bg-transparent text-sm text-white tabular-nums focus:outline-none placeholder-white/20"
         />
+      </div>
+    </div>
+  );
+}
+
+// ── Credits Found Banner (Group 3A) ──────────────────────────────────────────
+
+function CreditsFoundBanner({ result }: { result: TaxCalculationResult }) {
+  // Count non-BPA credits that are applied
+  const creditChecks: Array<[keyof TaxCalculationResult, string]> = [
+    ['canadaTrainingCredit', 'Canada Training Credit'],
+    ['refundableMedicalSupplement', 'Refundable Medical Supplement'],
+    ['ontarioSeniorsHomeCredit', 'Ontario Seniors Care at Home'],
+    ['canadaWorkersCredit', 'Canada Workers Benefit'],
+  ];
+
+  // Also check lineByLine for non-refundable credits > 0
+  const lineCredits: Array<[number, string]> = [
+    [31100, 'Age Amount'],
+    [33099, 'Medical Expense Credit'],
+    [31800, 'Disability Tax Credit'],
+    [45350, 'Canada Training Credit'],
+    [32500, 'Caregiver Amount'],
+    [31270, 'Home Buyers\' Amount'],
+    [31285, 'Home Accessibility Credit'],
+    [31350, 'Digital News Subscription'],
+    [45300, 'Canada Workers Benefit'],
+    [31240, 'Volunteer Firefighter Credit'],
+    [31255, 'Search & Rescue Credit'],
+    [40500, 'Federal Foreign Tax Credit'],
+  ];
+
+  let count = 0;
+  let totalValue = 0;
+
+  for (const [key] of creditChecks) {
+    const v = result[key];
+    if (typeof v === 'number' && v > 0) { count++; totalValue += v; }
+  }
+  for (const [line] of lineCredits) {
+    const v = result.lineByLine[line];
+    if (typeof v === 'number' && v > 0) { count++; totalValue += v; }
+  }
+
+  // Deduplicate CTC (might appear in both lists)
+  if (result.canadaTrainingCredit > 0 && (result.lineByLine[45350] ?? 0) > 0) {
+    count = Math.max(0, count - 1);
+  }
+
+  if (count === 0) return null;
+
+  const sub = count >= 3 ? 'Most people miss at least one of these.' : undefined;
+
+  return (
+    <div
+      className="rounded-xl p-4 flex items-start gap-3"
+      style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}
+    >
+      <Sparkles className="h-4 w-4 text-[#10B981] shrink-0 mt-0.5" />
+      <div>
+        <p className="text-sm font-semibold text-[#10B981]">
+          We found {count === 1 ? '1 credit' : `${count} credits`} applied to your return —
+          saving you approximately {new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }).format(Math.abs(totalValue))}
+        </p>
+        {sub && <p className="text-xs text-[#10B981]/70 mt-0.5">{sub}</p>}
       </div>
     </div>
   );
@@ -806,6 +873,9 @@ export default function CalculatorPage() {
         </div>
       ) : null}
 
+      {/* Credits found callout (Group 3A) */}
+      {result && <div className="mb-6"><CreditsFoundBanner result={result} /></div>}
+
       {/* Two-column layout */}
       {(result || (loading && hasSlips)) && (
         <div className="flex flex-col lg:flex-row gap-6 items-start">
@@ -903,9 +973,27 @@ export default function CalculatorPage() {
                   </div>
                 )}
 
-                {/* Result card */}
+                {/* Result card (Group 3B — Share button) */}
                 <div className={`rounded-2xl p-6 ${isRefund ? 'bg-[#10B981]' : 'bg-red-500'}`}>
-                  <p className="text-sm font-semibold text-white/80 mb-1">{isRefund ? 'Your estimated refund' : 'Amount owing'}</p>
+                  <div className="flex items-start justify-between gap-3 mb-1">
+                    <p className="text-sm font-semibold text-white/80">{isRefund ? 'Your estimated refund' : 'Amount owing'}</p>
+                    <button
+                      onClick={async () => {
+                        const amount = formatCad(Math.abs(result.balanceOwing));
+                        const text = `TaxAgent estimated my 2025 ${isRefund ? 'refund' : 'balance owing'} at ${amount}. Check yours free →`;
+                        if (typeof navigator !== 'undefined' && navigator.share) {
+                          await navigator.share({ title: 'My 2025 Tax Estimate', text, url: 'https://taxagent.ai' }).catch(() => { /* dismissed */ });
+                        } else {
+                          await navigator.clipboard.writeText(`${text} https://taxagent.ai`);
+                          toast.success('Copied to clipboard!', { duration: 2000 });
+                        }
+                      }}
+                      className="shrink-0 h-8 w-8 rounded-full flex items-center justify-center bg-white/20 hover:bg-white/30 transition-colors"
+                      aria-label="Share result"
+                    >
+                      <Share2 className="h-4 w-4 text-white" />
+                    </button>
+                  </div>
                   <p className="text-4xl sm:text-5xl font-black tabular-nums text-white mb-2">
                     {formatCad(Math.abs(result.balanceOwing))}
                   </p>
@@ -1038,9 +1126,7 @@ export default function CalculatorPage() {
         </div>
       )}
 
-      <p className="hidden print:block text-xs text-slate-400 text-center pt-4 mt-6">
-        TaxAgent.ai · 2025 Ontario T1 Estimate · {new Date().toLocaleDateString('en-CA')} · This is an estimate only.
-      </p>
+      {result && <PrintSummary result={result} />}
     </div>
   );
 }
