@@ -257,17 +257,37 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
           </div>
         </div>
 
-        {/* Confidence badge */}
-        <div className="flex items-center gap-2">
-          <CheckCircle className={`h-3.5 w-3.5 ${isHighConfidence ? 'text-[#10B981]' : isLowConfidence ? 'text-amber-400' : 'text-white/50'}`} />
-          <span className={`text-xs ${isHighConfidence ? 'text-[#10B981]' : isLowConfidence ? 'text-amber-400' : 'text-white/50'}`}>
+        {/* Confidence bar */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-xs">
+            <span className="text-white/40">OCR confidence</span>
+            <span className={`font-semibold tabular-nums ${isHighConfidence ? 'text-[#10B981]' : isLowConfidence ? 'text-amber-400' : 'text-white/60'}`}>
+              {Math.round(confidence * 100)}%
+            </span>
+          </div>
+          <div className="h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.1)' }}>
+            <div
+              className={`h-full rounded-full transition-all ${isHighConfidence ? 'bg-[#10B981]' : isLowConfidence ? 'bg-amber-400' : 'bg-blue-400'}`}
+              style={{ width: `${Math.round(confidence * 100)}%` }}
+            />
+          </div>
+          <p className={`text-xs ${isHighConfidence ? 'text-[#10B981]' : isLowConfidence ? 'text-amber-400' : 'text-white/40'}`}>
             {isHighConfidence
-              ? `${Math.round(confidence * 100)}% confident — all fields read clearly`
+              ? 'All fields read clearly — ready to save'
               : isLowConfidence
-              ? `${Math.round(confidence * 100)}% confident — please review the highlighted fields below`
-              : `${Math.round(confidence * 100)}% confident — review before saving`}
-          </span>
+              ? 'Low confidence — please review highlighted fields below'
+              : 'Review before saving'}
+          </p>
         </div>
+      </div>
+
+      {/* Step indicator */}
+      <div className="flex items-center gap-2 text-xs text-white/30">
+        <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${!isLowConfidence && !showAllFields ? 'bg-[#10B981] text-white' : 'bg-white/10 text-white/50'}`}>1</span>
+        <span>Summary</span>
+        <span className="flex-1 h-px bg-white/10" />
+        <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${isLowConfidence || showAllFields ? 'bg-[#10B981] text-white' : 'bg-white/10 text-white/50'}`}>2</span>
+        <span>Review & confirm</span>
       </div>
 
       {/* For low confidence: always show fields. For high confidence: show toggle */}
