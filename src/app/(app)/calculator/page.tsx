@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   ChevronDown, ChevronUp, Download, RefreshCw,
-  XCircle, AlertTriangle, FileText, Settings2, CheckCircle2,
+  XCircle, AlertTriangle, FileText, Settings2, CheckCircle2, Cloud,
 } from 'lucide-react';
 import { WhatIfEngine } from '@/components/calculator/WhatIfEngine';
 import { CreditFinder } from '@/components/calculator/CreditFinder';
@@ -15,6 +15,13 @@ import { optimizePensionSplit } from '@/lib/tax-engine/federal/pension-split-opt
 import type { TaxProfile, TaxSlip, DeductionsCreditsInput, TaxCalculationResult } from '@/lib/tax-engine/types';
 import type { ValidationResult } from '@/lib/tax-engine/validator';
 import { addCsrfHeader } from '@/lib/csrf-client';
+import { toast } from 'sonner';
+import {
+  getSlips as getDbSlips,
+  getDeductions as getDbDeductions,
+  saveCalculationResult,
+} from '@/lib/supabase/tax-data';
+import type { SavedSlip as DbSavedSlip } from '@/lib/supabase/tax-data';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -335,37 +342,88 @@ export default function CalculatorPage() {
   const [userDeductions, setUserDeductions] = useState<UserDeductions>(DEFAULT_USER_DEDUCTIONS);
   const [deductionsOpen, setDeductionsOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const initialLoad = useRef(true);
 
+  function formatLastSaved(date: Date | null): string {
+    if (!date) return '';
+    const diffMs = Date.now() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'Just saved';
+    if (diffMin < 60) return `${diffMin} min ago`;
+    return date.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
+  }
+
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        const name = (data.user.user_metadata?.full_name as string | undefined)
-          ?? data.user.email?.split('@')[0]
-          ?? 'Taxpayer';
-        setProfileName(name);
-        setUserId(data.user.id);
+    async function init() {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id ?? '';
+      const name = (data.user?.user_metadata?.full_name as string | undefined)
+        ?? data.user?.email?.split('@')[0]
+        ?? 'Taxpayer';
+      setProfileName(name);
+      setUserId(uid);
+
+      // Load slips: Supabase → localStorage fallback
+      let loadedSlips: SavedSlip[] = [];
+      if (uid) {
+        const dbSlips = await getDbSlips(uid, 2025);
+        if (dbSlips.length > 0) {
+          loadedSlips = dbSlips;
+          localStorage.setItem('taxagent_slips', JSON.stringify(dbSlips));
+        }
       }
-    });
+      if (loadedSlips.length === 0) {
+        const rawSlips = localStorage.getItem('taxagent_slips');
+        if (rawSlips) {
+          try { loadedSlips = JSON.parse(rawSlips) as SavedSlip[]; } catch { /* ignore */ }
+        }
+      }
+      setSavedSlips(loadedSlips);
 
-    const rawSlips = localStorage.getItem('taxagent_slips');
-    if (rawSlips) {
-      try { setSavedSlips(JSON.parse(rawSlips) as SavedSlip[]); } catch { /* ignore */ }
-    }
+      // Load deductions: localStorage (primary) merged with Supabase for supported fields
+      let merged: UserDeductions = { ...DEFAULT_USER_DEDUCTIONS };
+      const rawDeductions = localStorage.getItem('taxagent_deductions');
+      if (rawDeductions) {
+        try { merged = { ...merged, ...(JSON.parse(rawDeductions) as Partial<UserDeductions>) }; } catch { /* ignore */ }
+      }
+      if (uid) {
+        const dbDed = await getDbDeductions(uid, 2025);
+        if (dbDed) {
+          // DB wins for numeric fields; localStorage wins for booleans/toggles not in DB
+          merged = {
+            ...merged,
+            rrspContributions: dbDed.rrspContributions || merged.rrspContributions,
+            rrspContributionRoom: dbDed.rrspContributionRoom || merged.rrspContributionRoom,
+            rentPaid: dbDed.rentPaid || merged.rentPaid,
+            propertyTaxPaid: dbDed.propertyTaxPaid || merged.propertyTaxPaid,
+            childcareExpenses: dbDed.childcareExpenses || merged.childcareExpenses,
+            movingExpenses: dbDed.movingExpenses || merged.movingExpenses,
+            supportPaymentsMade: dbDed.supportPaymentsMade || merged.supportPaymentsMade,
+            medicalExpenses: dbDed.medicalExpenses || merged.medicalExpenses,
+            charitableDonations: dbDed.charitableDonations || merged.charitableDonations,
+            studentLoanInterest: dbDed.studentLoanInterest || merged.studentLoanInterest,
+            unionDues: dbDed.unionDues || merged.unionDues,
+            tuitionCarryforward: dbDed.tuitionCarryforward || merged.tuitionCarryforward,
+            digitalNewsSubscription: dbDed.digitalNewsSubscription || merged.digitalNewsSubscription,
+            homeAccessibilityExpenses: dbDed.homeAccessibilityExpenses || merged.homeAccessibilityExpenses,
+            hasDisabilityCredit: dbDed.hasDisabilityCredit || merged.hasDisabilityCredit,
+            homeBuyersEligible: dbDed.homeBuyersEligible || merged.homeBuyersEligible,
+          };
+        }
+      }
+      setUserDeductions(merged);
 
-    const rawDeductions = localStorage.getItem('taxagent_deductions');
-    if (rawDeductions) {
-      try { setUserDeductions(JSON.parse(rawDeductions) as UserDeductions); } catch { /* ignore */ }
+      const prevResult = localStorage.getItem('taxagent_calc_result');
+      if (prevResult) {
+        try {
+          setResult(JSON.parse(prevResult) as TaxCalculationResult);
+          setCalculatedAt(new Date());
+        } catch { /* ignore */ }
+      }
     }
-
-    const prevResult = localStorage.getItem('taxagent_calc_result');
-    if (prevResult) {
-      try {
-        setResult(JSON.parse(prevResult) as TaxCalculationResult);
-        setCalculatedAt(new Date());
-      } catch { /* ignore */ }
-    }
+    init().catch(() => { /* ignore */ });
   }, []);
 
   // Persist deductions whenever they change
@@ -451,6 +509,12 @@ export default function CalculatorPage() {
       setResult(data);
       setCalculatedAt(new Date());
       localStorage.setItem('taxagent_calc_result', JSON.stringify(data));
+      // Save to Supabase (append-only history)
+      if (userId) {
+        await saveCalculationResult(userId, 2025, data);
+        setLastSaved(new Date());
+        toast.success('Calculation complete — results saved', { duration: 2000 });
+      }
     } catch {
       setError('Calculation failed. Please try again.');
     } finally {
@@ -494,7 +558,15 @@ export default function CalculatorPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-8 print:hidden">
         <div>
-          <h1 className="text-2xl font-bold text-white">Tax Calculator</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-white">Tax Calculator</h1>
+            {lastSaved && (
+              <span className="flex items-center gap-1 text-xs text-white/30">
+                <Cloud className="h-3 w-3" />
+                {formatLastSaved(lastSaved)}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-white/40 mt-1">
             2025 Ontario T1 Summary · {profileName || 'Your Name'}
             {calculatedAt && (

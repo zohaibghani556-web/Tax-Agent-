@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Pencil, Trash2, FileText, Check, ArrowRight, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Pencil, Trash2, FileText, Check, ArrowRight, ChevronRight, Cloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -15,16 +15,12 @@ import { ManualEntryForm } from '@/components/slips/ManualEntryForm';
 import { SLIP_TYPE_LABELS, SLIP_PRIMARY_BOX } from '@/lib/slips/slip-fields';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { createClient } from '@/lib/supabase/client';
+import { getSlips, upsertSlips } from '@/lib/supabase/tax-data';
+import type { SavedSlip } from '@/lib/supabase/tax-data';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-interface SavedSlip {
-  id: string;
-  type: string;
-  issuerName: string;
-  data: Record<string, number | string>;
-  enteredAt: string;
-}
 
 interface SlipRec {
   type: string;
@@ -63,6 +59,15 @@ function GlassCard({ children, className = '' }: { children: React.ReactNode; cl
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
+function formatLastSaved(date: Date | null): string {
+  if (!date) return '';
+  const diffMs = Date.now() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'Just saved';
+  if (diffMin < 60) return `${diffMin} min ago`;
+  return date.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
+}
+
 export default function SlipsPage() {
   const router = useRouter();
   const [slips, setSlips] = useState<SavedSlip[]>([]);
@@ -70,41 +75,80 @@ export default function SlipsPage() {
   const [activeInputTab, setActiveInputTab] = useState('upload');
   const [slipRecs, setSlipRecs] = useState<SlipRec[]>([]);
   const [assessmentDone, setAssessmentDone] = useState(false);
+  const [userId, setUserId] = useState('');
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load slip recommendations and saved slips from localStorage
+  // Load user + slips from Supabase (primary) + localStorage (fallback)
   useEffect(() => {
-    const recs = localStorage.getItem('taxagent_slip_recs');
-    if (recs) {
-      try { setSlipRecs(JSON.parse(recs) as SlipRec[]); } catch { /* ignore */ }
+    async function init() {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id ?? '';
+      setUserId(uid);
+
+      const recs = localStorage.getItem('taxagent_slip_recs');
+      if (recs) {
+        try { setSlipRecs(JSON.parse(recs) as SlipRec[]); } catch { /* ignore */ }
+      }
+      setAssessmentDone(!!localStorage.getItem('taxagent_assessment_done'));
+
+      // Load from Supabase first
+      let loaded: SavedSlip[] = [];
+      if (uid) {
+        loaded = await getSlips(uid, 2025);
+      }
+
+      if (loaded.length > 0) {
+        // DB is the source of truth
+        setSlips(loaded);
+        localStorage.setItem('taxagent_slips', JSON.stringify(loaded));
+      } else {
+        // Fall back to localStorage
+        const saved = localStorage.getItem('taxagent_slips');
+        if (saved) {
+          try { setSlips(JSON.parse(saved) as SavedSlip[]); } catch { /* ignore */ }
+        }
+      }
     }
-    setAssessmentDone(!!localStorage.getItem('taxagent_assessment_done'));
-    const saved = localStorage.getItem('taxagent_slips');
-    if (saved) {
-      try { setSlips(JSON.parse(saved) as SavedSlip[]); } catch { /* ignore */ }
-    }
+    init().catch(() => { /* ignore */ });
   }, []);
 
-  // Persist slips to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('taxagent_slips', JSON.stringify(slips));
-  }, [slips]);
+  // Debounced sync to Supabase + localStorage on every slip change
+  const syncSlips = useCallback((updated: SavedSlip[], uid: string) => {
+    localStorage.setItem('taxagent_slips', JSON.stringify(updated));
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      if (uid) {
+        await upsertSlips(uid, 2025, updated);
+        setLastSaved(new Date());
+        toast.success('Slips saved', { duration: 1500 });
+      }
+    }, 800);
+  }, []);
 
   function addSlip(type: string, issuerName: string, data: Record<string, number | string>) {
-    setSlips((prev) => [
-      ...prev,
+    const updated: SavedSlip[] = [
+      ...slips,
       { id: crypto.randomUUID(), type, issuerName, data, enteredAt: new Date().toISOString() },
-    ]);
+    ];
+    setSlips(updated);
     setActiveInputTab('upload');
+    syncSlips(updated, userId);
   }
 
   function updateSlip(type: string, issuerName: string, data: Record<string, number | string>) {
     if (!editTarget) return;
-    setSlips((prev) => prev.map((s) => s.id === editTarget.id ? { ...s, type, issuerName, data } : s));
+    const updated = slips.map((s) => s.id === editTarget.id ? { ...s, type, issuerName, data } : s);
+    setSlips(updated);
     setEditTarget(null);
+    syncSlips(updated, userId);
   }
 
   function deleteSlip(id: string) {
-    setSlips((prev) => prev.filter((s) => s.id !== id));
+    const updated = slips.filter((s) => s.id !== id);
+    setSlips(updated);
+    syncSlips(updated, userId);
   }
 
   // Which recommended slip types have been entered already
@@ -117,7 +161,15 @@ export default function SlipsPage() {
 
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Tax Slips</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-white">Tax Slips</h1>
+          {lastSaved && (
+            <span className="flex items-center gap-1 text-xs text-white/30">
+              <Cloud className="h-3 w-3" />
+              {formatLastSaved(lastSaved)}
+            </span>
+          )}
+        </div>
         <p className="text-white/40 mt-1 text-sm">
           Upload or manually enter your 2025 CRA slips.
         </p>

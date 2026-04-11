@@ -31,6 +31,7 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { createClient } from '@/lib/supabase/client';
 import type { FilingGuide, TaxCalculationResult } from '@/lib/tax-engine/types';
+import { getFilingGuide, saveFilingGuide } from '@/lib/supabase/tax-data';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -53,23 +54,39 @@ export default function FilingGuidePage() {
   const [error, setError] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [userName, setUserName] = useState('');
+  const [userId, setUserId] = useState('');
+  const [guideGeneratedAt, setGuideGeneratedAt] = useState<Date | null>(null);
 
-  // Get real user name from auth + load calc result from localStorage
+  // Get real user name from auth + load calc result + cached guide
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+    async function init() {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id ?? '';
+      setUserId(uid);
       if (data.user) {
         const name = (data.user.user_metadata?.full_name as string | undefined)
           ?? data.user.email?.split('@')[0]
           ?? 'You';
         setUserName(name);
       }
-    });
-    // Load the calculation result the calculator saved
-    const raw = localStorage.getItem('taxagent_calc_result');
-    if (raw) {
-      try { setCalcResult(JSON.parse(raw) as TaxCalculationResult); } catch { /* ignore */ }
+
+      // Load calculation result
+      const raw = localStorage.getItem('taxagent_calc_result');
+      if (raw) {
+        try { setCalcResult(JSON.parse(raw) as TaxCalculationResult); } catch { /* ignore */ }
+      }
+
+      // Load cached filing guide from Supabase
+      if (uid) {
+        const cached = await getFilingGuide(uid, 2025);
+        if (cached) {
+          setGuide(cached);
+          setGuideGeneratedAt(new Date());
+        }
+      }
     }
+    init().catch(() => { /* ignore */ });
   }, []);
 
   // Build a minimal profile for the filing guide API using the user's real auth data.
@@ -96,7 +113,13 @@ export default function FilingGuidePage() {
         body: JSON.stringify({ profile, result: calcResult }),
       });
       if (!res.ok) throw new Error('Guide generation failed');
-      setGuide(await res.json());
+      const generated = await res.json() as FilingGuide;
+      setGuide(generated);
+      setGuideGeneratedAt(new Date());
+      // Cache in Supabase
+      if (userId) {
+        saveFilingGuide(userId, 2025, generated).catch(() => { /* ignore */ });
+      }
     } catch {
       setError('Could not generate your filing guide. Please try again.');
     } finally {

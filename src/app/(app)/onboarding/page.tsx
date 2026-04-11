@@ -14,6 +14,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Send, Loader2, ArrowRight, FileText, RefreshCw } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import {
+  getMessages,
+  saveMessage,
+  clearMessages,
+  upsertDeductions,
+  upsertTaxProfile,
+} from '@/lib/supabase/tax-data';
+import type { UserDeductions } from '@/lib/supabase/tax-data';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -55,8 +64,8 @@ function stripHiddenTags(text: string): string {
     .trim();
 }
 
-/** Parse <deductions-update> XML block and persist to localStorage. */
-function applyDeductionsUpdate(text: string) {
+/** Parse <deductions-update> XML block, persist to localStorage + Supabase. */
+function applyDeductionsUpdate(text: string, userId: string) {
   const match = text.match(/<deductions-update>([\s\S]*?)<\/deductions-update>/);
   if (!match) return;
   try {
@@ -66,13 +75,46 @@ function applyDeductionsUpdate(text: string) {
     const merged = { ...current };
     for (const [k, v] of Object.entries(update)) {
       if (typeof v === 'boolean') {
-        // Only overwrite booleans if set to true (don't reset confirmed flags to false)
         if (v === true) merged[k] = true;
       } else if (typeof v === 'number' && v > 0) {
         merged[k] = v;
       }
     }
     localStorage.setItem('taxagent_deductions', JSON.stringify(merged));
+    // Sync to Supabase if we have a userId
+    if (userId) {
+      // Build a UserDeductions object from the merged data
+      const deductions: UserDeductions = {
+        rrspContributions: Number(merged.rrspContributions ?? 0),
+        rrspContributionRoom: Number(merged.rrspContributionRoom ?? 0),
+        rentPaid: Number(merged.rentPaid ?? 0),
+        propertyTaxPaid: Number(merged.propertyTaxPaid ?? 0),
+        childcareExpenses: Number(merged.childcareExpenses ?? 0),
+        movingExpenses: Number(merged.movingExpenses ?? 0),
+        supportPaymentsMade: Number(merged.supportPaymentsMade ?? 0),
+        instalmentsPaid: Number(merged.instalmentsPaid ?? 0),
+        medicalExpenses: Number(merged.medicalExpenses ?? 0),
+        charitableDonations: Number(merged.charitableDonations ?? 0),
+        studentLoanInterest: Number(merged.studentLoanInterest ?? 0),
+        unionDues: Number(merged.unionDues ?? 0),
+        tuitionCarryforward: Number(merged.tuitionCarryforward ?? 0),
+        digitalNewsSubscription: Number(merged.digitalNewsSubscription ?? 0),
+        homeAccessibilityExpenses: Number(merged.homeAccessibilityExpenses ?? 0),
+        hasSpouseOrCL: merged.hasSpouseOrCL === true,
+        spouseNetIncome: Number(merged.spouseNetIncome ?? 0),
+        hasEligibleDependant: merged.hasEligibleDependant === true,
+        eligibleDependantNetIncome: Number(merged.eligibleDependantNetIncome ?? 0),
+        caregiverForDependant18Plus: merged.caregiverForDependant18Plus === true,
+        caregiverDependantNetIncome: Number(merged.caregiverDependantNetIncome ?? 0),
+        hasDisabilityCredit: merged.hasDisabilityCredit === true,
+        homeBuyersEligible: merged.homeBuyersEligible === true,
+        volunteerFirefighter: merged.volunteerFirefighter === true,
+        searchAndRescue: merged.searchAndRescue === true,
+        canadaTrainingCreditRoom: Number(merged.canadaTrainingCreditRoom ?? 0),
+        trainingFeesForCTC: Number(merged.trainingFeesForCTC ?? 0),
+      };
+      upsertDeductions(userId, 2025, deductions).catch(() => { /* ignore */ });
+    }
   } catch { /* ignore malformed */ }
 }
 
@@ -174,27 +216,52 @@ export default function OnboardingPage() {
   const [streaming, setStreaming] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [slipRecs, setSlipRecs] = useState<SlipRecommendation[]>([]);
+  const [userId, setUserId] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const hydratedRef = useRef(false);
 
-  // Restore conversation from localStorage on mount
+  // Load user + restore conversation from Supabase (primary) + localStorage (fallback)
   useEffect(() => {
-    const savedMessages = localStorage.getItem('taxagent_assessment_messages');
-    const savedComplete = localStorage.getItem('taxagent_assessment_done');
-    const savedRecs = localStorage.getItem('taxagent_slip_recs');
-    if (savedMessages) {
-      try {
-        const parsed = JSON.parse(savedMessages) as Message[];
-        if (parsed.length > 1) setMessages(parsed); // only restore if there's actual conversation
-      } catch { /* ignore */ }
+    async function init() {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id ?? '';
+      setUserId(uid);
+
+      // Load messages from Supabase first
+      let dbMessages: Message[] = [];
+      if (uid) {
+        dbMessages = await getMessages(uid);
+      }
+
+      if (dbMessages.length > 1) {
+        // DB has real conversation — use it as source of truth
+        setMessages(dbMessages);
+        localStorage.setItem('taxagent_assessment_messages', JSON.stringify(dbMessages));
+      } else {
+        // Fall back to localStorage
+        const savedMessages = localStorage.getItem('taxagent_assessment_messages');
+        if (savedMessages) {
+          try {
+            const parsed = JSON.parse(savedMessages) as Message[];
+            if (parsed.length > 1) setMessages(parsed);
+          } catch { /* ignore */ }
+        }
+      }
+
+      const savedComplete = localStorage.getItem('taxagent_assessment_done');
+      if (savedComplete) setIsComplete(true);
+
+      const savedRecs = localStorage.getItem('taxagent_slip_recs');
+      if (savedRecs) {
+        try { setSlipRecs(JSON.parse(savedRecs) as SlipRecommendation[]); } catch { /* ignore */ }
+      }
+
+      hydratedRef.current = true;
     }
-    if (savedComplete) setIsComplete(true);
-    if (savedRecs) {
-      try { setSlipRecs(JSON.parse(savedRecs) as SlipRecommendation[]); } catch { /* ignore */ }
-    }
-    hydratedRef.current = true;
+    init().catch(() => { hydratedRef.current = true; });
   }, []);
 
   // Persist messages to localStorage whenever they change (after hydration)
@@ -278,7 +345,13 @@ export default function OnboardingPage() {
       }
 
       // Apply any deductions update emitted by the AI
-      applyDeductionsUpdate(fullText);
+      applyDeductionsUpdate(fullText, userId);
+
+      // Save both message turns to Supabase
+      if (userId) {
+        await saveMessage(userId, 'user', userText.trim()).catch(() => { /* ignore */ });
+        await saveMessage(userId, 'assistant', fullText).catch(() => { /* ignore */ });
+      }
 
       // Check for completion and parse slip recommendations
       const recs = parseSlipRecommendations(fullText);
@@ -313,11 +386,14 @@ export default function OnboardingPage() {
   }
 
   function handleProceedToSlips() {
-    // Persist slip recommendations so /slips page can display them
     if (slipRecs.length > 0) {
       localStorage.setItem('taxagent_slip_recs', JSON.stringify(slipRecs));
     }
     localStorage.setItem('taxagent_assessment_done', '1');
+    // Mark assessment complete in Supabase
+    if (userId) {
+      upsertTaxProfile(userId, { taxYear: 2025, assessmentComplete: true }).catch(() => { /* ignore */ });
+    }
     router.push('/slips');
   }
 
@@ -331,6 +407,10 @@ export default function OnboardingPage() {
     localStorage.removeItem('taxagent_assessment_messages');
     localStorage.removeItem('taxagent_assessment_done');
     localStorage.removeItem('taxagent_slip_recs');
+    // Clear Supabase messages
+    if (userId) {
+      clearMessages(userId).catch(() => { /* ignore */ });
+    }
   }
 
   return (

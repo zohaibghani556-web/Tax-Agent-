@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { TaxCalculationResult } from '@/lib/tax-engine/types';
+import { getLatestCalculation, getSlips } from '@/lib/supabase/tax-data';
+import { toast } from 'sonner';
 
 function formatCad(n: number): string {
   return new Intl.NumberFormat('en-CA', {
@@ -199,30 +201,62 @@ export default function DashboardPage() {
   const [onboardingDismissed, setOnboardingDismissed] = useState(true); // default true to avoid flash
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+    async function init() {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id ?? '';
+
       if (data.user) {
         const fullName = (data.user.user_metadata?.full_name as string | undefined) ?? '';
         const email = data.user.email ?? '';
         setFirstName(fullName.split(' ')[0] || email.split('@')[0] || 'there');
       }
       setUserLoading(false);
-    });
 
-    // Read progress from localStorage
-    setAssessmentDone(!!localStorage.getItem('taxagent_assessment_done'));
-    setOnboardingDismissed(!!localStorage.getItem('taxagent_onboarding_dismissed'));
-    try {
-      const slips = localStorage.getItem('taxagent_slips');
-      if (slips) {
-        const parsed = JSON.parse(slips) as unknown[];
-        setHasSlips(Array.isArray(parsed) && parsed.length > 0);
+      // Read local state first
+      setAssessmentDone(!!localStorage.getItem('taxagent_assessment_done'));
+      setOnboardingDismissed(!!localStorage.getItem('taxagent_onboarding_dismissed'));
+
+      const localSlipsRaw = localStorage.getItem('taxagent_slips');
+      let localSlipCount = 0;
+      try {
+        if (localSlipsRaw) {
+          const parsed = JSON.parse(localSlipsRaw) as unknown[];
+          localSlipCount = Array.isArray(parsed) ? parsed.length : 0;
+          setHasSlips(localSlipCount > 0);
+        }
+      } catch { /* ignore */ }
+
+      let localCalc: TaxCalculationResult | null = null;
+      try {
+        const calc = localStorage.getItem('taxagent_calc_result');
+        if (calc) {
+          localCalc = JSON.parse(calc) as TaxCalculationResult;
+          setCalcResult(localCalc);
+        }
+      } catch { /* ignore */ }
+
+      // Then sync from Supabase for multi-device support
+      if (uid) {
+        const [dbCalc, dbSlips] = await Promise.all([
+          getLatestCalculation(uid, 2025),
+          getSlips(uid, 2025),
+        ]);
+
+        if (dbSlips.length > localSlipCount) {
+          setHasSlips(true);
+          localStorage.setItem('taxagent_slips', JSON.stringify(dbSlips));
+          toast('Your slips from another device have been loaded.', { icon: '🔄', duration: 3000 });
+        }
+
+        if (dbCalc && !localCalc) {
+          setCalcResult(dbCalc);
+          localStorage.setItem('taxagent_calc_result', JSON.stringify(dbCalc));
+          toast('Your latest calculation has been synced.', { icon: '🔄', duration: 3000 });
+        }
       }
-    } catch { /* ignore */ }
-    try {
-      const calc = localStorage.getItem('taxagent_calc_result');
-      if (calc) setCalcResult(JSON.parse(calc) as TaxCalculationResult);
-    } catch { /* ignore */ }
+    }
+    init().catch(() => { setUserLoading(false); });
   }, []);
 
   const hasCalculation = calcResult !== null;
