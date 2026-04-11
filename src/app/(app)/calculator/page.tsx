@@ -589,11 +589,35 @@ export default function CalculatorPage() {
     }
   }
 
+  useEffect(() => {
+    if (result) {
+      const isRefundTitle = result.balanceOwing < 0;
+      const amt = Math.abs(Math.round(result.balanceOwing));
+      const sign = isRefundTitle ? '+' : '-';
+      document.title = `${sign}$${amt.toLocaleString('en-CA')} — Calculator · TaxAgent.ai`;
+    } else {
+      document.title = 'Calculator — TaxAgent.ai';
+    }
+  }, [result]);
+
   // Auto-calculate when slips + userId are ready
   useEffect(() => {
     if (savedSlips.length > 0 && userId) runCalc();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedSlips, userId]);
+
+  // Keyboard shortcut: ⌘+Enter (Mac) / Ctrl+Enter (Windows) → run calculation
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !loading && hasSlips) {
+        e.preventDefault();
+        runCalc();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, savedSlips]);
 
   const isRefund = result && result.balanceOwing < 0;
   const hasSlips = savedSlips.length > 0;

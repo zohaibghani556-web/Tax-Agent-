@@ -58,6 +58,8 @@ export default function FilingGuidePage() {
   const [userId, setUserId] = useState('');
   const [guideGeneratedAt, setGuideGeneratedAt] = useState<Date | null>(null);
 
+  useEffect(() => { document.title = 'Filing Guide — TaxAgent.ai'; }, []);
+
   // Get real user name from auth + load calc result + cached guide
   useEffect(() => {
     async function init() {

@@ -34,6 +34,8 @@ export default function HistoryPage() {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => { document.title = 'Calculation History — TaxAgent.ai'; }, []);
+
   useEffect(() => {
     async function load() {
       const supabase = createClient();
