@@ -109,12 +109,94 @@ function ChecklistStep({
   );
 }
 
+function OnboardingBanner({
+  assessmentDone,
+  hasSlips,
+  hasCalculation,
+  onDismiss,
+}: {
+  assessmentDone: boolean;
+  hasSlips: boolean;
+  hasCalculation: boolean;
+  onDismiss: () => void;
+}) {
+  const steps = [
+    {
+      icon: <MessageSquare className="h-5 w-5" />,
+      title: 'Start your assessment',
+      desc: 'Chat with your AI CPA',
+      href: '/onboarding',
+      done: assessmentDone,
+    },
+    {
+      icon: <FileText className="h-5 w-5" />,
+      title: 'Upload your slips',
+      desc: 'Add T4, T5 and other CRA slips',
+      href: '/slips',
+      done: hasSlips,
+    },
+    {
+      icon: <Calculator className="h-5 w-5" />,
+      title: 'See your tax summary',
+      desc: 'Review refund or balance owing',
+      href: '/calculator',
+      done: hasCalculation,
+    },
+  ];
+
+  return (
+    <div
+      className="rounded-2xl p-5"
+      style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)' }}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <p className="text-sm font-semibold text-emerald-400">Get started in 3 steps</p>
+          <p className="text-xs text-white/40 mt-0.5">Complete each step to file your 2025 return.</p>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="text-white/25 hover:text-white/60 transition-colors text-xs leading-none ml-4 mt-0.5"
+          aria-label="Dismiss getting started banner"
+        >
+          ✕
+        </button>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-3">
+        {steps.map((s, i) => (
+          <Link
+            key={i}
+            href={s.href}
+            className="flex-1 flex items-start gap-3 rounded-xl p-3 transition-colors group"
+            style={{
+              background: s.done ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)',
+              border: s.done ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)',
+            }}
+          >
+            <div className={`mt-0.5 flex-shrink-0 ${s.done ? 'text-emerald-400' : 'text-white/30 group-hover:text-white/60 transition-colors'}`}>
+              {s.done ? <Check className="h-5 w-5" /> : s.icon}
+            </div>
+            <div className="min-w-0">
+              <p className={`text-xs font-semibold ${s.done ? 'text-emerald-400' : 'text-white/70'}`}>
+                {s.done ? '✓ ' : ''}{s.title}
+              </p>
+              <p className="text-[11px] text-white/35 mt-0.5">{s.desc}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [firstName, setFirstName] = useState('');
   const [userLoading, setUserLoading] = useState(true);
   const [assessmentDone, setAssessmentDone] = useState(false);
   const [hasSlips, setHasSlips] = useState(false);
   const [calcResult, setCalcResult] = useState<TaxCalculationResult | null>(null);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(true); // default true to avoid flash
 
   useEffect(() => {
     const supabase = createClient();
@@ -129,6 +211,7 @@ export default function DashboardPage() {
 
     // Read progress from localStorage
     setAssessmentDone(!!localStorage.getItem('taxagent_assessment_done'));
+    setOnboardingDismissed(!!localStorage.getItem('taxagent_onboarding_dismissed'));
     try {
       const slips = localStorage.getItem('taxagent_slips');
       if (slips) {
@@ -143,6 +226,13 @@ export default function DashboardPage() {
   }, []);
 
   const hasCalculation = calcResult !== null;
+
+  function dismissOnboarding() {
+    localStorage.setItem('taxagent_onboarding_dismissed', '1');
+    setOnboardingDismissed(true);
+  }
+
+  const showOnboarding = !onboardingDismissed && !hasSlips && !hasCalculation;
 
   const progressSteps = [assessmentDone, hasSlips, hasCalculation].filter(Boolean).length;
   const progressPct = Math.round((progressSteps / 3) * 100);
@@ -177,6 +267,16 @@ export default function DashboardPage() {
           <span className="font-semibold text-white/60">April 30, 2026</span>
         </div>
       </div>
+
+      {/* ── Getting started banner (first-run, dismissible) ────────── */}
+      {showOnboarding && (
+        <OnboardingBanner
+          assessmentDone={assessmentDone}
+          hasSlips={hasSlips}
+          hasCalculation={hasCalculation}
+          onDismiss={dismissOnboarding}
+        />
+      )}
 
       {/* ── Warning for new users ──────────────────────────────────── */}
       {!assessmentDone && (

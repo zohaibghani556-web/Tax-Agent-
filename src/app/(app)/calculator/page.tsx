@@ -7,9 +7,14 @@ import {
 } from 'lucide-react';
 import { WhatIfEngine } from '@/components/calculator/WhatIfEngine';
 import { CreditFinder } from '@/components/calculator/CreditFinder';
+import { TaxOptimizer } from '@/components/calculator/TaxOptimizer';
 import { createClient } from '@/lib/supabase/client';
 import { validateTaxReturn } from '@/lib/tax-engine/validator';
+import { calculateInstalments } from '@/lib/tax-engine/federal/instalments';
+import { optimizePensionSplit } from '@/lib/tax-engine/federal/pension-split-optimizer';
 import type { TaxProfile, TaxSlip, DeductionsCreditsInput, TaxCalculationResult } from '@/lib/tax-engine/types';
+import type { ValidationResult } from '@/lib/tax-engine/validator';
+import { addCsrfHeader } from '@/lib/csrf-client';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -66,6 +71,7 @@ function savedToTaxSlip(s: SavedSlip): TaxSlip {
 interface UserDeductions {
   // Deductions (reduce taxable income)
   rrspContributions: number;
+  rrspContributionRoom: number;
   rentPaid: number;
   propertyTaxPaid: number;
   childcareExpenses: number;
@@ -99,6 +105,7 @@ interface UserDeductions {
 
 const DEFAULT_USER_DEDUCTIONS: UserDeductions = {
   rrspContributions: 0,
+  rrspContributionRoom: 0,
   rentPaid: 0,
   propertyTaxPaid: 0,
   childcareExpenses: 0,
@@ -149,6 +156,7 @@ function Section({
         className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/5 transition-colors"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
+        aria-label={`${title} — ${open ? 'collapse' : 'expand'}`}
       >
         <div className="flex items-baseline gap-3">
           <span className="font-semibold text-sm text-white/80">{title}</span>
@@ -199,8 +207,6 @@ function SkeletonCard() {
 
 // ── ValidatorPanel ────────────────────────────────────────────────────────────
 
-import type { ValidationResult } from '@/lib/tax-engine/validator';
-
 function ValidatorPanel({ validation }: { validation: ValidationResult }) {
   const [open, setOpen] = useState(false);
   const { completionPct, errors, warnings, isFileable } = validation;
@@ -230,6 +236,11 @@ function ValidatorPanel({ validation }: { validation: ValidationResult }) {
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{ width: `${completionPct}%`, background: barColour }}
+            role="progressbar"
+            aria-valuenow={completionPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Return completion percentage"
           />
         </div>
 
@@ -268,6 +279,15 @@ function ValidatorPanel({ validation }: { validation: ValidationResult }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function PlanCard({ text }: { text: string }) {
+  return (
+    <div className="flex gap-2 pt-2">
+      <div className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+      <p className="text-xs text-white/50 leading-snug">{text}</p>
     </div>
   );
 }
@@ -314,6 +334,7 @@ export default function CalculatorPage() {
   const [userId, setUserId] = useState('');
   const [userDeductions, setUserDeductions] = useState<UserDeductions>(DEFAULT_USER_DEDUCTIONS);
   const [deductionsOpen, setDeductionsOpen] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
   const initialLoad = useRef(true);
 
   useEffect(() => {
@@ -414,7 +435,7 @@ export default function CalculatorPage() {
     const slips: TaxSlip[] = savedSlips.map(savedToTaxSlip);
 
     try {
-      const res = await fetch('/api/calculate', {
+      const res = await fetch('/api/calculate', addCsrfHeader({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -424,7 +445,7 @@ export default function CalculatorPage() {
           rental: [],
           deductions: buildDeductions(),
         }),
-      });
+      }));
       if (!res.ok) throw new Error();
       const data = await res.json() as TaxCalculationResult;
       setResult(data);
@@ -487,7 +508,8 @@ export default function CalculatorPage() {
           <button
             onClick={runCalc}
             disabled={loading || !hasSlips}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors disabled:opacity-40"
+            aria-label="Recalculate tax return"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors disabled:opacity-40 min-h-[44px]"
             style={{ border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)' }}
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -495,7 +517,8 @@ export default function CalculatorPage() {
           </button>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+            aria-label="Save as PDF"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors min-h-[44px]"
             style={{ border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)' }}
           >
             <Download className="h-3.5 w-3.5" />
@@ -532,7 +555,15 @@ export default function CalculatorPage() {
             <div>
               <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Deductions — reduce your taxable income</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <DeductionField label="RRSP Contributions" hint="Contributions made Jan 1, 2025 – Mar 3, 2026. Dollar-for-dollar income reduction." value={userDeductions.rrspContributions} onChange={(v) => updateDeduction('rrspContributions', v)} />
+                <div className="space-y-1">
+                  <DeductionField label="RRSP Contributions" hint="Contributions made Jan 1, 2025 – Mar 3, 2026. Dollar-for-dollar income reduction." value={userDeductions.rrspContributions} onChange={(v) => updateDeduction('rrspContributions', v)} />
+                  {userDeductions.rrspContributions > 32490 && (
+                    <p className="text-xs text-amber-400">⚠ Exceeds 2025 dollar limit ($32,490). Verify your NOA.</p>
+                  )}
+                  {userDeductions.rrspContributionRoom > 0 && userDeductions.rrspContributions > userDeductions.rrspContributionRoom + 2000 && (
+                    <p className="text-xs text-red-400">⚠ Over-contribution detected. CRA charges 1%/month on the excess.</p>
+                  )}
+                </div>
                 <DeductionField label="Childcare Expenses" hint="Daycare, babysitter, day camp for children under 16. Max $8,000/child under 7, $5,000 for older." value={userDeductions.childcareExpenses} onChange={(v) => updateDeduction('childcareExpenses', v)} />
                 <DeductionField label="Moving Expenses" hint="If you moved 40+ km closer to a new job or school. Gas, movers, temporary housing all count." value={userDeductions.movingExpenses} onChange={(v) => updateDeduction('movingExpenses', v)} />
                 <DeductionField label="Support Payments Made" hint="Spousal or child support paid under a court order or written agreement (must be periodic, not lump-sum)." value={userDeductions.supportPaymentsMade} onChange={(v) => updateDeduction('supportPaymentsMade', v)} />
@@ -544,7 +575,12 @@ export default function CalculatorPage() {
             <div>
               <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Housing — Ontario Trillium Benefit</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <DeductionField label="Annual Rent Paid" hint="Total rent paid in 2025. 20% is treated as property tax — worth up to $1,248/yr in OTB for renters." value={userDeductions.rentPaid} onChange={(v) => updateDeduction('rentPaid', v)} />
+                <div className="space-y-1">
+                  <DeductionField label="Annual Rent Paid" hint="Total rent paid in 2025. 20% is treated as property tax — worth up to $1,248/yr in OTB for renters." value={userDeductions.rentPaid} onChange={(v) => updateDeduction('rentPaid', v)} />
+                  {userDeductions.rentPaid > 36000 && (
+                    <p className="text-xs text-amber-400">⚠ Seems high — confirm this is annual rent, not monthly.</p>
+                  )}
+                </div>
                 <DeductionField label="Property Tax Paid" hint="Municipal property tax paid in 2025 if you own your home. Drives the Ontario Energy & Property Tax Credit." value={userDeductions.propertyTaxPaid} onChange={(v) => updateDeduction('propertyTaxPaid', v)} />
                 <DeductionField label="Home Accessibility Expenses" hint="Renovations for a senior 65+ or DTC holder to improve mobility/safety. Max $20,000 (15% credit = up to $3,000)." value={userDeductions.homeAccessibilityExpenses} onChange={(v) => updateDeduction('homeAccessibilityExpenses', v)} />
               </div>
@@ -700,7 +736,7 @@ export default function CalculatorPage() {
 
       {/* Two-column layout */}
       {(result || (loading && hasSlips)) && (
-        <div className="flex gap-6 items-start">
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
           {/* LEFT — T1 summary (65%) */}
           <div className="flex-[65] min-w-0 space-y-3">
             {loading && !result && (
@@ -798,7 +834,7 @@ export default function CalculatorPage() {
                 {/* Result card */}
                 <div className={`rounded-2xl p-6 ${isRefund ? 'bg-[#10B981]' : 'bg-red-500'}`}>
                   <p className="text-sm font-semibold text-white/80 mb-1">{isRefund ? 'Your estimated refund' : 'Amount owing'}</p>
-                  <p className="text-5xl font-black tabular-nums text-white mb-2">
+                  <p className="text-4xl sm:text-5xl font-black tabular-nums text-white mb-2">
                     {formatCad(Math.abs(result.balanceOwing))}
                   </p>
                   <p className="text-sm text-white/70 mb-4">Based on your uploaded slips and entered deductions</p>
@@ -826,6 +862,81 @@ export default function CalculatorPage() {
                     </div>
                   ))}
                 </div>
+
+                {/* 5B — Instalment Warning Card */}
+                {result.balanceOwing > 0 && (() => {
+                  const inst = calculateInstalments({
+                    currentYearBalanceOwing: result.balanceOwing,
+                    priorYearBalanceOwing: 0,
+                    twoYearsAgoBalanceOwing: 0,
+                  });
+                  if (result.balanceOwing > 3000) {
+                    return (
+                      <div className="rounded-xl p-4" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)' }}>
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-semibold text-amber-300">2026 Instalment Reminder</p>
+                            <p className="text-xs text-amber-300/70 mt-1 leading-snug">
+                              Your balance owing is {formatCad(result.balanceOwing)}. If your 2024 balance was also over $3,000, CRA will require quarterly instalments of approximately{' '}
+                              <span className="font-semibold text-amber-300">{formatCad(inst.priorYearMethodQuarterly)}</span> each, due March 15, June 15, September 15, and December 15, 2026.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* 5C — Pension Split Opportunity */}
+                {(result.lineByLine[11500] ?? 0) > 0 && userDeductions.hasSpouseOrCL && (() => {
+                  const splitResult = optimizePensionSplit({
+                    transferorTaxableIncome: result.taxableIncome,
+                    recipientTaxableIncome: userDeductions.spouseNetIncome ?? 0,
+                    eligiblePensionIncome: result.lineByLine[11500] ?? 0,
+                  });
+                  if (splitResult.taxSaving > 50) {
+                    return (
+                      <div className="rounded-xl p-4" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                        <p className="text-xs font-semibold text-emerald-300 mb-1">Pension Split Opportunity</p>
+                        <p className="text-xs text-emerald-300/70 leading-snug">
+                          Splitting {formatCad(splitResult.optimalSplitAmount)} of your pension income with your spouse could save your household{' '}
+                          <span className="font-semibold text-emerald-300">{formatCad(splitResult.taxSaving)}</span> in combined taxes.
+                          Optimal split: {splitResult.optimalSplitPct}% ({formatCad(splitResult.optimalSplitAmount)}).
+                          File Form T1032 with both returns.
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* 5D — Year-Round Tax Planning */}
+                <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <button
+                    onClick={() => setPlanOpen(!planOpen)}
+                    className="w-full flex items-center justify-between px-5 py-3 hover:bg-white/5 transition-colors"
+                    aria-expanded={planOpen}
+                  >
+                    <span className="text-xs font-semibold text-white/70">2026 Tax Planning — Act on these now</span>
+                    {planOpen ? <ChevronUp className="h-3.5 w-3.5 text-white/30" /> : <ChevronDown className="h-3.5 w-3.5 text-white/30" />}
+                  </button>
+                  {planOpen && (
+                    <div className="px-5 pb-4 space-y-1" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <PlanCard text="RRSP deadline is March 3, 2026. Contributing to your 2025 RRSP room before then reduces your 2025 taxable income." />
+                      {result.balanceOwing > 0 && (
+                        <PlanCard text={`Avoid interest: your balance of ${formatCad(result.balanceOwing)} is due April 30, 2026. CRA charges compound daily interest after that date at the prescribed rate + 2%.`} />
+                      )}
+                      {result.marginalFederalRate >= 0.26 && (
+                        <PlanCard text={`You're in the ${pct(result.combinedMarginalRate)} combined bracket. Consider maximizing TFSA contributions ($7,000 for 2025) for tax-free growth — gains never affect your marginal rate.`} />
+                      )}
+                      {result.canadaWorkersCredit > 0 && (
+                        <PlanCard text={`You received the Canada Workers Benefit (${formatCad(result.canadaWorkersCredit)}). Ensure you file on time — advances are paid quarterly but the final calculation is on your return.`} />
+                      )}
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -836,6 +947,13 @@ export default function CalculatorPage() {
               <>
                 <WhatIfEngine result={result} deductions={buildDeductions()} />
                 <CreditFinder result={result} deductions={buildDeductions()} profile={currentProfile} />
+                <TaxOptimizer
+                  result={result}
+                  currentRrspContributions={userDeductions.rrspContributions}
+                  currentRrspRoom={userDeductions.rrspContributionRoom || 0}
+                  fhsaRoom={8000}
+                  netIncome={result.netIncome}
+                />
               </>
             )}
             {loading && !result && (
