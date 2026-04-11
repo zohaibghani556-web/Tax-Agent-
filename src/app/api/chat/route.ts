@@ -16,6 +16,8 @@ import { NextRequest } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { validateCsrfToken } from '@/lib/csrf';
+import { log } from '@/lib/logger';
 import { TAX_AGENT_SYSTEM_PROMPT } from '@/lib/ai/system-prompt';
 import {
   TAX_KNOWLEDGE_2025,
@@ -183,6 +185,14 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // --- CSRF validation ---
+  if (!validateCsrfToken(req)) {
+    return new Response(JSON.stringify({ error: 'Invalid CSRF token' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   // --- Rate limit ---
   if (!checkRateLimit(`chat:${user.id}`, 10, 60_000)) {
     return new Response(
@@ -311,7 +321,7 @@ export async function POST(req: NextRequest) {
 
       // On last attempt, use the response anyway but log and warn
       if (attempt === 2) {
-        console.warn('[chat] Validation failed after 3 attempts:', validation.issues);
+        log('warn', 'chat.validation_failed', { issues: validation.issues.join('; ') });
         finalResponse = text;
         validationWarning = validation.issues.join('; ');
       }
@@ -350,7 +360,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
-    console.error('[chat] Claude API error:', err);
+    log('error', 'chat.claude_api_error', { message: (err as Error).message });
     return new Response(
       JSON.stringify({ error: 'Failed to connect to AI service' }),
       { status: 502, headers: { 'Content-Type': 'application/json' } }

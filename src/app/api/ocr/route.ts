@@ -16,6 +16,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { validateCsrfToken } from '@/lib/csrf';
+import { log } from '@/lib/logger';
 import { routeSlipType } from '@/lib/slips/slip-router';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -162,6 +164,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // --- CSRF validation ---
+  if (!validateCsrfToken(req)) {
+    return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
+  }
+
   // --- Rate limit: 20 OCR uploads per user per hour ---
   if (!checkRateLimit(`ocr:${user.id}`, 20, 60 * 60_000)) {
     return NextResponse.json(
@@ -286,7 +293,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (err) {
-    console.error('[ocr] Claude API error:', err);
+    log('error', 'ocr.claude_api_error', { message: (err as Error).message });
     return NextResponse.json({ error: 'Failed to process document' }, { status: 502 });
   }
 }

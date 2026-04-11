@@ -21,6 +21,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { validateCsrfToken } from '@/lib/csrf';
+import { log } from '@/lib/logger';
 import type { TaxCalculationResult, TaxProfile, FilingGuide } from '@/lib/tax-engine/types';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -63,6 +65,11 @@ export async function POST(req: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // --- CSRF validation ---
+  if (!validateCsrfToken(req)) {
+    return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
   }
 
   // --- Rate limit: 5 guide generations per user per hour ---
@@ -233,14 +240,14 @@ Return ONLY valid JSON with no markdown fences, matching this structure exactly:
     // Claude may wrap in code fences despite instruction — strip them
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error('[filing-guide] No JSON in Claude response');
+      log('error', 'filing_guide.no_json_in_response');
       return NextResponse.json({ error: 'Failed to extract guide from AI response' }, { status: 500 });
     }
 
     const guide = JSON.parse(jsonMatch[0]) as FilingGuide;
     return NextResponse.json(guide);
   } catch (err) {
-    console.error('[filing-guide] Error:', (err as Error).message);
+    log('error', 'filing_guide.error', { message: (err as Error).message });
     return NextResponse.json({ error: 'Failed to generate guide' }, { status: 502 });
   }
 }

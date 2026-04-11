@@ -19,6 +19,8 @@ import { calculateTaxReturn } from '@/lib/tax-engine/engine';
 import { calculateTaxes } from '@/lib/taxEngine';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { validateCsrfToken } from '@/lib/csrf';
+import { log } from '@/lib/logger';
 import type {
   TaxProfile,
   TaxSlip,
@@ -56,6 +58,11 @@ export async function POST(req: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // --- CSRF validation ---
+  if (!validateCsrfToken(req)) {
+    return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 });
   }
 
   // --- Rate limit: 30 calculations per user per minute ---
@@ -109,7 +116,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result);
   } catch (err) {
     // Log error without PII — err.message is from our own engine
-    console.error('[calculate] Engine error:', (err as Error).message);
+    log('error', 'calculate.engine_error', { message: (err as Error).message });
     return NextResponse.json({ error: 'Calculation failed' }, { status: 500 });
   }
 }
