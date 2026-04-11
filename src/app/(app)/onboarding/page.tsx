@@ -60,13 +60,17 @@ function applyDeductionsUpdate(text: string) {
   const match = text.match(/<deductions-update>([\s\S]*?)<\/deductions-update>/);
   if (!match) return;
   try {
-    const update = JSON.parse(match[1]) as Record<string, number>;
+    const update = JSON.parse(match[1]) as Record<string, number | boolean>;
     const existing = localStorage.getItem('taxagent_deductions');
-    const current = existing ? (JSON.parse(existing) as Record<string, number>) : {};
-    // Merge: only overwrite fields that are explicitly set in the update
+    const current = existing ? (JSON.parse(existing) as Record<string, number | boolean>) : {};
     const merged = { ...current };
     for (const [k, v] of Object.entries(update)) {
-      if (typeof v === 'number' && v > 0) merged[k] = v;
+      if (typeof v === 'boolean') {
+        // Only overwrite booleans if set to true (don't reset confirmed flags to false)
+        if (v === true) merged[k] = true;
+      } else if (typeof v === 'number' && v > 0) {
+        merged[k] = v;
+      }
     }
     localStorage.setItem('taxagent_deductions', JSON.stringify(merged));
   } catch { /* ignore malformed */ }

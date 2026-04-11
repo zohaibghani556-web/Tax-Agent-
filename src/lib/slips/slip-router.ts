@@ -31,6 +31,16 @@ const SLIP_PATTERNS: Array<{ type: SlipTypeCode; patterns: RegExp[] }> = [
     ],
   },
   {
+    // T4FHSA — First Home Savings Account — must come before generic T4A patterns
+    type: 'T4FHSA',
+    patterns: [
+      /t-?4\s*fhsa/i,
+      /first\s+home\s+savings\s+account/i,
+      /fhsa\s+activity/i,
+      /statement\s+of\s+first\s+home\s+savings/i,
+    ],
+  },
+  {
     // RRSP-Receipt — contribution receipt from financial institution
     type: 'RRSP-Receipt',
     patterns: [

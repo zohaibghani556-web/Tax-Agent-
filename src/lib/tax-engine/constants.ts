@@ -440,6 +440,63 @@ export const OEPTC = {
 };
 
 // ============================================================
+// CANADA TRAINING CREDIT (CTC) — ITA s.122.91
+// Refundable; 50% of eligible tuition/training fees, capped at accumulated room.
+// $250 added to room per year (from 2020 onward); max room $5,000 lifetime.
+// ============================================================
+
+export const CANADA_TRAINING_CREDIT = {
+  annualRoomAccrual: 250,   // $250 added to room each year (if $10,000+ earned income)
+  creditRate: 0.50,          // 50% of eligible fees
+  maxLifetimeRoom: 5000,
+};
+
+// ============================================================
+// CANADA CAREGIVER AMOUNT — ITA s.118(1)(d)/(e), s.118(4)
+// ============================================================
+
+export const CANADA_CAREGIVER = {
+  // Line 30425: supplement added to spouse/CL amount when spouse is infirm
+  spouseInfirmSupplement: 2616,
+
+  // Line 30450: for infirm dependant 18+ (parent, adult child, sibling, etc.)
+  infirmDependant18Plus: 7999,
+  infirmDependantIncomeThreshold: 18783,  // Reduced by net income above this
+
+  // Line 30500: for child under 18 with impairment (no income test)
+  childUnder18: 2616,
+};
+
+// ============================================================
+// ONTARIO SENIORS CARE AT HOME TAX CREDIT — Ontario Budget 2021+
+// Refundable; 25% of qualifying expenses up to $6,000, max credit $1,500.
+// Available to seniors 70+; clawed back 5% above $65,000 family net income.
+// ============================================================
+
+export const ONTARIO_SENIORS_CARE = {
+  minAge: 70,
+  creditRate: 0.25,
+  maxExpenses: 6000,
+  maxCredit: 1500,
+  clawbackStart: 65000,
+  clawbackRate: 0.05,
+};
+
+// ============================================================
+// REFUNDABLE MEDICAL EXPENSE SUPPLEMENT — ITA s.122.51
+// Refundable; 25% of eligible medical, capped at $1,524 (2025).
+// Requires $3,840+ earned income; clawed back 5% above ~$30,652.
+// ============================================================
+
+export const REFUNDABLE_MEDICAL_SUPPLEMENT = {
+  creditRate: 0.25,
+  maxCredit: 1524,
+  minEarnedIncome: 3840,
+  clawbackStart: 30652,
+  clawbackRate: 0.05,
+};
+
+// ============================================================
 // CORPORATE TAX (CCPC) — reference rates
 // ============================================================
 

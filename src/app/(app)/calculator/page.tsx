@@ -62,27 +62,67 @@ function savedToTaxSlip(s: SavedSlip): TaxSlip {
   return { type: s.type, data: { issuerName: s.issuerName, ...s.data } } as TaxSlip;
 }
 
-// Deductions the user can enter manually (things not on slips)
 interface UserDeductions {
+  // Deductions (reduce taxable income)
   rrspContributions: number;
-  rentPaid: number;           // annual rent — drives OTB/OEPTC (worth hundreds)
+  rentPaid: number;
   propertyTaxPaid: number;
-  medicalExpenses: number;    // total medical (drugs, dental, vision)
+  childcareExpenses: number;
+  movingExpenses: number;
+  supportPaymentsMade: number;
+  instalmentsPaid: number;
+  // Credits (reduce tax payable)
+  medicalExpenses: number;
   charitableDonations: number;
   studentLoanInterest: number;
-  unionDues: number;          // if not already on T4 box 44
+  unionDues: number;
   tuitionCarryforward: number;
+  digitalNewsSubscription: number;
+  homeAccessibilityExpenses: number;
+  // Personal situation
+  hasSpouseOrCL: boolean;
+  spouseNetIncome: number;
+  hasEligibleDependant: boolean;
+  eligibleDependantNetIncome: number;
+  caregiverForDependant18Plus: boolean;
+  caregiverDependantNetIncome: number;
+  // One-tap toggles
+  hasDisabilityCredit: boolean;
+  homeBuyersEligible: boolean;
+  volunteerFirefighter: boolean;
+  searchAndRescue: boolean;
+  // Canada Training Credit
+  canadaTrainingCreditRoom: number;
+  trainingFeesForCTC: number;
 }
 
 const DEFAULT_USER_DEDUCTIONS: UserDeductions = {
   rrspContributions: 0,
   rentPaid: 0,
   propertyTaxPaid: 0,
+  childcareExpenses: 0,
+  movingExpenses: 0,
+  supportPaymentsMade: 0,
+  instalmentsPaid: 0,
   medicalExpenses: 0,
   charitableDonations: 0,
   studentLoanInterest: 0,
   unionDues: 0,
   tuitionCarryforward: 0,
+  digitalNewsSubscription: 0,
+  homeAccessibilityExpenses: 0,
+  hasSpouseOrCL: false,
+  spouseNetIncome: 0,
+  hasEligibleDependant: false,
+  eligibleDependantNetIncome: 0,
+  caregiverForDependant18Plus: false,
+  caregiverDependantNetIncome: 0,
+  hasDisabilityCredit: false,
+  homeBuyersEligible: false,
+  volunteerFirefighter: false,
+  searchAndRescue: false,
+  canadaTrainingCreditRoom: 0,
+  trainingFeesForCTC: 0,
 };
 
 // ── Components ────────────────────────────────────────────────────────────────
@@ -246,6 +286,10 @@ export default function CalculatorPage() {
       rrspContributions: userDeductions.rrspContributions,
       rentPaid: userDeductions.rentPaid,
       propertyTaxPaid: userDeductions.propertyTaxPaid,
+      childcareExpenses: userDeductions.childcareExpenses,
+      movingExpenses: userDeductions.movingExpenses,
+      supportPaymentsMade: userDeductions.supportPaymentsMade,
+      instalmentsPaid: userDeductions.instalmentsPaid,
       medicalExpenses: userDeductions.medicalExpenses > 0
         ? [{ description: 'Medical expenses', amount: userDeductions.medicalExpenses, forWhom: 'self' as const }]
         : [],
@@ -255,6 +299,20 @@ export default function CalculatorPage() {
       studentLoanInterest: userDeductions.studentLoanInterest,
       unionDues: userDeductions.unionDues,
       tuitionCarryforward: userDeductions.tuitionCarryforward,
+      digitalNewsSubscription: userDeductions.digitalNewsSubscription,
+      homeAccessibilityExpenses: userDeductions.homeAccessibilityExpenses,
+      hasSpouseOrCL: userDeductions.hasSpouseOrCL,
+      spouseNetIncome: userDeductions.spouseNetIncome,
+      hasEligibleDependant: userDeductions.hasEligibleDependant,
+      eligibleDependantNetIncome: userDeductions.eligibleDependantNetIncome,
+      caregiverForDependant18Plus: userDeductions.caregiverForDependant18Plus,
+      caregiverDependantNetIncome: userDeductions.caregiverDependantNetIncome,
+      hasDisabilityCredit: userDeductions.hasDisabilityCredit,
+      homeBuyersEligible: userDeductions.homeBuyersEligible,
+      volunteerFirefighter: userDeductions.volunteerFirefighter,
+      searchAndRescue: userDeductions.searchAndRescue,
+      canadaTrainingCreditRoom: userDeductions.canadaTrainingCreditRoom,
+      trainingFeesForCTC: userDeductions.trainingFeesForCTC,
     });
   }
 
@@ -379,65 +437,128 @@ export default function CalculatorPage() {
             : <ChevronDown className="h-4 w-4 text-white/30" />}
         </button>
         {deductionsOpen && (
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }} className="p-5">
-            <p className="text-xs text-white/40 mb-5">
-              These are things <strong className="text-white/60">not on your slips</strong> that reduce your taxes.
-              Enter what applies to you — even small amounts add up.
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }} className="p-5 space-y-6">
+            <p className="text-xs text-white/40">
+              Enter everything that applies to you. Even small amounts add up — these are things your slips don&apos;t automatically report.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              <DeductionField
-                label="RRSP Contributions"
-                hint="Contributions made Jan 1, 2025 – Mar 3, 2026. Reduces your taxable income dollar-for-dollar."
-                value={userDeductions.rrspContributions}
-                onChange={(v) => updateDeduction('rrspContributions', v)}
-              />
-              <DeductionField
-                label="Annual Rent Paid"
-                hint="Total rent paid in 2025 (all 12 months). Used to calculate the Ontario Trillium Benefit — worth up to $1,248/year for renters."
-                value={userDeductions.rentPaid}
-                onChange={(v) => updateDeduction('rentPaid', v)}
-              />
-              <DeductionField
-                label="Property Tax Paid"
-                hint="If you own your home, enter the property tax you paid in 2025. Also used for the Ontario Trillium Benefit."
-                value={userDeductions.propertyTaxPaid}
-                onChange={(v) => updateDeduction('propertyTaxPaid', v)}
-              />
-              <DeductionField
-                label="Medical Expenses"
-                hint="Total out-of-pocket medical costs (prescriptions, dental, glasses, physio). Only the amount above $2,759 or 3% of your income generates a credit."
-                value={userDeductions.medicalExpenses}
-                onChange={(v) => updateDeduction('medicalExpenses', v)}
-              />
-              <DeductionField
-                label="Charitable Donations"
-                hint="Total donations to registered Canadian charities. First $200 generates a 15% credit; amounts above that generate a 29–33% credit."
-                value={userDeductions.charitableDonations}
-                onChange={(v) => updateDeduction('charitableDonations', v)}
-              />
-              <DeductionField
-                label="Student Loan Interest"
-                hint="Interest paid on Government of Canada student loans only (not bank loans). Generates a 15% non-refundable credit."
-                value={userDeductions.studentLoanInterest}
-                onChange={(v) => updateDeduction('studentLoanInterest', v)}
-              />
-              <DeductionField
-                label="Union / Professional Dues"
-                hint="If your union dues aren't already on your T4 box 44, enter the amount from your receipt here."
-                value={userDeductions.unionDues}
-                onChange={(v) => updateDeduction('unionDues', v)}
-              />
-              <DeductionField
-                label="Unused Tuition (Prior Years)"
-                hint="If you had unused tuition credits from years before 2025, enter the amount from your 2024 Notice of Assessment (line 32000)."
-                value={userDeductions.tuitionCarryforward}
-                onChange={(v) => updateDeduction('tuitionCarryforward', v)}
-              />
+
+            {/* Section: Deductions */}
+            <div>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Deductions — reduce your taxable income</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <DeductionField label="RRSP Contributions" hint="Contributions made Jan 1, 2025 – Mar 3, 2026. Dollar-for-dollar income reduction." value={userDeductions.rrspContributions} onChange={(v) => updateDeduction('rrspContributions', v)} />
+                <DeductionField label="Childcare Expenses" hint="Daycare, babysitter, day camp for children under 16. Max $8,000/child under 7, $5,000 for older." value={userDeductions.childcareExpenses} onChange={(v) => updateDeduction('childcareExpenses', v)} />
+                <DeductionField label="Moving Expenses" hint="If you moved 40+ km closer to a new job or school. Gas, movers, temporary housing all count." value={userDeductions.movingExpenses} onChange={(v) => updateDeduction('movingExpenses', v)} />
+                <DeductionField label="Support Payments Made" hint="Spousal or child support paid under a court order or written agreement (must be periodic, not lump-sum)." value={userDeductions.supportPaymentsMade} onChange={(v) => updateDeduction('supportPaymentsMade', v)} />
+                <DeductionField label="Tax Instalments Paid" hint="Quarterly instalment payments you sent CRA during 2025 (from your instalment remittance slips)." value={userDeductions.instalmentsPaid} onChange={(v) => updateDeduction('instalmentsPaid', v)} />
+              </div>
             </div>
+
+            {/* Section: Ontario Trillium / Housing */}
+            <div>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Housing — Ontario Trillium Benefit</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <DeductionField label="Annual Rent Paid" hint="Total rent paid in 2025. 20% is treated as property tax — worth up to $1,248/yr in OTB for renters." value={userDeductions.rentPaid} onChange={(v) => updateDeduction('rentPaid', v)} />
+                <DeductionField label="Property Tax Paid" hint="Municipal property tax paid in 2025 if you own your home. Drives the Ontario Energy & Property Tax Credit." value={userDeductions.propertyTaxPaid} onChange={(v) => updateDeduction('propertyTaxPaid', v)} />
+                <DeductionField label="Home Accessibility Expenses" hint="Renovations for a senior 65+ or DTC holder to improve mobility/safety. Max $20,000 (15% credit = up to $3,000)." value={userDeductions.homeAccessibilityExpenses} onChange={(v) => updateDeduction('homeAccessibilityExpenses', v)} />
+              </div>
+            </div>
+
+            {/* Section: Credits */}
+            <div>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Credits — reduce your tax payable</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <DeductionField label="Medical Expenses" hint="Prescriptions, dental, glasses, physio, hearing aids, medical devices. Only the amount above $2,759 or 3% of income generates a credit." value={userDeductions.medicalExpenses} onChange={(v) => updateDeduction('medicalExpenses', v)} />
+                <DeductionField label="Charitable Donations" hint="Donations to registered Canadian charities. First $200 → 15% credit. Above $200 → 29–33% credit. Worth combining with spouse." value={userDeductions.charitableDonations} onChange={(v) => updateDeduction('charitableDonations', v)} />
+                <DeductionField label="Student Loan Interest" hint="Interest paid on Government of Canada or provincial student loans only (not bank loans or lines of credit)." value={userDeductions.studentLoanInterest} onChange={(v) => updateDeduction('studentLoanInterest', v)} />
+                <DeductionField label="Union / Professional Dues" hint="If not already on your T4 box 44 — annual membership fees to professional organizations or trade unions." value={userDeductions.unionDues} onChange={(v) => updateDeduction('unionDues', v)} />
+                <DeductionField label="Unused Tuition (Prior Years)" hint="Tuition credits you couldn't use in prior years — from your 2024 Notice of Assessment line 32000." value={userDeductions.tuitionCarryforward} onChange={(v) => updateDeduction('tuitionCarryforward', v)} />
+                <DeductionField label="Digital News Subscriptions" hint="Qualifying Canadian digital news outlet subscriptions (e.g. Globe, Star, Postmedia). Max $500 claim, generates 15% credit." value={userDeductions.digitalNewsSubscription} onChange={(v) => updateDeduction('digitalNewsSubscription', v)} />
+              </div>
+            </div>
+
+            {/* Section: Canada Training Credit */}
+            <div>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Canada Training Credit — refundable, 50% of training fees</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <DeductionField label="CTC Room (from 2024 NOA)" hint="Your Canada Training Credit room carried forward — found on line 45375 of your 2024 Notice of Assessment. Builds at $250/year." value={userDeductions.canadaTrainingCreditRoom} onChange={(v) => updateDeduction('canadaTrainingCreditRoom', v)} />
+                <DeductionField label="Eligible Training Fees Paid in 2025" hint="Tuition or professional training fees paid to an eligible institution in 2025 (from T2202 or receipt). Credit = 50% of fees, capped at your room." value={userDeductions.trainingFeesForCTC} onChange={(v) => updateDeduction('trainingFeesForCTC', v)} />
+              </div>
+            </div>
+
+            {/* Section: Personal Situation */}
+            <div>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Personal Situation — spouse, dependants, caregiving</p>
+              <div className="space-y-4">
+                {/* Spouse / CL toggle */}
+                <div className="flex items-start gap-3">
+                  <input type="checkbox" id="hasSpouseOrCL" checked={userDeductions.hasSpouseOrCL} onChange={(e) => updateDeduction('hasSpouseOrCL', e.target.checked)} className="mt-1 h-4 w-4 accent-[#10B981]" />
+                  <div className="flex-1">
+                    <label htmlFor="hasSpouseOrCL" className="text-xs font-semibold text-white/60 cursor-pointer">I have a spouse or common-law partner</label>
+                    <p className="text-[10px] text-white/30 mt-0.5">You may be able to claim a spouse amount credit if their net income is less than $16,129.</p>
+                    {userDeductions.hasSpouseOrCL && (
+                      <div className="mt-2 max-w-xs">
+                        <DeductionField label="Spouse/Partner Net Income (line 23600)" hint="Their 2025 net income from their return. If zero (not working), enter 0." value={userDeductions.spouseNetIncome} onChange={(v) => updateDeduction('spouseNetIncome', v)} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Eligible dependant toggle */}
+                <div className="flex items-start gap-3">
+                  <input type="checkbox" id="hasEligibleDependant" checked={userDeductions.hasEligibleDependant} onChange={(e) => updateDeduction('hasEligibleDependant', e.target.checked)} className="mt-1 h-4 w-4 accent-[#10B981]" />
+                  <div className="flex-1">
+                    <label htmlFor="hasEligibleDependant" className="text-xs font-semibold text-white/60 cursor-pointer">I support an eligible dependant (single parent)</label>
+                    <p className="text-[10px] text-white/30 mt-0.5">Single parents can claim one child or other dependant — worth up to $16,129 × 15% = $2,419 in federal credit.</p>
+                    {userDeductions.hasEligibleDependant && !userDeductions.hasSpouseOrCL && (
+                      <div className="mt-2 max-w-xs">
+                        <DeductionField label="Dependant Net Income" hint="Their 2025 net income. Usually $0 for young children." value={userDeductions.eligibleDependantNetIncome} onChange={(v) => updateDeduction('eligibleDependantNetIncome', v)} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Caregiver toggle */}
+                <div className="flex items-start gap-3">
+                  <input type="checkbox" id="caregiverForDependant18Plus" checked={userDeductions.caregiverForDependant18Plus} onChange={(e) => updateDeduction('caregiverForDependant18Plus', e.target.checked)} className="mt-1 h-4 w-4 accent-[#10B981]" />
+                  <div className="flex-1">
+                    <label htmlFor="caregiverForDependant18Plus" className="text-xs font-semibold text-white/60 cursor-pointer">I am the caregiver for an infirm adult (18+) — parent, sibling, adult child</label>
+                    <p className="text-[10px] text-white/30 mt-0.5">Canada Caregiver Amount: up to $7,999 (reduced by their net income above $18,783). Requires a physical or mental infirmity.</p>
+                    {userDeductions.caregiverForDependant18Plus && (
+                      <div className="mt-2 max-w-xs">
+                        <DeductionField label="Dependant Net Income" hint="Their 2025 net income. The $7,999 credit reduces dollar-for-dollar above $18,783." value={userDeductions.caregiverDependantNetIncome} onChange={(v) => updateDeduction('caregiverDependantNetIncome', v)} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section: Toggles */}
+            <div>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Other Credits</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  { key: 'hasDisabilityCredit' as const, label: 'I have an approved Disability Tax Credit (T2201 on file with CRA)', hint: '$9,872 amount × 15% = $1,481 federal credit.' },
+                  { key: 'homeBuyersEligible' as const, label: 'I purchased my first home in 2025', hint: '$10,000 Home Buyers\' Amount → $1,500 non-refundable credit (line 31270).' },
+                  { key: 'volunteerFirefighter' as const, label: 'I performed 200+ hours of volunteer firefighting in 2025', hint: '$3,000 amount × 15% = $450 credit (line 31240). Cannot overlap with search & rescue hours.' },
+                  { key: 'searchAndRescue' as const, label: 'I performed 200+ hours of search and rescue volunteering in 2025', hint: '$3,000 amount × 15% = $450 credit (line 31255).' },
+                ].map(({ key, label, hint }) => (
+                  <div key={key} className="flex items-start gap-3 rounded-lg px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <input type="checkbox" id={key} checked={userDeductions[key] as boolean} onChange={(e) => updateDeduction(key, e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#10B981]" />
+                    <div>
+                      <label htmlFor={key} className="text-xs font-semibold text-white/60 cursor-pointer leading-snug">{label}</label>
+                      <p className="text-[10px] text-white/30 mt-0.5">{hint}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <button
               onClick={runCalc}
               disabled={loading || !hasSlips}
-              className="mt-5 flex items-center gap-2 rounded-full bg-[#10B981] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors disabled:opacity-40"
+              className="flex items-center gap-2 rounded-full bg-[#10B981] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors disabled:opacity-40"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
               {loading ? 'Calculating…' : 'Recalculate with these deductions'}

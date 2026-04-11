@@ -43,11 +43,16 @@ import type {
  *   T5007 box 10 — Social assistance (included in income but often offset by deductions)
  *   RRSP-Receipt — contribution receipt, produces deduction not income (handled in deductions)
  */
+export interface TotalIncomeResult {
+  totalIncome: number;
+  socialAssistanceIncome: number;  // Needed for line 25000 offset in calculateNetIncome
+}
+
 export function aggregateTotalIncome(
   slips: TaxSlip[],
   business: BusinessIncome[],
   rental: RentalIncome[]
-): number {
+): TotalIncomeResult {
   let employment = 0;
   let interest = 0;
   let eligibleDividends = 0;
@@ -59,17 +64,22 @@ export function aggregateTotalIncome(
   let scholarships = 0;
   let ei = 0;
   let socialAssistance = 0;
+  let taxableCapGainsDividends = 0;  // T5 box18 capital gains dividends at 50% inclusion
 
   for (const slip of slips) {
     switch (slip.type) {
       case 'T4':
-        employment = roundCRA(employment + slip.data.box14);
+        // box14 = employment income; box40 = other taxable allowances; box42 = commissions
+        employment = roundCRA(employment + slip.data.box14 + slip.data.box40 + slip.data.box42);
         break;
 
       case 'T5':
         interest = roundCRA(interest + slip.data.box13);
         eligibleDividends = roundCRA(eligibleDividends + slip.data.box25);
         nonEligibleDividends = roundCRA(nonEligibleDividends + slip.data.box11);
+        // box14 = other income; box18 = capital gains dividends (Schedule 3 / capital gains stream)
+        otherIncome = roundCRA(otherIncome + slip.data.box14);
+        taxableCapGainsDividends = roundCRA(taxableCapGainsDividends + roundCRA(slip.data.box18 * 0.50));
         break;
 
       case 'T5008':
@@ -88,11 +98,20 @@ export function aggregateTotalIncome(
 
       case 'T4A':
         pension = roundCRA(pension + slip.data.box016);
-        otherIncome = roundCRA(otherIncome + slip.data.box028);
+        // box018 = lump-sum payments (retiring allowance, death benefits, etc.) → line 13000
+        // box024 = annuities → line 11500 (treated as pension-equivalent for credit purposes)
+        // box028 = other income → line 13000
+        otherIncome = roundCRA(otherIncome + slip.data.box018 + slip.data.box024 + slip.data.box028);
         // Scholarships for full-time students are exempt (ITA s.56(3)).
         // The scholarship exemption is handled here conservatively: full inclusion.
         // The exemption is applied as a deduction when the student status is known.
         scholarships = roundCRA(scholarships + slip.data.box105);
+        break;
+
+      case 'T4FHSA':
+        // Non-qualifying FHSA withdrawals are taxable → line 12905 (other income)
+        // Qualifying withdrawals (used for eligible home purchase) are tax-free — box14 = 0.
+        otherIncome = roundCRA(otherIncome + slip.data.box14);
         break;
 
       case 'T4E':
@@ -156,6 +175,7 @@ export function aggregateTotalIncome(
     eligibleDividends +
     nonEligibleDividends +
     taxableCapitalGains +
+    taxableCapGainsDividends +
     pension +
     otherIncome +
     scholarships +
@@ -165,7 +185,10 @@ export function aggregateTotalIncome(
     rentalNet
   );
 
-  return Math.max(0, total);
+  return {
+    totalIncome: Math.max(0, total),
+    socialAssistanceIncome: socialAssistance,
+  };
 }
 
 // ============================================================
@@ -191,7 +214,8 @@ export function aggregateTotalIncome(
  */
 export function calculateNetIncome(
   totalIncome: number,
-  deductions: DeductionsCreditsInput
+  deductions: DeductionsCreditsInput,
+  socialAssistanceIncome: number = 0,
 ): number {
   // RRSP deduction capped at: lesser of contributions, available room, and annual max.
   // If rrspContributionRoom is 0 (not entered), use the annual maximum as the room —
@@ -202,6 +226,11 @@ export function calculateNetIncome(
     : RRSP.maxContribution;
   const rrspDeduction = Math.min(deductions.rrspContributions, roomToUse, RRSP.maxContribution);
 
+  // Social assistance (line 14500) and workers' comp are included in total income
+  // but fully offset by a deduction at line 25000 (ITA s.110(1)(f)) so they never
+  // increase net income. This preserves eligibility for income-tested benefits.
+  const socialAssistanceOffset = socialAssistanceIncome;
+
   const totalDeductions = roundCRA(
     rrspDeduction +
     (deductions.fhsaContributions ?? 0) +
@@ -211,7 +240,10 @@ export function calculateNetIncome(
     (deductions.supportPaymentsMade ?? 0) +
     (deductions.carryingCharges ?? 0) +
     (deductions.studentLoanInterest ?? 0) +
-    (deductions.nonCapitalLossCarryforward ?? 0)
+    (deductions.nonCapitalLossCarryforward ?? 0) +
+    (deductions.disabilitySupportsDeduction ?? 0) +
+    (deductions.pensionSplitDeducted ?? 0) +
+    socialAssistanceOffset
   );
 
   return Math.max(0, roundCRA(totalIncome - totalDeductions));

@@ -44,6 +44,7 @@ const SLIP_TYPE_ICONS: Record<string, string> = {
   T4RSP: '💰',
   T4RIF: '💰',
   'RRSP-Receipt': '💰',
+  T4FHSA: '🏠',
 };
 
 export function SlipUpload({ onAdd }: SlipUploadProps) {

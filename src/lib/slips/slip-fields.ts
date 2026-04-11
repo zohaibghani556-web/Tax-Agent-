@@ -113,6 +113,13 @@ export const SLIP_FIELDS: Record<string, SlipFieldDef[]> = {
     { key: 'amount', label: 'Contribution Amount', valueType: 'number', required: true },
     { key: 'planType', label: 'Plan Type (RRSP or SPOUSAL-RRSP)', valueType: 'text', required: false, placeholder: 'RRSP' },
   ],
+
+  T4FHSA: [
+    { key: 'issuerName', label: 'Financial Institution', valueType: 'text', required: true },
+    { key: 'box14', label: 'Box 14 — Taxable FHSA Income (non-qualifying withdrawals)', valueType: 'number', required: false },
+    { key: 'box22', label: 'Box 22 — Income Tax Deducted', valueType: 'number', required: false },
+    { key: 'box24', label: 'Box 24 — FHSA Contributions (for deduction verification)', valueType: 'number', required: false },
+  ],
 };
 
 export const SLIP_TYPE_LABELS: Record<string, string> = {
@@ -129,6 +136,7 @@ export const SLIP_TYPE_LABELS: Record<string, string> = {
   T4RSP: 'T4RSP — RRSP Income (Withdrawal)',
   T4RIF: 'T4RIF — RRIF Income',
   'RRSP-Receipt': 'RRSP Contribution Receipt',
+  T4FHSA: 'T4FHSA — First Home Savings Account',
 };
 
 /** Key box to surface as the "primary amount" in the slip list. */
@@ -146,6 +154,7 @@ export const SLIP_PRIMARY_BOX: Record<string, { key: string; label: string }> = 
   T4RSP: { key: 'box22', label: 'RRSP withdrawal' },
   T4RIF: { key: 'box16', label: 'RRIF income' },
   'RRSP-Receipt': { key: 'amount', label: 'RRSP contribution' },
+  T4FHSA: { key: 'box24', label: 'FHSA contributions' },
 };
 
 /** Build a zero-filled values object for a given slip type. */

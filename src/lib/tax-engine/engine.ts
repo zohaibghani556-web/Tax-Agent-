@@ -18,6 +18,7 @@ import {
   ONTARIO_CREDIT_RATE,
   ONTARIO_BPA,
   FEDERAL_CREDITS,
+  ONTARIO_CREDITS,
   ONTARIO_DONATIONS,
   OSTC,
   OEPTC,
@@ -26,6 +27,9 @@ import {
   CPP2,
   EI,
   CRA_LINES,
+  GST_CREDIT,
+  CANADA_CAREGIVER,
+  ONTARIO_SENIORS_CARE,
 } from './constants';
 
 import type {
@@ -49,6 +53,7 @@ import type {
   T4RSPSlip,
   T4RIFSlip,
   RRSPReceiptSlip,
+  T4FHSASlip,
 } from './types';
 
 import {
@@ -62,12 +67,16 @@ import {
   aggregateTotalIncome,
   calculateNetIncome,
   calculateTaxableIncome,
+  type TotalIncomeResult,
 } from './federal/income';
 
 import {
   calculateTotalFederalCredits,
   calculateMedicalExpenseCredit,
   calculatePensionIncomeCredit,
+  calculateCWB,
+  calculateRMES,
+  calculateCTC,
 } from './federal/credits';
 
 import { calculateDividendIncome } from './federal/dividends';
@@ -111,22 +120,68 @@ function getAgeOnDec31(dateOfBirth: string): number {
  */
 function calculateOntarioNonRefundableCredits(params: {
   netIncome: number;
+  ageOnDec31: number;
   hasEmploymentIncome: boolean;
   cppContributions: number;
+  cpp2Contributions: number;
   eiPremiums: number;
   eligiblePensionIncome: number;
   totalMedicalExpenses: number;
   totalDonations: number;
   hasDisability: boolean;
+  hasSpouseOrCL: boolean;
+  spouseNetIncome: number;
+  spouseIsInfirm: boolean;
+  hasEligibleDependant: boolean;
+  eligibleDependantNetIncome: number;
+  eligibleDependantIsInfirm: boolean;
+  caregiverForDependant18Plus: boolean;
+  caregiverDependantNetIncome: number;
 }): number {
+  // Ontario Age Amount — Ontario Taxation Act s.4(3.1); mirrors federal structure
+  let ontarioAgeAmount = 0;
+  if (params.ageOnDec31 >= 65) {
+    const { max, clawbackStart, clawbackRate } = ONTARIO_CREDITS.ageAmount;
+    const reduction = Math.max(0, roundCRA((params.netIncome - clawbackStart) * clawbackRate));
+    ontarioAgeAmount = Math.max(0, roundCRA(max - reduction));
+  }
+
+  // Ontario Spouse/CL Partner Amount — Ontario Taxation Act s.8(1)
+  let ontarioSpouseAmount = 0;
+  if (params.hasSpouseOrCL) {
+    const base = ONTARIO_CREDITS.spouseAmountMax;
+    const supplement = params.spouseIsInfirm ? CANADA_CAREGIVER.spouseInfirmSupplement : 0;
+    ontarioSpouseAmount = Math.max(0, roundCRA(base + supplement - params.spouseNetIncome));
+  }
+
+  // Ontario Eligible Dependant Amount
+  let ontarioEligibleDependantAmount = 0;
+  if (params.hasEligibleDependant && !params.hasSpouseOrCL) {
+    const base = ONTARIO_CREDITS.eligibleDependantMax;
+    const supplement = params.eligibleDependantIsInfirm ? CANADA_CAREGIVER.spouseInfirmSupplement : 0;
+    ontarioEligibleDependantAmount = Math.max(0, roundCRA(base + supplement - params.eligibleDependantNetIncome));
+  }
+
+  // Ontario Caregiver Amount (infirm 18+ dependant, not spouse) — ON428 line 5820
+  let ontarioCaregiverAmount = 0;
+  if (params.caregiverForDependant18Plus) {
+    const reduction = Math.max(0, roundCRA(params.caregiverDependantNetIncome - CANADA_CAREGIVER.infirmDependantIncomeThreshold));
+    ontarioCaregiverAmount = Math.max(0, roundCRA(ONTARIO_CREDITS.caregiverAmount - reduction));
+  }
+
   const creditAmountsTotal = roundCRA(
     ONTARIO_BPA +
+    ontarioAgeAmount +
+    ontarioSpouseAmount +
+    ontarioEligibleDependantAmount +
+    ontarioCaregiverAmount +
     params.cppContributions +
+    params.cpp2Contributions +
     params.eiPremiums +
     (params.hasEmploymentIncome ? FEDERAL_CREDITS.canadaEmploymentAmount : 0) +
-    calculatePensionIncomeCredit(params.eligiblePensionIncome) +
+    Math.min(params.eligiblePensionIncome, ONTARIO_CREDITS.pensionIncomeMax) +
     calculateMedicalExpenseCredit(params.totalMedicalExpenses, params.netIncome) +
-    (params.hasDisability ? FEDERAL_CREDITS.disabilityAmount.base : 0)
+    (params.hasDisability ? ONTARIO_CREDITS.disabilityAmount.base : 0)
   );
 
   const baseCreditsValue = roundCRA(creditAmountsTotal * ONTARIO_CREDIT_RATE);
@@ -220,21 +275,23 @@ export function calculateTaxReturn(
   const t4rspSlips: T4RSPSlip[] = [];
   const t4rifSlips: T4RIFSlip[] = [];
   const rrspReceiptSlips: RRSPReceiptSlip[] = [];
+  const t4fhsaSlips: T4FHSASlip[] = [];
 
   for (const slip of slips) {
     switch (slip.type) {
-      case 'T4':          t4Slips.push(slip.data);          break;
-      case 'T5':          t5Slips.push(slip.data);          break;
-      case 'T5008':       t5008Slips.push(slip.data);       break;
-      case 'T3':          t3Slips.push(slip.data);          break;
-      case 'T4A':         t4aSlips.push(slip.data);         break;
-      case 'T4E':         t4eSlips.push(slip.data);         break;
-      case 'T2202':       t2202Slips.push(slip.data);       break;
-      case 'T4AP':        t4apSlips.push(slip.data);        break;
-      case 'T4AOAS':      t4aoasSlips.push(slip.data);      break;
-      case 'T4RSP':       t4rspSlips.push(slip.data);       break;
-      case 'T4RIF':       t4rifSlips.push(slip.data);       break;
+      case 'T4':           t4Slips.push(slip.data);          break;
+      case 'T5':           t5Slips.push(slip.data);          break;
+      case 'T5008':        t5008Slips.push(slip.data);       break;
+      case 'T3':           t3Slips.push(slip.data);          break;
+      case 'T4A':          t4aSlips.push(slip.data);         break;
+      case 'T4E':          t4eSlips.push(slip.data);         break;
+      case 'T2202':        t2202Slips.push(slip.data);       break;
+      case 'T4AP':         t4apSlips.push(slip.data);        break;
+      case 'T4AOAS':       t4aoasSlips.push(slip.data);      break;
+      case 'T4RSP':        t4rspSlips.push(slip.data);       break;
+      case 'T4RIF':        t4rifSlips.push(slip.data);       break;
       case 'RRSP-Receipt': rrspReceiptSlips.push(slip.data); break;
+      case 'T4FHSA':       t4fhsaSlips.push(slip.data);      break;
     }
   }
 
@@ -306,6 +363,10 @@ export function calculateTaxReturn(
       resolution: 'Review the combined totals carefully and ensure all T4s are included. Check that CPP/EI over-deductions (if any) are flagged above.',
     });
   }
+  // Age computed early — needed for Ontario NRCs, OTB senior rates, and Seniors Care credit.
+  const ageOnDec31 = getAgeOnDec31(profile.dateOfBirth);
+  const isSenior   = ageOnDec31 >= 65;
+
   // Eligible pension income drives the $2,000 pension income credit (ITA s.118(3)).
   // T4A pension, CPP (T4AP), and OAS (T4AOAS) all qualify.
   const eligiblePensionIncome = roundCRA(
@@ -328,8 +389,11 @@ export function calculateTaxReturn(
 
   // ── STEPS 1–3: Income aggregation ────────────────────────────────────────
 
-  const totalIncome   = aggregateTotalIncome(slips, business, rental);
-  const netIncome     = calculateNetIncome(totalIncome, mergedDeductions);
+  const incomeResult: TotalIncomeResult = aggregateTotalIncome(slips, business, rental);
+  const totalIncome   = incomeResult.totalIncome;
+  // Social assistance is included in totalIncome (line 14500) but ITA s.110(1)(f)
+  // requires a corresponding deduction at line 25000 so it has no net impact.
+  const netIncome     = calculateNetIncome(totalIncome, mergedDeductions, incomeResult.socialAssistanceIncome);
   const taxableIncome = calculateTaxableIncome(netIncome, mergedDeductions);
 
   // ── STEP 4: Federal tax on taxable income (Schedule 1) ───────────────────
@@ -344,14 +408,32 @@ export function calculateTaxReturn(
     dateOfBirth: profile.dateOfBirth,
     hasEmploymentIncome,
     cppContributions: totalCPP,
+    cpp2Contributions: totalCPP2,
     eiPremiums: totalEI,
     eligiblePensionIncome,
     totalMedicalExpenses,
     totalDonations,
-    tuitionAmount: tuitionCurrentYear,  // ITA s.118.5 — current-year T2202 Box A
+    tuitionAmount: tuitionCurrentYear,
     tuitionCarryforward: mergedDeductions.tuitionCarryforward ?? 0,
     studentLoanInterest: mergedDeductions.studentLoanInterest ?? 0,
     hasDisability: mergedDeductions.hasDisabilityCredit,
+    // Spouse / dependant / caregiver
+    hasSpouseOrCL: mergedDeductions.hasSpouseOrCL ?? false,
+    spouseNetIncome: mergedDeductions.spouseNetIncome ?? 0,
+    spouseIsInfirm: mergedDeductions.spouseIsInfirm ?? false,
+    hasEligibleDependant: mergedDeductions.hasEligibleDependant ?? false,
+    eligibleDependantNetIncome: mergedDeductions.eligibleDependantNetIncome ?? 0,
+    eligibleDependantIsInfirm: mergedDeductions.eligibleDependantIsInfirm ?? false,
+    caregiverForDependant18Plus: mergedDeductions.caregiverForDependant18Plus ?? false,
+    caregiverDependantNetIncome: mergedDeductions.caregiverDependantNetIncome ?? 0,
+    caregiverForChildUnder18: mergedDeductions.caregiverForChildUnder18 ?? false,
+    // Other credits
+    homeBuyersEligible: mergedDeductions.homeBuyersEligible ?? false,
+    homeAccessibilityExpenses: mergedDeductions.homeAccessibilityExpenses ?? 0,
+    digitalNewsSubscription: mergedDeductions.digitalNewsSubscription ?? 0,
+    volunteerFirefighter: mergedDeductions.volunteerFirefighter ?? false,
+    searchAndRescue: mergedDeductions.searchAndRescue ?? false,
+    adoptionExpenses: mergedDeductions.adoptionExpenses ?? 0,
   });
 
   const federalNonRefundableCredits = fedCredits.totalCreditValue;
@@ -390,13 +472,23 @@ export function calculateTaxReturn(
 
   const ontarioNonRefundableCredits = calculateOntarioNonRefundableCredits({
     netIncome,
+    ageOnDec31,
     hasEmploymentIncome,
     cppContributions: totalCPP,
+    cpp2Contributions: totalCPP2,
     eiPremiums: totalEI,
     eligiblePensionIncome,
     totalMedicalExpenses,
     totalDonations,
     hasDisability: mergedDeductions.hasDisabilityCredit,
+    hasSpouseOrCL: mergedDeductions.hasSpouseOrCL ?? false,
+    spouseNetIncome: mergedDeductions.spouseNetIncome ?? 0,
+    spouseIsInfirm: mergedDeductions.spouseIsInfirm ?? false,
+    hasEligibleDependant: mergedDeductions.hasEligibleDependant ?? false,
+    eligibleDependantNetIncome: mergedDeductions.eligibleDependantNetIncome ?? 0,
+    eligibleDependantIsInfirm: mergedDeductions.eligibleDependantIsInfirm ?? false,
+    caregiverForDependant18Plus: mergedDeductions.caregiverForDependant18Plus ?? false,
+    caregiverDependantNetIncome: mergedDeductions.caregiverDependantNetIncome ?? 0,
   });
 
   // ── STEP 11: Ontario dividend tax credit (ON428) ──────────────────────────
@@ -442,14 +534,72 @@ export function calculateTaxReturn(
     t4apSlips.reduce((sum, s) => sum + s.box22, 0) +
     t4aoasSlips.reduce((sum, s) => sum + s.box22, 0) +
     t4rspSlips.reduce((sum, s) => sum + s.box30, 0) +
-    t4rifSlips.reduce((sum, s) => sum + s.box30, 0)
+    t4rifSlips.reduce((sum, s) => sum + s.box30, 0) +
+    t4fhsaSlips.reduce((sum, s) => sum + s.box22, 0)
   );
 
-  // ── STEP 19: Balance owing / refund ──────────────────────────────────────
-  // Negative = refund owing to taxpayer. Instalments not modeled in this version.
+  // ── STEP 18b: CPP/EI over-deduction refund — line 44800/45000 ────────────
+  // Over-deducted amounts (multiple employers) are refunded separately, not a credit.
+  const cppEiOverdeductionRefund = roundCRA(
+    Math.max(0, rawCPP1 - CPP.maxEmployeeContribution) +
+    Math.max(0, rawCPP2 - CPP2.maxEmployeeContribution) +
+    Math.max(0, rawEI - EI.maxPremium)
+  );
 
-  const totalInstalmentsApplied = 0;
-  const balanceOwing = roundCRA(totalTaxPayable - totalTaxDeducted - totalInstalmentsApplied);
+  // ── STEP 18c: Refundable credits ─────────────────────────────────────────
+
+  // Earned income = T4 employment + self-employment business net income
+  const earnedIncome = roundCRA(
+    t4Slips.reduce((sum, s) => sum + s.box14, 0) +
+    business.reduce((sum, b) => sum + Math.max(0, b.netIncome), 0)
+  );
+
+  // Canada Workers Benefit — refundable for low-income workers
+  const canadaWorkersCredit = calculateCWB(
+    earnedIncome,
+    netIncome,
+    (mergedDeductions.hasSpouseOrCL ?? false) || (mergedDeductions.hasEligibleDependant ?? false),
+  );
+
+  // Refundable Medical Expense Supplement — for low-income working Canadians
+  const eligibleMedicalForCredit = calculateMedicalExpenseCredit(totalMedicalExpenses, netIncome);
+  const refundableMedicalSupplement = calculateRMES(eligibleMedicalForCredit, earnedIncome, netIncome);
+
+  // Canada Training Credit — 50% of eligible training fees, capped at room from NOA
+  const canadaTrainingCredit = calculateCTC(
+    mergedDeductions.trainingFeesForCTC ?? 0,
+    mergedDeductions.canadaTrainingCreditRoom ?? 0,
+  );
+
+  // Ontario Seniors Care at Home Tax Credit — refundable, for Ontario residents 70+
+  let ontarioSeniorsHomeCredit = 0;
+  if (ageOnDec31 >= ONTARIO_SENIORS_CARE.minAge) {
+    const rawCredit = roundCRA(
+      Math.min(totalMedicalExpenses, ONTARIO_SENIORS_CARE.maxExpenses) * ONTARIO_SENIORS_CARE.creditRate
+    );
+    const clawback = Math.max(0, roundCRA((netIncome - ONTARIO_SENIORS_CARE.clawbackStart) * ONTARIO_SENIORS_CARE.clawbackRate));
+    ontarioSeniorsHomeCredit = Math.max(0, roundCRA(rawCredit - clawback));
+  }
+
+  // GST/HST Credit estimate — paid quarterly based on prior-year net income
+  const gstAdult = GST_CREDIT.baseAdult;
+  const gstReduction = Math.max(0, roundCRA((netIncome - GST_CREDIT.clawStart) * GST_CREDIT.clawRate));
+  const estimatedGSTCredit = Math.max(0, roundCRA(gstAdult - gstReduction));
+
+  // ── STEP 19: Balance owing / refund ──────────────────────────────────────
+  // Negative = refund. Refundable credits reduce payable directly (like tax withheld).
+
+  const totalInstalmentsApplied = mergedDeductions.instalmentsPaid ?? 0;
+  const balanceOwing = roundCRA(
+    totalTaxPayable
+    - totalTaxDeducted
+    - totalInstalmentsApplied
+    - canadaWorkersCredit
+    - refundableMedicalSupplement
+    - canadaTrainingCredit
+    - ontarioSeniorsHomeCredit
+    - cppEiOverdeductionRefund
+  );
 
   // ── STEP 20: Marginal and average rates ───────────────────────────────────
 
@@ -459,9 +609,6 @@ export function calculateTaxReturn(
   const averageTaxRate       = getAverageTaxRate(taxableIncome, totalTaxPayable);
 
   // ── STEP 21: OTB estimate (ON-BEN, paid starting Jul 2026) ───────────────
-
-  const ageOnDec31 = getAgeOnDec31(profile.dateOfBirth);
-  const isSenior   = ageOnDec31 >= 65;
 
   const estimatedOTB = estimateOTB(
     netIncome,
@@ -579,10 +726,17 @@ export function calculateTaxReturn(
     totalTaxPayable,
     totalTaxDeducted,
     totalInstalmentsApplied,
+
+    canadaWorkersCredit,
+    canadaTrainingCredit,
+    refundableMedicalSupplement,
+    ontarioSeniorsHomeCredit,
+    cppEiOverdeductionRefund,
+
     balanceOwing,
 
     estimatedOTB,
-    estimatedGSTCredit: 0,  // GST/HST credit not modeled (requires benefit-year net income)
+    estimatedGSTCredit,
 
     lineByLine,
 

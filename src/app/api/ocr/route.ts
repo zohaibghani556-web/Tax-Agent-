@@ -113,6 +113,13 @@ RRSP-Receipt — RRSP Contribution Receipt (from bank or investment firm):
   planType ("RRSP" or "SPOUSAL-RRSP"), dateOfContribution (YYYY-MM-DD if visible)
   Summary example: "RRSP contribution of $5,000 to RBC on Jan 15, 2025. This reduces your taxable income."
 
+T4FHSA — Statement of First Home Savings Account Activity:
+  Use slipType "T4FHSA". Issued by your bank or investment firm.
+  Extract: box14 (taxable FHSA income — non-qualifying withdrawals, usually 0 for eligible home buyers),
+  box22 (income tax deducted), box24 (FHSA contributions made during the year)
+  Most filers will have box14 = 0 (qualifying withdrawals for home purchase are tax-free).
+  Summary example: "FHSA at TD: $8,000 contributed, $0 taxable withdrawals. The contribution is deductible."
+
 GENERAL RULES:
 - Box keys use exact CRA labels: "box14", "box22", "box16A", "box016", "boxA", "boxB", "boxC", "amount", etc.
 - All numeric fields must be JavaScript numbers (not strings). Use 0 for any blank or missing boxes.

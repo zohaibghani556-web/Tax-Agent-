@@ -226,11 +226,32 @@ describe('calculateDisabilityCredit', () => {
 // Integration: calculateTotalFederalCredits
 // ============================================================
 
+// Helper: default new fields to zero/false so existing tests don't change their expected values
+const noExtras = {
+  cpp2Contributions: 0,
+  hasSpouseOrCL: false,
+  spouseNetIncome: 0,
+  spouseIsInfirm: false,
+  hasEligibleDependant: false,
+  eligibleDependantNetIncome: 0,
+  eligibleDependantIsInfirm: false,
+  caregiverForDependant18Plus: false,
+  caregiverDependantNetIncome: 0,
+  caregiverForChildUnder18: false,
+  homeBuyersEligible: false,
+  homeAccessibilityExpenses: 0,
+  digitalNewsSubscription: 0,
+  volunteerFirefighter: false,
+  searchAndRescue: false,
+  adoptionExpenses: 0,
+};
+
 describe('calculateTotalFederalCredits', () => {
   it('computes correct totals for an employed person at $65,000 income', () => {
     // Profile: employed, born 1985-03-15 (age 40 — no age credit)
     // CPP $3,354 | EI $1,077 | medical $800 | donations $500 | no tuition/disability
     const result = calculateTotalFederalCredits({
+      ...noExtras,
       netIncome: 65_000,
       taxableIncome: 65_000,
       dateOfBirth: '1985-03-15',
@@ -275,6 +296,7 @@ describe('calculateTotalFederalCredits', () => {
   it('includes age credit and disability for a senior with disability', () => {
     // Born 1955-01-01 (70 in 2025), income $40,000 (below age clawback start $44,325)
     const result = calculateTotalFederalCredits({
+      ...noExtras,
       netIncome: 40_000,
       taxableIncome: 40_000,
       dateOfBirth: '1955-01-01',
@@ -308,6 +330,7 @@ describe('calculateTotalFederalCredits', () => {
 
   it('correctly handles BPA clawback in the aggregate for high-income filer', () => {
     const result = calculateTotalFederalCredits({
+      ...noExtras,
       netIncome: 300_000,
       taxableIncome: 300_000,
       dateOfBirth: '1980-06-01',

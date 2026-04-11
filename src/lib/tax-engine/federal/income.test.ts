@@ -54,7 +54,7 @@ function emptyDeductions(): DeductionsCreditsInput {
 
 describe('aggregateTotalIncome', () => {
   it('zero income — no slips', () => {
-    expect(aggregateTotalIncome([], [], [])).toBe(0);
+    expect(aggregateTotalIncome([], [], []).totalIncome).toBe(0);
   });
 
   it('single T4 — employment income only', () => {
@@ -70,7 +70,7 @@ describe('aggregateTotalIncome', () => {
         },
       },
     ];
-    expect(aggregateTotalIncome(slips, [], [])).toBe(75000);
+    expect(aggregateTotalIncome(slips, [], []).totalIncome).toBe(75000);
   });
 
   it('T4 + T5 interest + T5 dividends (eligible and non-eligible)', () => {
@@ -102,7 +102,7 @@ describe('aggregateTotalIncome', () => {
     ];
 
     // Expected: 60000 + 1500 + 1380 + 230 = 63110
-    expect(aggregateTotalIncome(slips, [], [])).toBe(63110);
+    expect(aggregateTotalIncome(slips, [], []).totalIncome).toBe(63110);
   });
 
   it('T5008 capital gains — net gain at 50% inclusion', () => {
@@ -120,7 +120,7 @@ describe('aggregateTotalIncome', () => {
       },
     ];
     // Gain = 5000, taxable = 2500
-    expect(aggregateTotalIncome(slips, [], [])).toBe(2500);
+    expect(aggregateTotalIncome(slips, [], []).totalIncome).toBe(2500);
   });
 
   it('T5008 capital loss — no taxable gain', () => {
@@ -138,7 +138,7 @@ describe('aggregateTotalIncome', () => {
       },
     ];
     // Loss = 8000; net gain floors at 0
-    expect(aggregateTotalIncome(slips, [], [])).toBe(0);
+    expect(aggregateTotalIncome(slips, [], []).totalIncome).toBe(0);
   });
 
   it('T5008 mixed gain and loss — net gain at 50% inclusion', () => {
@@ -153,7 +153,7 @@ describe('aggregateTotalIncome', () => {
       },
     ];
     // Gain 3000, Loss 2000, Net 1000, Taxable 500
-    expect(aggregateTotalIncome(slips, [], [])).toBe(500);
+    expect(aggregateTotalIncome(slips, [], []).totalIncome).toBe(500);
   });
 
   it('T3 slip — interest, eligible dividends, non-eligible dividends, other, capital gains', () => {
@@ -174,7 +174,7 @@ describe('aggregateTotalIncome', () => {
     ];
     // interest 500 + eligible div 276 + non-eligible 115 + other 150 + cap gain T3 800×50% = 400
     // Total: 500 + 276 + 115 + 150 + 400 = 1441
-    expect(aggregateTotalIncome(slips, [], [])).toBe(1441);
+    expect(aggregateTotalIncome(slips, [], []).totalIncome).toBe(1441);
   });
 
   it('T4A — pension, other income, scholarships', () => {
@@ -195,21 +195,21 @@ describe('aggregateTotalIncome', () => {
       },
     ];
     // 24000 + 1500 + 3000 = 28500
-    expect(aggregateTotalIncome(slips, [], [])).toBe(28500);
+    expect(aggregateTotalIncome(slips, [], []).totalIncome).toBe(28500);
   });
 
   it('T4E — EI benefits', () => {
     const slips: TaxSlip[] = [
       { type: 'T4E', data: { box14: 8500, box22: 850 } },
     ];
-    expect(aggregateTotalIncome(slips, [], [])).toBe(8500);
+    expect(aggregateTotalIncome(slips, [], []).totalIncome).toBe(8500);
   });
 
   it('T5007 — social assistance included in income', () => {
     const slips: TaxSlip[] = [
       { type: 'T5007', data: { box10: 7200 } },
     ];
-    expect(aggregateTotalIncome(slips, [], [])).toBe(7200);
+    expect(aggregateTotalIncome(slips, [], []).totalIncome).toBe(7200);
   });
 
   it('business income — net self-employment income', () => {
@@ -229,7 +229,7 @@ describe('aggregateTotalIncome', () => {
         netIncome: 85400,
       },
     ];
-    expect(aggregateTotalIncome([], business, [])).toBe(85400);
+    expect(aggregateTotalIncome([], business, []).totalIncome).toBe(85400);
   });
 
   it('rental income — net', () => {
@@ -247,7 +247,7 @@ describe('aggregateTotalIncome', () => {
         netIncome: 9800,
       },
     ];
-    expect(aggregateTotalIncome([], [], rental)).toBe(9800);
+    expect(aggregateTotalIncome([], [], rental).totalIncome).toBe(9800);
   });
 
   it('full realistic scenario — T4 + T5 + T5008 + T3 + business', () => {
@@ -313,7 +313,7 @@ describe('aggregateTotalIncome', () => {
     // T3 other: 200
     // business: 25000
     // Total: 80000 + 2800 + 1380 + 345 + 3000 + 200 + 25000 = 112725
-    expect(aggregateTotalIncome(slips, business, [])).toBe(112725);
+    expect(aggregateTotalIncome(slips, business, []).totalIncome).toBe(112725);
   });
 });
 

@@ -175,6 +175,17 @@ export interface RRSPReceiptSlip {
   planType: string;     // 'RRSP' or 'SPOUSAL-RRSP'
 }
 
+// T4FHSA — Statement of First Home Savings Account Activity (ITA s.146.6)
+// Contributions are already deductible (fhsaContributions in DeductionsCreditsInput).
+// Box 14: taxable FHSA income (non-qualifying withdrawals) → line 12905
+// Box 24: contributions made in the year (for deduction verification)
+export interface T4FHSASlip {
+  issuerName: string;
+  box14: number;   // Taxable FHSA income (non-qualifying withdrawals)
+  box22: number;   // Income tax deducted
+  box24: number;   // Contributions during the year (used to verify deduction)
+}
+
 export type TaxSlip =
   | { type: 'T4'; data: T4Slip }
   | { type: 'T5'; data: T5Slip }
@@ -188,7 +199,8 @@ export type TaxSlip =
   | { type: 'T4AOAS'; data: T4AOASSlip }
   | { type: 'T4RSP'; data: T4RSPSlip }
   | { type: 'T4RIF'; data: T4RIFSlip }
-  | { type: 'RRSP-Receipt'; data: RRSPReceiptSlip };
+  | { type: 'RRSP-Receipt'; data: RRSPReceiptSlip }
+  | { type: 'T4FHSA'; data: T4FHSASlip };
 
 // ============================================================
 // SELF-EMPLOYMENT (T2125)
@@ -286,7 +298,7 @@ export interface RentalIncome {
 // ============================================================
 
 export interface DeductionsCreditsInput {
-  // Deductions (reduce net income)
+  // Deductions (reduce net income — ITA s.60–63)
   rrspContributions: number;
   rrspContributionRoom: number;
   fhsaContributions: number;
@@ -296,23 +308,53 @@ export interface DeductionsCreditsInput {
   supportPaymentsMade: number;
   carryingCharges: number;
   studentLoanInterest: number;
+  disabilitySupportsDeduction?: number;   // Line 21500 — for ppl with disabilities who need supports to work
+  pensionSplitDeducted?: number;          // Line 21000 — amount paid to spouse under election
 
   // Credits
   medicalExpenses: MedicalExpense[];
   donations: Donation[];
-  
+
   // Ontario-specific
   rentPaid: number;            // For OTB/OEPTC
   propertyTaxPaid: number;     // For OTB/OEPTC
   studentResidence: boolean;   // Designated university/college residence
-  
+
   // Carryforwards
   tuitionCarryforward: number;
   capitalLossCarryforward: number;
   nonCapitalLossCarryforward: number;
   donationCarryforward: number;
-  
-  // Other
+
+  // Personal situation — drives spouse/dependant/caregiver credits
+  hasSpouseOrCL?: boolean;
+  spouseNetIncome?: number;              // Used to calculate spouse amount (line 30300)
+  spouseIsInfirm?: boolean;             // Adds Canada Caregiver supplement to spouse amount
+  hasEligibleDependant?: boolean;       // Single parent with child/dependant (line 30400)
+  eligibleDependantNetIncome?: number;  // Dependant's net income
+  eligibleDependantIsInfirm?: boolean;  // Caregiver supplement for eligible dependant
+  caregiverForDependant18Plus?: boolean; // Infirm 18+ dependant other than spouse (line 30450)
+  caregiverDependantNetIncome?: number;  // Their net income (reduces the $7,999 base)
+  caregiverForChildUnder18?: boolean;    // Infirm child under 18 (line 30500, flat $2,616)
+
+  // Volunteer credits — requires 200+ eligible hours in the year
+  volunteerFirefighter?: boolean;        // Line 31240 — $3,000 × 15% = $450 credit
+  searchAndRescue?: boolean;             // Line 31255 — $3,000 × 15% = $450 credit
+
+  // Adoption expenses — ITA s.118.02 (line 31300)
+  adoptionExpenses?: number;
+
+  // Canada Training Credit — refundable, 50% of eligible fees (line 45350)
+  canadaTrainingCreditRoom?: number;     // From prior-year NOA (line 45375)
+  trainingFeesForCTC?: number;           // Eligible tuition/training fees for CTC
+
+  // Pension income splitting — ITA s.60.03
+  pensionSplitReceived?: number;         // Amount received from spouse (line 11600)
+
+  // Tax instalments paid in 2025 (line 47600)
+  instalmentsPaid?: number;
+
+  // Other credits already in constants
   politicalContributions: number;
   digitalNewsSubscription: number;
   hasDisabilityCredit: boolean;
@@ -421,10 +463,17 @@ export interface TaxCalculationResult {
   totalTaxPayable: number;
   totalTaxDeducted: number;    // From T4s, T4As, etc.
   totalInstalmentsApplied: number;
-  
+
+  // Refundable credits (reduce balance owing directly, like tax withheld at source)
+  canadaWorkersCredit: number;          // CWB — line 45300
+  canadaTrainingCredit: number;         // CTC — line 45350
+  refundableMedicalSupplement: number;  // RMES — line 45200
+  ontarioSeniorsHomeCredit: number;     // Ontario Seniors Care at Home — ON428 line
+  cppEiOverdeductionRefund: number;     // Over-deducted CPP/EI — line 44800/45000
+
   // Bottom line
   balanceOwing: number;        // Positive = owes, negative = refund
-  
+
   // Benefits estimates (OTB for 2026 based on 2025 return)
   estimatedOTB: number;
   estimatedGSTCredit: number;
