@@ -28,6 +28,13 @@ AI-powered Ontario tax filing assistant. Conversational AI (Claude API) for asse
 - Use `Decimal.js` or careful rounding — CRA rounds to nearest cent.
 - Comments: explain the WHY (CRA rule, ITA section), not the WHAT.
 
+## Tax Engine Conventions (enforce always — do not skip)
+- ALWAYS wrap final monetary results in `roundCRA()` — floating-point accumulation causes off-by-one-cent test failures. Round intermediate values at every addition boundary, not just at the end.
+- Never fix a test by changing the expected value to match a wrong calculation. Fix the calculation.
+- Every new module ships with a corresponding `.test.ts` file in the same directory, committed together.
+- After building any new module, run the FULL test suite (`npm run test:run`), not just the new tests, before declaring done. Catch regressions immediately.
+- Run `npx tsc --noEmit` before committing to catch TypeScript errors before they hit the build.
+
 ## Key File Structure
 ```
 src/lib/tax-engine/constants.ts    — ALL 2025 rates/thresholds

@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_TOOL_INPUT\" | grep -q '\"git commit\"'; then cd /Users/fariaghani/Downloads/taxagent && npx tsc --noEmit 2>&1 | head -20 && npm run test:run 2>&1 | tail -10; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
