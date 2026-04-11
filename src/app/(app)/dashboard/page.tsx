@@ -8,13 +8,15 @@ import {
   Calculator,
   Check,
   ChevronRight,
+  Clock,
   FileText,
   MessageSquare,
+  TrendingDown,
   TrendingUp,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { TaxCalculationResult } from '@/lib/tax-engine/types';
-import { getLatestCalculation, getSlips } from '@/lib/supabase/tax-data';
+import { getLatestCalculation, getSlips, getCalculationHistory } from '@/lib/supabase/tax-data';
 import { toast } from 'sonner';
 
 function formatCad(n: number): string {
@@ -199,6 +201,7 @@ export default function DashboardPage() {
   const [hasSlips, setHasSlips] = useState(false);
   const [calcResult, setCalcResult] = useState<TaxCalculationResult | null>(null);
   const [onboardingDismissed, setOnboardingDismissed] = useState(true); // default true to avoid flash
+  const [historyEntries, setHistoryEntries] = useState<Array<{ id: string; createdAt: string; result: TaxCalculationResult }>>([]);
 
   useEffect(() => {
     async function init() {
@@ -254,6 +257,10 @@ export default function DashboardPage() {
           localStorage.setItem('taxagent_calc_result', JSON.stringify(dbCalc));
           toast('Your latest calculation has been synced.', { icon: '🔄', duration: 3000 });
         }
+
+        // Load recent history (up to 3 entries for preview)
+        const history = await getCalculationHistory(uid, 2025);
+        setHistoryEntries(history.slice(0, 3));
       }
     }
     init().catch(() => { setUserLoading(false); });
@@ -397,6 +404,55 @@ export default function DashboardPage() {
           />
         </div>
       </GlassCard>
+
+      {/* ── Recent calculations preview ───────────────────────────── */}
+      {historyEntries.length > 0 && (
+        <GlassCard className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-white/40" />
+              <h2 className="text-base font-semibold text-white">Recent calculations</h2>
+            </div>
+            <Link href="/history" className="text-xs text-[#10B981] hover:underline flex items-center gap-1">
+              View all
+              <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {historyEntries.map((entry, i) => {
+              const isRefund = entry.result.balanceOwing < 0;
+              const amount = Math.abs(entry.result.balanceOwing);
+              const date = new Date(entry.createdAt);
+              return (
+                <Link
+                  key={entry.id}
+                  href="/history"
+                  className="flex items-center justify-between gap-4 rounded-xl px-4 py-3 transition-colors group"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${isRefund ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
+                      {isRefund
+                        ? <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+                        : <TrendingDown className="h-3.5 w-3.5 text-amber-400" />
+                      }
+                    </div>
+                    <div>
+                      <span className={`text-sm font-bold tabular-nums ${isRefund ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {isRefund ? '+' : '-'}{formatCad(amount)}
+                      </span>
+                      {i === 0 && <span className="ml-2 text-[10px] font-semibold text-[#10B981] bg-[#10B981]/10 rounded-full px-1.5 py-0.5">Latest</span>}
+                    </div>
+                  </div>
+                  <span className="text-xs text-white/30 tabular-nums">
+                    {date.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </GlassCard>
+      )}
 
       {/* ── Quick actions ─────────────────────────────────────────── */}
       <div>

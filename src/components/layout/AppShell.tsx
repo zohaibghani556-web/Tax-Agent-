@@ -7,6 +7,7 @@ import {
   BarChart2,
   BookOpen,
   Calculator,
+  Clock,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { href: '/slips', icon: FileText, label: 'My Slips' },
   { href: '/calculator', icon: Calculator, label: 'Calculator' },
   { href: '/filing-guide', icon: BookOpen, label: 'Filing Guide' },
+  { href: '/history', icon: Clock, label: 'History' },
   { href: '/settings', icon: Settings, label: 'Settings' },
 ];
 
