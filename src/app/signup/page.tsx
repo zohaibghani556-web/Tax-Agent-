@@ -39,6 +39,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(false);
+  const [pipedaConsent, setPipedaConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
@@ -46,6 +47,7 @@ export default function SignupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!agreed) { setError('Please agree to the terms to continue.'); return; }
+    if (!pipedaConsent) { setError('Please consent to data processing to continue.'); return; }
     setLoading(true);
     setError('');
     const supabase = createClient();
@@ -206,9 +208,25 @@ export default function SignupPage() {
             </span>
           </label>
 
+          {/* PIPEDA data processing consent */}
+          <label className="flex items-start gap-3 cursor-pointer">
+            <button
+              type="button"
+              onClick={() => setPipedaConsent(!pipedaConsent)}
+              className={`mt-0.5 h-4 w-4 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors ${pipedaConsent ? 'border-[var(--emerald)] bg-[var(--emerald)]' : 'border-[var(--border)]'}`}
+              aria-checked={pipedaConsent}
+              role="checkbox"
+            >
+              {pipedaConsent && <Check className="h-2.5 w-2.5 text-white" />}
+            </button>
+            <span className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              I consent to TaxAgent.ai collecting and securely processing my tax information solely for the purpose of preparing my 2025 Ontario T1 return, stored in Canada (AWS ca-central-1), in accordance with PIPEDA (Canada&apos;s federal privacy law).
+            </span>
+          </label>
+
           <motion.button
             type="submit"
-            disabled={!agreed || loading}
+            disabled={!agreed || !pipedaConsent || loading}
             whileHover={agreed && !loading ? { scale: 1.02 } : {}}
             whileTap={agreed && !loading ? { scale: 0.98 } : {}}
             className="w-full rounded-full bg-[var(--emerald)] px-4 py-3 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"

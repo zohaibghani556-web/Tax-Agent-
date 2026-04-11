@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Save, Trash2, X } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { addCsrfHeader } from '@/lib/csrf-client';
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -78,13 +81,37 @@ function Toggle({ label, description, checked, onChange }: {
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [notifications, setNotifications] = useState({
     filingDeadline: true,
     rrspDeadline: true,
     slipAvailable: false,
   });
+
+  async function handleDeleteAccount() {
+    setDeleteLoading(true);
+    setDeleteError('');
+    try {
+      const res = await fetch('/api/account/delete', addCsrfHeader({ method: 'POST' }));
+      if (res.ok) {
+        const supabase = createClient();
+        await supabase.auth.signOut();
+        router.push('/');
+      } else {
+        const data = await res.json() as { error?: string };
+        setDeleteError(data.error ?? 'Deletion failed. Please contact support.');
+      }
+    } catch {
+      setDeleteError('Network error. Please try again.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
@@ -224,24 +251,36 @@ export default function SettingsPage() {
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
             <div className="flex items-start justify-between mb-4">
               <h3 className="text-lg font-bold text-[var(--text-primary)]">Delete account?</h3>
-              <button onClick={() => setShowConfirmDelete(false)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+              <button onClick={() => { setShowConfirmDelete(false); setDeleteConfirmText(''); setDeleteError(''); }} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <p className="text-sm text-[var(--text-secondary)] mb-6">
-              This action is permanent and cannot be undone. All your tax data, slips, and filing guides will be deleted within 30 days.
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
+              Type <strong>DELETE</strong> to confirm. This removes all your 2025 tax data, slips, calculations, and filing guides permanently. Canadian tax records should be kept 6 years — download your data first if needed.
             </p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="Type DELETE to confirm"
+              className="w-full rounded-xl border border-[var(--border)] px-4 py-2.5 text-sm text-[var(--text-primary)] focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200 transition-colors mb-4"
+            />
+            {deleteError && (
+              <p className="text-xs text-red-600 mb-3">{deleteError}</p>
+            )}
             <div className="flex gap-3">
               <button
-                onClick={() => setShowConfirmDelete(false)}
+                onClick={() => { setShowConfirmDelete(false); setDeleteConfirmText(''); setDeleteError(''); }}
                 className="flex-1 rounded-full border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
               <button
-                className="flex-1 rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmText !== 'DELETE' || deleteLoading}
+                className="flex-1 rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Delete permanently
+                {deleteLoading ? 'Deleting…' : 'Delete permanently'}
               </button>
             </div>
           </div>
