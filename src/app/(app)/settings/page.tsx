@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Save, Trash2, X } from 'lucide-react';
+import { Clipboard, Eye, EyeOff, Save, Trash2, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { addCsrfHeader } from '@/lib/csrf-client';
+import { toast } from 'sonner';
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -82,7 +83,14 @@ function Toggle({ label, description, checked, onChange }: {
 
 export default function SettingsPage() {
   const router = useRouter();
+  const [userId, setUserId] = useState('');
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data }) => {
+      if (data.user) setUserId(data.user.id);
+    });
+  }, []);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -224,6 +232,37 @@ export default function SettingsPage() {
           />
         </div>
         <SaveButton />
+      </SectionCard>
+
+      {/* Referral */}
+      <SectionCard title="Refer a friend">
+        {userId ? (
+          <div className="space-y-3">
+            <p className="text-sm text-[var(--text-secondary)]">
+              Invite friends to get their free tax estimate.
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                readOnly
+                value={`https://taxagent.ai/signup?ref=${userId.slice(0, 8)}`}
+                className="flex-1 rounded-xl border border-[var(--border)] bg-slate-50 px-4 py-2.5 text-sm text-[var(--text-secondary)] select-all"
+              />
+              <button
+                onClick={async () => {
+                  await navigator.clipboard.writeText(`https://taxagent.ai/signup?ref=${userId.slice(0, 8)}`);
+                  toast.success('Referral link copied!', { duration: 2000 });
+                }}
+                className="flex items-center gap-2 rounded-full border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:bg-slate-50 transition-colors shrink-0"
+                aria-label="Copy referral link"
+              >
+                <Clipboard className="h-4 w-4" />
+                Copy link
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--text-muted)]">Loading…</p>
+        )}
       </SectionCard>
 
       {/* Data */}

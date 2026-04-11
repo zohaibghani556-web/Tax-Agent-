@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Check, Eye, EyeOff, Loader2, MailCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -33,7 +34,9 @@ function PasswordStrength({ password }: { password: string }) {
   );
 }
 
-export default function SignupPage() {
+function SignupForm() {
+  const searchParams = useSearchParams();
+  const referredBy = searchParams.get('ref') ?? undefined;
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -58,7 +61,11 @@ export default function SignupPage() {
       email,
       password,
       options: {
-        data: { full_name: name },
+        data: {
+          full_name: name,
+          subscription_tier: 'free',
+          ...(referredBy ? { referred_by: referredBy } : {}),
+        },
         emailRedirectTo: `${siteUrl}/auth/callback`,
       },
     });
@@ -243,5 +250,13 @@ export default function SignupPage() {
         </p>
       </motion.div>
     </main>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense>
+      <SignupForm />
+    </Suspense>
   );
 }
