@@ -20,6 +20,7 @@ import {
   Lock,
   Trash2,
   Flag,
+  Loader2,
 } from 'lucide-react';
 import { AnimatedHeroBackground } from '@/components/ui/animated-hero-background';
 import { MagneticButton } from '@/components/ui/magnetic-button';
@@ -316,6 +317,189 @@ function AnimatedProgressBar({ label, pct }: { label: string; pct: number }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   INSTANT ESTIMATOR — pre-auth wow moment (Group 2)
+───────────────────────────────────────────────────────────────────────────── */
+
+interface EstimateResult {
+  estimatedRefund: number;
+  estimatedOwing: number;
+  marginalRate: number;
+  isRefund: boolean;
+}
+
+function InstantEstimator() {
+  const [employment, setEmployment] = useState('');
+  const [withheld, setWithheld] = useState('');
+  const [rrsp, setRrsp] = useState('');
+  const [rent, setRent] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<EstimateResult | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState('');
+
+  function validate(): boolean {
+    const e: Record<string, string> = {};
+    if (!employment) e.employment = 'Required';
+    else if (isNaN(Number(employment.replace(/,/g, '')))) e.employment = 'Must be a number';
+    if (!withheld) e.withheld = 'Required';
+    else if (isNaN(Number(withheld.replace(/,/g, '')))) e.withheld = 'Must be a number';
+    if (rrsp && isNaN(Number(rrsp.replace(/,/g, '')))) e.rrsp = 'Must be a number';
+    if (rent && isNaN(Number(rent.replace(/,/g, '')))) e.rent = 'Must be a number';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  function parse(v: string): number {
+    return Number(v.replace(/,/g, '')) || 0;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validate()) return;
+    setLoading(true);
+    setResult(null);
+    setApiError('');
+    try {
+      const res = await fetch('/api/estimate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employmentIncome: parse(employment),
+          taxWithheld: parse(withheld),
+          rrspContributions: parse(rrsp),
+          rentPaid: parse(rent),
+        }),
+      });
+      const data = await res.json() as EstimateResult & { error?: string };
+      if (!res.ok) { setApiError(data.error ?? 'Could not calculate. Please try again.'); return; }
+      setResult(data);
+    } catch {
+      setApiError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function formatCad(n: number): string {
+    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }).format(n);
+  }
+
+  return (
+    <section className="py-20" style={{ background: 'linear-gradient(180deg, #0a1020 0%, #0d1828 50%, #0a1020 100%)' }}>
+      <div className="mx-auto max-w-3xl px-6">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-60px' }}
+          variants={stagger}
+        >
+          <motion.p variants={fadeUp} className="text-center text-xs font-semibold uppercase tracking-widest text-[#10B981] mb-3">
+            Free Estimate
+          </motion.p>
+          <motion.h2 variants={fadeUp} className="text-center text-2xl sm:text-3xl font-bold text-white mb-2">
+            See your estimated refund in 30 seconds
+          </motion.h2>
+          <motion.p variants={fadeUp} className="text-center text-sm text-white/50 mb-10">
+            No account needed
+          </motion.p>
+
+          <motion.div
+            variants={scaleIn}
+            className="rounded-2xl p-6 sm:p-8"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.09)',
+              backdropFilter: 'blur(12px)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+            }}
+          >
+            <form onSubmit={handleSubmit} noValidate>
+              {/* Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                {[
+                  { id: 'employment', label: 'Employment income', placeholder: 'e.g. 65,000', value: employment, set: setEmployment, err: errors.employment },
+                  { id: 'withheld', label: 'Tax withheld (T4 box 22)', placeholder: 'e.g. 12,000', value: withheld, set: setWithheld, err: errors.withheld },
+                  { id: 'rrsp', label: 'RRSP contributions', placeholder: 'optional', value: rrsp, set: setRrsp, err: errors.rrsp },
+                  { id: 'rent', label: 'Rent paid in 2025', placeholder: 'optional', value: rent, set: setRent, err: errors.rent },
+                ].map(({ id, label, placeholder, value, set, err }) => (
+                  <div key={id}>
+                    <label htmlFor={id} className="block text-xs font-semibold text-white/60 mb-1.5">{label}</label>
+                    <div className="flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.07)', border: `1px solid ${err ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.12)'}` }}>
+                      <span className="text-sm text-white/40">$</span>
+                      <input
+                        id={id}
+                        type="text"
+                        inputMode="decimal"
+                        value={value}
+                        onChange={(e) => set(e.target.value)}
+                        placeholder={placeholder}
+                        className="flex-1 bg-transparent text-sm text-white placeholder-white/25 focus:outline-none"
+                      />
+                    </div>
+                    {err && <p className="text-xs text-red-400 mt-1">{err}</p>}
+                  </div>
+                ))}
+              </div>
+
+              {apiError && <p className="text-xs text-red-400 mb-4">{apiError}</p>}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 rounded-full bg-[#10B981] py-3.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors disabled:opacity-60 relative overflow-hidden"
+              >
+                {loading ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Calculating…</>
+                ) : (
+                  'Calculate my estimate →'
+                )}
+              </button>
+            </form>
+
+            {/* Result */}
+            {result && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: easeOut }}
+                className="mt-6 space-y-4"
+              >
+                <div
+                  className="rounded-xl p-5 text-center"
+                  style={{ background: result.isRefund ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${result.isRefund ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}` }}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: result.isRefund ? '#10B981' : '#F59E0B' }}>
+                    {result.isRefund ? 'Estimated Refund' : 'Balance Owing'}
+                  </p>
+                  <p className="text-4xl font-black tabular-nums" style={{ color: result.isRefund ? '#10B981' : '#F59E0B' }}>
+                    {formatCad(result.isRefund ? result.estimatedRefund : result.estimatedOwing)}
+                  </p>
+                  <p className="text-xs text-white/50 mt-2">
+                    Based on a single Ontario filer at {(result.marginalRate * 100).toFixed(0)}% marginal rate
+                  </p>
+                </div>
+
+                <p className="text-xs text-white/35 text-center leading-relaxed">
+                  Estimate only. Actual amount depends on all income sources, deductions, and credits.
+                  Create your free account for a precise calculation.
+                </p>
+
+                <Link
+                  href="/signup"
+                  className="block text-center rounded-full bg-[#10B981] py-3 text-sm font-semibold text-white hover:bg-[#059669] transition-colors"
+                >
+                  Get my precise calculation → Create free account
+                </Link>
+              </motion.div>
+            )}
+          </motion.div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    MAIN PAGE
 ───────────────────────────────────────────────────────────────────────────── */
 
@@ -455,6 +639,9 @@ export default function HomePage() {
           </motion.div>
         </div>
       </AnimatedHeroBackground>
+
+      {/* ══ INSTANT ESTIMATOR ════════════════════════════════════════════════ */}
+      <InstantEstimator />
 
       {/* ══ FEATURES ══════════════════════════════════════════════════════════ */}
       <section
