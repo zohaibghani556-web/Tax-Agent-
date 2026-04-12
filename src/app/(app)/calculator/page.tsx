@@ -10,8 +10,15 @@ import { WhatIfEngine } from '@/components/calculator/WhatIfEngine';
 import { CreditFinder } from '@/components/calculator/CreditFinder';
 import { TaxOptimizer } from '@/components/calculator/TaxOptimizer';
 import { PrintSummary } from '@/components/calculator/PrintSummary';
-import { RefundReveal } from '@/components/calculator/RefundReveal';
-import { TaxBreakdownChart } from '@/components/calculator/TaxBreakdownChart';
+import dynamic from 'next/dynamic';
+const RefundReveal = dynamic(
+  () => import('@/components/calculator/RefundReveal').then((m) => ({ default: m.RefundReveal })),
+  { ssr: false }
+);
+const TaxBreakdownChart = dynamic(
+  () => import('@/components/calculator/TaxBreakdownChart').then((m) => ({ default: m.TaxBreakdownChart })),
+  { ssr: false }
+);
 import { createClient } from '@/lib/supabase/client';
 import { validateTaxReturn } from '@/lib/tax-engine/validator';
 import { calculateInstalments } from '@/lib/tax-engine/federal/instalments';
@@ -632,13 +639,7 @@ export default function CalculatorPage() {
   const isRefund = result && result.balanceOwing < 0;
   const hasSlips = savedSlips.length > 0;
 
-  // Compute validation result reactively whenever slips or deductions change
-  const validation = useMemo(
-    () => validateTaxReturn(currentProfile, savedSlips.map(savedToTaxSlip), buildDeductions()),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [savedSlips, userDeductions, profileName]
-  );
-
+  // currentProfile must be declared before validation useMemo to avoid TDZ during SSR
   const currentProfile: TaxProfile = {
     id: userId || 'local',
     userId: userId || 'local',
@@ -653,6 +654,13 @@ export default function CalculatorPage() {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+
+  // Compute validation result reactively whenever slips or deductions change
+  const validation = useMemo(
+    () => validateTaxReturn(currentProfile, savedSlips.map(savedToTaxSlip), buildDeductions()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [savedSlips, userDeductions, profileName]
+  );
 
   return (
     <div className="px-4 sm:px-6 py-8">

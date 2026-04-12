@@ -57,8 +57,8 @@ export function aggregateTotalIncome(
   let interest = 0;
   let eligibleDividends = 0;
   let nonEligibleDividends = 0;
-  let t5008Slips = [];
-  let t3Slips = [];
+  const t5008Slips = [];
+  const t3Slips = [];
   let pension = 0;
   let otherIncome = 0;
   let scholarships = 0;

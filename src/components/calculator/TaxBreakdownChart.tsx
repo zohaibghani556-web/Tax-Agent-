@@ -1,8 +1,19 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useReducedMotion } from 'framer-motion';
 import type { TaxCalculationResult } from '@/lib/tax-engine/types';
+
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduced(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return reduced;
+}
 
 interface Props {
   result: TaxCalculationResult;
@@ -34,11 +45,6 @@ const CY = 100;
 const R = 72;
 const STROKE = 22;
 const CIRCUMFERENCE = 2 * Math.PI * R;
-
-function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
-  const rad = ((angleDeg - 90) * Math.PI) / 180;
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-}
 
 interface ArcProps {
   startAngle: number;
@@ -132,7 +138,7 @@ function useCountUp(target: number, duration: number, enabled: boolean) {
 }
 
 export function TaxBreakdownChart({ result }: Props) {
-  const prefersReduced = useReducedMotion();
+  const prefersReduced = usePrefersReducedMotion();
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [hovered, setHovered] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);

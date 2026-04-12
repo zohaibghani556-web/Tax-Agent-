@@ -17,10 +17,10 @@ export default function PrivacyPage() {
         Privacy Policy
       </h1>
       <p className="text-slate-600 mb-10 leading-relaxed">
-        TaxAgent.ai ("<strong>we</strong>", "<strong>us</strong>", or "
-        <strong>our</strong>") is committed to protecting your personal
+        TaxAgent.ai (&quot;<strong>we</strong>&quot;, &quot;<strong>us</strong>&quot;, or &quot;
+        <strong>our</strong>&quot;) is committed to protecting your personal
         information. This policy explains what we collect, why we collect it, how
-        we protect it, and your rights under Canada's{' '}
+        we protect it, and your rights under Canada&apos;s{' '}
         <em>Personal Information Protection and Electronic Documents Act</em>{' '}
         (PIPEDA).
       </p>
@@ -89,7 +89,7 @@ export default function PrivacyPage() {
           <li>All data is encrypted at rest using AES-256.</li>
           <li>
             Data is stored exclusively on servers located in Canada (via
-            Supabase's Canadian region).
+            Supabase&apos;s Canadian region).
           </li>
           <li>Access to production data is restricted to authorised personnel only.</li>
           <li>

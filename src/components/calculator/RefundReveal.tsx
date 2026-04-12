@@ -1,8 +1,20 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { TaxCalculationResult } from '@/lib/tax-engine/types';
+
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduced(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return reduced;
+}
 
 interface Props {
   result: TaxCalculationResult;
@@ -43,7 +55,7 @@ function Particle({ x, y, size, delay }: { x: number; y: number; size: number; d
 }
 
 export function RefundReveal({ result, onDismiss }: Props) {
-  const prefersReduced = useReducedMotion();
+  const prefersReduced = usePrefersReducedMotion();
   const isRefund = result.balanceOwing < 0;
   const finalAmount = Math.abs(result.balanceOwing);
 

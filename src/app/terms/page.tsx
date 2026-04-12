@@ -16,7 +16,7 @@ export default function TermsPage() {
         Terms of Service
       </h1>
       <p className="text-slate-600 mb-10 leading-relaxed">
-        Please read these Terms of Service ("<strong>Terms</strong>") carefully
+        Please read these Terms of Service (&quot;<strong>Terms</strong>&quot;) carefully
         before using TaxAgent.ai. By creating an account or using our service,
         you agree to be bound by these Terms.
       </p>
@@ -63,7 +63,7 @@ export default function TermsPage() {
         <ul className="mt-3 space-y-2 list-disc list-inside text-slate-600">
           <li>Use the service for any unlawful purpose.</li>
           <li>
-            Attempt to circumvent security measures or access other users'
+            Attempt to circumvent security measures or access other users&apos;
             accounts.
           </li>
           <li>Upload documents that do not belong to you.</li>
@@ -75,8 +75,8 @@ export default function TermsPage() {
 
       <Section title="5. Disclaimer of warranties">
         <p>
-          TaxAgent.ai is provided "<strong>as is</strong>" and "
-          <strong>as available</strong>". We make no warranty that:
+          TaxAgent.ai is provided &quot;<strong>as is</strong>&quot; and &quot;
+          <strong>as available</strong>&quot;. We make no warranty that:
         </p>
         <ul className="mt-3 space-y-2 list-disc list-inside text-slate-600">
           <li>The service will be error-free or uninterrupted.</li>
