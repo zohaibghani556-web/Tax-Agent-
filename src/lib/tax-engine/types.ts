@@ -370,6 +370,12 @@ export interface DeductionsCreditsInput {
   politicalContributions: number;
   digitalNewsSubscription: number;
   hasDisabilityCredit: boolean;
+  /** Age of the person with disability on Dec 31 — used for under-18 supplement */
+  disabilityClaimantAge?: number;
+  /** Child care / attendant care claimed for the disabled person — reduces under-18 supplement */
+  disabilityChildCareAttendantCare?: number;
+  /** Transfer unused DTC to a supporting person (ITA s.118.3(2)) */
+  disabilityTransferToSupporter?: boolean;
   homeBuyersEligible: boolean;
   homeAccessibilityExpenses: number;
 }

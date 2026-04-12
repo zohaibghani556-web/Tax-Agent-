@@ -79,6 +79,7 @@ import {
   calculateCTC,
 } from './federal/credits';
 
+import { calculateDTC } from './federal/disability';
 import { calculateDividendIncome } from './federal/dividends';
 import { calculateCapitalGains } from './federal/capital-gains';
 import { calculateOntarioTaxOnIncome } from './ontario/brackets';
@@ -129,6 +130,8 @@ function calculateOntarioNonRefundableCredits(params: {
   totalMedicalExpenses: number;
   totalDonations: number;
   hasDisability: boolean;
+  /** Full Ontario DTC credit amount (base + supplement, before × 5.05%) */
+  ontarioDisabilityCreditAmount?: number;
   hasSpouseOrCL: boolean;
   spouseNetIncome: number;
   spouseIsInfirm: boolean;
@@ -181,7 +184,10 @@ function calculateOntarioNonRefundableCredits(params: {
     (params.hasEmploymentIncome ? FEDERAL_CREDITS.canadaEmploymentAmount : 0) +
     Math.min(params.eligiblePensionIncome, ONTARIO_CREDITS.pensionIncomeMax) +
     calculateMedicalExpenseCredit(params.totalMedicalExpenses, params.netIncome) +
-    (params.hasDisability ? ONTARIO_CREDITS.disabilityAmount.base : 0)
+    // Use pre-computed Ontario DTC amount (includes under-18 supplement) when available
+    (params.hasDisability
+      ? (params.ontarioDisabilityCreditAmount ?? ONTARIO_CREDITS.disabilityAmount.base)
+      : 0)
   );
 
   const baseCreditsValue = roundCRA(creditAmountsTotal * ONTARIO_CREDIT_RATE);
@@ -396,6 +402,18 @@ export function calculateTaxReturn(
   const netIncome     = calculateNetIncome(totalIncome, mergedDeductions, incomeResult.socialAssistanceIncome);
   const taxableIncome = calculateTaxableIncome(netIncome, mergedDeductions);
 
+  // ── DTC: Disability Tax Credit (ITA s.118.3) ─────────────────────────────
+  // Compute once and pass to both federal and Ontario credit aggregators.
+  // Under-18 supplement and transfer flag are derived from optional DTC inputs.
+
+  const dtcResult = calculateDTC({
+    hasDTC: mergedDeductions.hasDisabilityCredit,
+    // Default to adult (999) when age not supplied — suppresses supplement safely
+    ageOnDec31: mergedDeductions.disabilityClaimantAge ?? 999,
+    childCareAttendantCare: mergedDeductions.disabilityChildCareAttendantCare ?? 0,
+    transferToSupporter: mergedDeductions.disabilityTransferToSupporter ?? false,
+  });
+
   // ── STEP 4: Federal tax on taxable income (Schedule 1) ───────────────────
 
   const federalTaxOnIncome = calculateFederalTaxOnIncome(taxableIncome);
@@ -417,6 +435,7 @@ export function calculateTaxReturn(
     tuitionCarryforward: mergedDeductions.tuitionCarryforward ?? 0,
     studentLoanInterest: mergedDeductions.studentLoanInterest ?? 0,
     hasDisability: mergedDeductions.hasDisabilityCredit,
+    disabilitySupplementAmount: dtcResult.federalSupplementAmount,
     // Spouse / dependant / caregiver
     hasSpouseOrCL: mergedDeductions.hasSpouseOrCL ?? false,
     spouseNetIncome: mergedDeductions.spouseNetIncome ?? 0,
@@ -490,6 +509,7 @@ export function calculateTaxReturn(
     totalMedicalExpenses,
     totalDonations,
     hasDisability: mergedDeductions.hasDisabilityCredit,
+    ontarioDisabilityCreditAmount: dtcResult.ontarioTotalCreditAmount,
     hasSpouseOrCL: mergedDeductions.hasSpouseOrCL ?? false,
     spouseNetIncome: mergedDeductions.spouseNetIncome ?? 0,
     spouseIsInfirm: mergedDeductions.spouseIsInfirm ?? false,

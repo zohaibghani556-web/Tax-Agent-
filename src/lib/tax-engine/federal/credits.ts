@@ -349,6 +349,8 @@ export interface FederalCreditsInput {
   tuitionCarryforward: number;
   studentLoanInterest: number;
   hasDisability: boolean;
+  /** Pre-computed under-18 DTC supplement amount (from disability.ts). Added to the base. */
+  disabilitySupplementAmount?: number;
   // Spouse / dependant / caregiver
   hasSpouseOrCL: boolean;
   spouseNetIncome: number;
@@ -401,7 +403,10 @@ export function calculateTotalFederalCredits(inputs: FederalCreditsInput): Feder
     medicalAmount: calculateMedicalExpenseCredit(inputs.totalMedicalExpenses, inputs.netIncome),
     tuitionAmount: calculateTuitionCredit(inputs.tuitionAmount, inputs.tuitionCarryforward),
     studentLoanAmount: calculateStudentLoanInterestCredit(inputs.studentLoanInterest),
-    disabilityAmount: calculateDisabilityCredit(inputs.hasDisability),
+    disabilityAmount: roundCRA(
+      calculateDisabilityCredit(inputs.hasDisability) +
+      (inputs.disabilitySupplementAmount ?? 0)
+    ),
     homeBuyersAmount: calculateHomeBuyersCredit(inputs.homeBuyersEligible),
     homeAccessibilityAmount: calculateHomeAccessibilityCredit(inputs.homeAccessibilityExpenses),
     digitalNewsAmount: calculateDigitalNewsCredit(inputs.digitalNewsSubscription),
