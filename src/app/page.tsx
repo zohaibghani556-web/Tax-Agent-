@@ -80,8 +80,8 @@ function AnimatedHeadline() {
         {line1.map((word, i) => (
           <motion.span
             key={word + i}
-            initial={prefersReduced ? { opacity: 0 } : { opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={prefersReduced ? {} : { y: 20 }}
+            animate={{ y: 0 }}
             transition={{ duration: 0.45, delay: 0.2 + i * 0.07, ease: easeOut }}
             className="inline-block mr-[0.25em]"
           >
@@ -93,8 +93,8 @@ function AnimatedHeadline() {
         {line2.map((word, i) => (
           <motion.span
             key={word + i}
-            initial={prefersReduced ? { opacity: 0 } : { opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={prefersReduced ? {} : { y: 20 }}
+            animate={{ y: 0 }}
             transition={{ duration: 0.45, delay: 0.55 + i * 0.09, ease: easeOut }}
             className="inline-block mr-[0.25em]"
           >
@@ -513,8 +513,8 @@ export default function HomePage() {
 
           {/* 2025 badge — pulse glow */}
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ y: 16 }}
+            animate={{ y: 0 }}
             transition={{ duration: 0.5, ease: easeOut }}
             className="mb-8 inline-block"
           >
@@ -539,8 +539,8 @@ export default function HomePage() {
 
           {/* Subheadline */}
           <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ y: 16 }}
+            animate={{ y: 0 }}
             transition={{ duration: 0.5, delay: 0.75, ease: easeOut }}
             className="mt-6 text-lg sm:text-xl text-white/60 max-w-2xl mx-auto leading-relaxed"
           >
@@ -549,8 +549,8 @@ export default function HomePage() {
 
           {/* CTA buttons with magnetic effect */}
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ y: 16 }}
+            animate={{ y: 0 }}
             transition={{ duration: 0.5, delay: 0.9, ease: easeOut }}
             className="mt-10 flex flex-wrap gap-4 justify-center"
           >
