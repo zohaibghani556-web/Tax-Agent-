@@ -6,6 +6,7 @@
 import { RRSP } from '../constants';
 import { roundCRA } from './brackets';
 import { calculateCapitalGains } from './capital-gains';
+import { calculateMovingExpenses } from './moving-expenses';
 import type {
   TaxSlip,
   BusinessIncome,
@@ -231,12 +232,18 @@ export function calculateNetIncome(
   // increase net income. This preserves eligibility for income-tested benefits.
   const socialAssistanceOffset = socialAssistanceIncome;
 
+  // ITA s.62: if detailed moving expense input is provided, compute the
+  // income-limited deduction automatically; otherwise use the raw field.
+  const movingExpensesDeduction = deductions.movingExpensesDetail != null
+    ? calculateMovingExpenses(deductions.movingExpensesDetail).currentYearDeduction
+    : (deductions.movingExpenses ?? 0);
+
   const totalDeductions = roundCRA(
     rrspDeduction +
     (deductions.fhsaContributions ?? 0) +
     (deductions.unionDues ?? 0) +
     (deductions.childcareExpenses ?? 0) +
-    (deductions.movingExpenses ?? 0) +
+    movingExpensesDeduction +
     (deductions.supportPaymentsMade ?? 0) +
     (deductions.carryingCharges ?? 0) +
     (deductions.studentLoanInterest ?? 0) +

@@ -305,6 +305,13 @@ export interface DeductionsCreditsInput {
   unionDues: number;           // Usually from T4 box 44
   childcareExpenses: number;
   movingExpenses: number;
+  /**
+   * Optional detailed moving expense breakdown — ITA s.62.
+   * When provided, the engine computes the eligible deduction (applying the
+   * 40 km test and income cap) and uses the result for line 21900, overriding
+   * the plain `movingExpenses` field.
+   */
+  movingExpensesDetail?: MovingExpensesInput;
   supportPaymentsMade: number;
   carryingCharges: number;
   studentLoanInterest: number;
@@ -378,6 +385,61 @@ export interface DeductionsCreditsInput {
   disabilityTransferToSupporter?: boolean;
   homeBuyersEligible: boolean;
   homeAccessibilityExpenses: number;
+}
+
+// ============================================================
+// MOVING EXPENSES (T1-M) — ITA s.62
+// ============================================================
+
+/**
+ * Detailed moving expense breakdown for CRA line 21900.
+ * When provided on DeductionsCreditsInput, the engine computes the
+ * eligible deduction (including 40 km test and income cap) automatically.
+ */
+export interface MovingExpensesInput {
+  /** Transportation and storage of household effects — ITA s.62(3)(a) */
+  movingCosts: number;
+  /** Travel costs for taxpayer and family (meals + accommodation) — ITA s.62(3)(e) */
+  travelCosts: number;
+  /**
+   * Temporary living near old or new home — ITA s.62(3)(e).
+   * Maximum 15 days; taxpayer is responsible for capping to eligible days.
+   */
+  temporaryLiving: number;
+  /** Costs to sell old residence (commissions, legal fees, advertising) — ITA s.62(3)(b) */
+  sellingCosts: number;
+  /** Legal fees for new home purchase — ITA s.62(3)(c) */
+  legalFeesPurchase: number;
+  /** Penalty for cancelling old lease — ITA s.62(3)(d) */
+  leaseCancellationPenalty: number;
+  /**
+   * Costs to maintain vacant old home while selling — ITA s.62(3)(f).
+   * Includes mortgage interest, property taxes, insurance, utilities.
+   * Maximum 3 consecutive months while home is for sale and vacant.
+   */
+  vacantHomeMaintenance: number;
+  /**
+   * Net income earned at the new location in this tax year.
+   * Caps the current-year deduction — ITA s.62(1).
+   */
+  incomeAtNewLocation: number;
+  /** Unused moving expenses carried forward from prior years — ITA s.62(1)(b) */
+  priorYearCarryforward: number;
+  /** Distance (km) from old home to new work/school location (for 40 km test) */
+  distanceOldHomeToNewWork: number;
+  /** Distance (km) from new home to new work/school location (for 40 km test) */
+  distanceNewHomeToNewWork: number;
+}
+
+export interface MovingExpensesResult {
+  /** Whether the 40 km test is satisfied — ITA s.62(1) */
+  eligible: boolean;
+  /** Total eligible expenses including prior-year carryforward */
+  totalEligibleExpenses: number;
+  /** Amount deductible this year (limited to income at new location) */
+  currentYearDeduction: number;
+  /** Excess carrying forward to the next tax year */
+  carryforwardToNextYear: number;
 }
 
 export interface MedicalExpense {
