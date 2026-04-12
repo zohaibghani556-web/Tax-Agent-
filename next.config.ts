@@ -32,6 +32,11 @@ const CSP = [
 ].join('; ');
 
 const nextConfig: NextConfig = {
+  // @xenova/transformers uses native Node.js modules (fs, path, onnxruntime-node)
+  // that webpack cannot bundle. Mark it as an external so Next.js skips bundling
+  // and lets Node.js require() it at runtime in API routes.
+  serverExternalPackages: ['@xenova/transformers'],
+
   async headers() {
     return [
       {
