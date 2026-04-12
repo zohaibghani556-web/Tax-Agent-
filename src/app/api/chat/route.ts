@@ -24,6 +24,7 @@ import {
   getRelevantCreditKeys,
   getRelevantMistakes,
 } from '@/lib/ai/canadian-tax-knowledge';
+import { retrieveRelevantKnowledge } from '@/lib/rag/embed';
 import type { TaxProfile } from '@/lib/tax-engine/types';
 import type { TaxBreakdown } from '@/lib/taxEngine';
 
@@ -267,9 +268,31 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // --- RAG: retrieve authoritative CRA knowledge chunks for the latest user message ---
+  // Non-fatal: if retrieval fails for any reason, chat continues without RAG.
+  const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')?.content ?? '';
+  let ragContext = '';
+  try {
+    const chunks = await retrieveRelevantKnowledge(lastUserMessage, supabase);
+    if (chunks.length > 0) {
+      ragContext =
+        'AUTHORITATIVE CRA SOURCES (cite these where relevant):\n\n' +
+        chunks.map(c => `[Source: ${c.source}]\n${c.content}`).join('\n---\n') +
+        '\n---\n';
+    }
+  } catch (ragErr) {
+    log('warn', 'chat.rag_retrieval_error', { message: (ragErr as Error).message });
+  }
+
+  // Instruction injected into the base prompt to enforce citation discipline.
+  const citationInstruction =
+    '\n\nCITATION RULE: Always cite the CRA source when referencing tax rules or amounts. ' +
+    'Never state amounts from memory — use only the retrieved sources provided above. ' +
+    'If a topic has no retrieved source, say so and recommend the user verify with CRA directly.';
+
   // --- Build enriched system prompt ---
   const enrichedSystemPrompt = buildContextualSystemPrompt(
-    TAX_AGENT_SYSTEM_PROMPT,
+    TAX_AGENT_SYSTEM_PROMPT + citationInstruction,
     taxProfile ?? {},
     currentPhase,
   );
@@ -285,7 +308,7 @@ export async function POST(req: NextRequest) {
     ? `\n\n---\nCOMPUTED TAX BREAKDOWN (authoritative — do NOT recalculate, only explain):\n${JSON.stringify(taxBreakdown, null, 2)}\n---`
     : '';
 
-  const systemPrompt = enrichedSystemPrompt + profileContext + breakdownContext;
+  const systemPrompt = enrichedSystemPrompt + (ragContext ? `\n\n---\n${ragContext}` : '') + profileContext + breakdownContext;
 
   // --- Call Claude with response validation (up to 2 regeneration attempts) ---
   const anthropicMessages = messages.map((m) => ({
