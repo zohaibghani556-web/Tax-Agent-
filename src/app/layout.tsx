@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist } from 'next/font/google';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { ConditionalLayout } from '@/components/layout/ConditionalLayout';
 import './globals.css';
 
@@ -202,6 +203,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        <SpeedInsights />
       </body>
     </html>
   );
