@@ -19,6 +19,7 @@ import type { TaxCalculationResult } from '@/lib/tax-engine/types';
 import { getLatestCalculation, getSlips, getCalculationHistory } from '@/lib/supabase/tax-data';
 import { toast } from 'sonner';
 import { TaxCalendarCard } from '@/components/dashboard/TaxCalendarCard';
+import { CompletionRing } from '@/components/dashboard/CompletionRing';
 
 function formatCad(n: number): string {
   return new Intl.NumberFormat('en-CA', {
@@ -202,6 +203,7 @@ export default function DashboardPage() {
   const [hasSlips, setHasSlips] = useState(false);
   const [calcResult, setCalcResult] = useState<TaxCalculationResult | null>(null);
   const [onboardingDismissed, setOnboardingDismissed] = useState(true); // default true to avoid flash
+  const [hasFilingGuide, setHasFilingGuide] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<Array<{ id: string; createdAt: string; result: TaxCalculationResult }>>([]);
 
   useEffect(() => { document.title = 'Dashboard — TaxAgent.ai'; }, []);
@@ -222,6 +224,7 @@ export default function DashboardPage() {
       // Read local state first
       setAssessmentDone(!!localStorage.getItem('taxagent_assessment_done'));
       setOnboardingDismissed(!!localStorage.getItem('taxagent_onboarding_dismissed'));
+      setHasFilingGuide(!!localStorage.getItem('taxagent_filing_guide_generated'));
 
       const localSlipsRaw = localStorage.getItem('taxagent_slips');
       let localSlipCount = 0;
@@ -372,41 +375,13 @@ export default function DashboardPage() {
         </GlassCard>
       )}
 
-      {/* ── Filing checklist ───────────────────────────────────────── */}
-      <GlassCard className="p-6">
-        <h2 className="text-base font-semibold text-white mb-1">Your filing checklist</h2>
-        <p className="text-sm text-white/40 mb-4">Complete each step to get your personalized filing guide.</p>
-        <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          <ChecklistStep
-            step={1}
-            title="Complete AI assessment"
-            subtitle={assessmentDone ? 'Assessment complete' : 'Chat with your AI CPA to map your situation'}
-            status={assessmentDone ? 'done' : 'active'}
-            href="/onboarding"
-          />
-          <ChecklistStep
-            step={2}
-            title="Upload your slips"
-            subtitle={hasSlips ? 'Slips uploaded' : 'Add your T4, T5, and other CRA slips'}
-            status={hasSlips ? 'done' : assessmentDone ? 'active' : 'locked'}
-            href="/slips"
-          />
-          <ChecklistStep
-            step={3}
-            title="Review your calculation"
-            subtitle={hasCalculation ? 'Tax calculated — review your T1 summary' : 'Available after uploading slips'}
-            status={hasCalculation ? 'done' : hasSlips ? 'active' : 'locked'}
-            href="/calculator"
-          />
-          <ChecklistStep
-            step={4}
-            title="Get your filing guide"
-            subtitle={hasCalculation ? 'Generate your personalized step-by-step guide' : 'Available after calculation'}
-            status={hasCalculation ? 'active' : 'locked'}
-            href="/filing-guide"
-          />
-        </div>
-      </GlassCard>
+      {/* ── Completion ring + filing checklist ────────────────────── */}
+      <CompletionRing
+        assessmentDone={assessmentDone}
+        hasSlips={hasSlips}
+        hasCalculation={hasCalculation}
+        hasFilingGuide={hasFilingGuide}
+      />
 
       {/* ── Recent calculations preview ───────────────────────────── */}
       {historyEntries.length > 0 && (

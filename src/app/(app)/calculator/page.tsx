@@ -10,6 +10,8 @@ import { WhatIfEngine } from '@/components/calculator/WhatIfEngine';
 import { CreditFinder } from '@/components/calculator/CreditFinder';
 import { TaxOptimizer } from '@/components/calculator/TaxOptimizer';
 import { PrintSummary } from '@/components/calculator/PrintSummary';
+import { RefundReveal } from '@/components/calculator/RefundReveal';
+import { TaxBreakdownChart } from '@/components/calculator/TaxBreakdownChart';
 import { createClient } from '@/lib/supabase/client';
 import { validateTaxReturn } from '@/lib/tax-engine/validator';
 import { calculateInstalments } from '@/lib/tax-engine/federal/instalments';
@@ -410,7 +412,10 @@ export default function CalculatorPage() {
   const [deductionsOpen, setDeductionsOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [showReveal, setShowReveal] = useState(false);
   const initialLoad = useRef(true);
+  // Only show reveal when explicitly recalculating (not on page load restore)
+  const isAutoCalc = useRef(true);
 
   function formatLastSaved(date: Date | null): string {
     if (!date) return '';
@@ -575,6 +580,7 @@ export default function CalculatorPage() {
       const data = await res.json() as TaxCalculationResult;
       setResult(data);
       setCalculatedAt(new Date());
+      if (!isAutoCalc.current) setShowReveal(true);
       localStorage.setItem('taxagent_calc_result', JSON.stringify(data));
       // Save to Supabase (append-only history)
       if (userId) {
@@ -600,9 +606,12 @@ export default function CalculatorPage() {
     }
   }, [result]);
 
-  // Auto-calculate when slips + userId are ready
+  // Auto-calculate when slips + userId are ready (no reveal on auto-load)
   useEffect(() => {
-    if (savedSlips.length > 0 && userId) runCalc();
+    if (savedSlips.length > 0 && userId) {
+      isAutoCalc.current = true;
+      runCalc().finally(() => { isAutoCalc.current = false; });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedSlips, userId]);
 
@@ -611,6 +620,7 @@ export default function CalculatorPage() {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !loading && hasSlips) {
         e.preventDefault();
+        isAutoCalc.current = false;
         runCalc();
       }
     }
@@ -646,6 +656,10 @@ export default function CalculatorPage() {
 
   return (
     <div className="px-4 sm:px-6 py-8">
+      {/* Refund Reveal overlay */}
+      {showReveal && result && (
+        <RefundReveal result={result} onDismiss={() => setShowReveal(false)} />
+      )}
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-8 print:hidden">
         <div>
@@ -669,7 +683,7 @@ export default function CalculatorPage() {
         </div>
         <div className="flex gap-2 shrink-0">
           <button
-            onClick={runCalc}
+            onClick={() => { isAutoCalc.current = false; runCalc(); }}
             disabled={loading || !hasSlips}
             aria-label="Recalculate tax return"
             className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors disabled:opacity-40 min-h-[44px]"
@@ -841,7 +855,7 @@ export default function CalculatorPage() {
             </div>
 
             <button
-              onClick={runCalc}
+              onClick={() => { isAutoCalc.current = false; runCalc(); }}
               disabled={loading || !hasSlips}
               className="flex items-center gap-2 rounded-full bg-[#10B981] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors disabled:opacity-40"
             >
@@ -913,6 +927,7 @@ export default function CalculatorPage() {
 
             {result && (
               <>
+                <div id="breakdown" />
                 <Section
                   title="Income" total={result.totalIncome}
                   totalLabel="Total Income" totalLine={15000} defaultOpen
@@ -1046,6 +1061,9 @@ export default function CalculatorPage() {
                     </div>
                   ))}
                 </div>
+
+                {/* Tax Breakdown Chart */}
+                <TaxBreakdownChart result={result} />
 
                 {/* 5B — Instalment Warning Card */}
                 {result.balanceOwing > 0 && (() => {
