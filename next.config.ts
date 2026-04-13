@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs';
 
 // ── Content Security Policy ──────────────────────────────────────────────────
 // Protects against XSS: restricts where scripts, styles, and connections can
@@ -20,6 +21,9 @@ const CSP = [
     // Vercel Analytics beacon
     'https://vitals.vercel-insights.com',
     'https://va.vercel-scripts.com',
+    // Sentry error reporting
+    'https://*.ingest.sentry.io',
+    'https://*.ingest.us.sentry.io',
   ].join(' '),
   "font-src 'self'",
   // No iframes ever — defense against clickjacking at the CSP level too
@@ -76,4 +80,17 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Suppress noisy build output when SENTRY_AUTH_TOKEN is not set (local dev)
+  silent: !process.env.SENTRY_AUTH_TOKEN,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  // Source map upload — only runs when SENTRY_AUTH_TOKEN is present (CI/Vercel)
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // Don't expose source maps in the browser bundle
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+  // Suppress the Sentry SDK logger in production
+  disableLogger: true,
+  // Don't auto-create Vercel Cron monitors
+  automaticVercelMonitors: false,
+});

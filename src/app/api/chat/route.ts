@@ -25,6 +25,7 @@ import {
   getRelevantMistakes,
 } from '@/lib/ai/canadian-tax-knowledge';
 import { retrieveRelevantKnowledge } from '@/lib/rag/embed';
+import { sendAssessmentCompleteEmail } from '@/lib/email/transactional';
 import type { TaxProfile } from '@/lib/tax-engine/types';
 import type { TaxBreakdown } from '@/lib/taxEngine';
 
@@ -357,6 +358,13 @@ export async function POST(req: NextRequest) {
         finalResponse = text;
         validationWarning = validation.issues.join('; ');
       }
+    }
+
+    // When the AI emits <tax-profile-complete>, the assessment is done.
+    // Fire-and-forget an email notification — never block the SSE response.
+    if (finalResponse?.includes('<tax-profile-complete>') && user.email) {
+      const name = (user.user_metadata?.full_name as string | undefined) ?? '';
+      void sendAssessmentCompleteEmail(user.email, name);
     }
 
     // Send the validated response as SSE.
