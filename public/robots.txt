@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /onboarding
+Disallow: /slips
+Disallow: /calculator
+Disallow: /filing-guide
+Disallow: /settings
+Disallow: /history
+Disallow: /recovery
+Disallow: /family
+Disallow: /api/
+
+Sitemap: https://taxagent.ai/sitemap.xml

@@ -164,7 +164,7 @@ const jsonLd = [
         name: 'Can CPAs use TaxAgent.ai for their clients?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'Yes. TaxAgent.ai offers a CPA Portal with client document collection, bulk filing workflows, and structured export for TaxCycle and Cantax. White-label options are available.',
+          text: 'Yes. TaxAgent.ai automates client onboarding and slip extraction for CPA firms. Clients self-onboard via AI chat and photograph their slips — every CRA box is extracted automatically, eliminating manual data entry. Email cpa@taxagent.ai to learn more.',
         },
       },
     ],
