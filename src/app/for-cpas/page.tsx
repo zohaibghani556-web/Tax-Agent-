@@ -51,7 +51,7 @@ function CPAContactForm() {
         <CheckCircle className="h-12 w-12 text-[#10B981]" />
         <p className="text-xl font-semibold text-white">Message sent!</p>
         <p className="text-slate-400 text-center max-w-sm">
-          We'll be in touch within 24 hours to schedule a call.
+          We&apos;ll be in touch within 24 hours to schedule a call.
         </p>
       </div>
     );
