@@ -375,6 +375,8 @@ export interface DeductionsCreditsInput {
 
   // Other credits already in constants
   politicalContributions: number;
+  /** Ontario political contributions — Ontario Election Finances Act. Direct credit, max $1,316. */
+  ontarioPoliticalContributions?: number;
   digitalNewsSubscription: number;
   hasDisabilityCredit: boolean;
   /** Age of the person with disability on Dec 31 — used for under-18 supplement */

@@ -138,9 +138,9 @@ describe('calculateMedicalExpenseCredit', () => {
     expect(calculateMedicalExpenseCredit(5_000, 60_000)).toBe(3_200);
   });
 
-  it('uses the $2,635 flat threshold when 3% of income exceeds it', () => {
-    // 3% of 120000 = 3600 > 2635, so threshold = 2635
-    expect(calculateMedicalExpenseCredit(5_000, 120_000)).toBe(2_365);
+  it('uses the $2,759 flat threshold when 3% of income exceeds it', () => {
+    // 3% of 120000 = 3600 > 2759, so threshold = 2759 (2025 value)
+    expect(calculateMedicalExpenseCredit(5_000, 120_000)).toBe(2_241);
   });
 
   it('returns 0 when expenses do not exceed the threshold', () => {

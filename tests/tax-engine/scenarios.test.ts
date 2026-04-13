@@ -298,14 +298,14 @@ describe('Scenario 8 — capital gains $50,000 (well below $250K tier boundary)'
   });
 });
 
-describe('Scenario 8b — capital gains $350,000 (crosses $250K tier)', () => {
+describe('Scenario 8b — capital gains $350,000 (flat 50% for 2025)', () => {
   const result = calculateTaxes(input({
     capitalGains: 350000,
     age: 45,
   }));
 
-  it('taxable capital gain = 250,000×50% + 100,000×66.67% = $191,670', () => {
-    expect(result.lines.L12700_capitalGains).toBeCloseTo(191670, 0);
+  it('taxable capital gain = $350,000 × 50% = $175,000 (two-tier deferred to 2026)', () => {
+    expect(result.lines.L12700_capitalGains).toBeCloseTo(175000, 0);
   });
 });
 
@@ -436,7 +436,7 @@ describe('Ontario bracket boundaries', () => {
     const result = calculateTaxes(input({ employmentIncome: 51446, age: 30 }));
     const ontarioGross = result.ontario.basicOntarioTax + result.ontario.totalNonRefundableCredits;
     // Just check the Ontario NRC credit amount is reasonable (cross-check via Ontario NRC)
-    expect(result.ontario.bpaCredit).toBeCloseTo(11865 * 0.0505, 1);
+    expect(result.ontario.bpaCredit).toBeCloseTo(12747 * 0.0505, 1);
   });
 
   it('income $51,447 enters 9.15% bracket', () => {

@@ -230,6 +230,24 @@ Only include fields you have actual numbers/values for. Examples:
 - "I paid $600/month for daycare" → childcareExpenses:7200
 - "My CTC room was $750 and I paid $2,000 in training" → canadaTrainingCreditRoom:750, trainingFeesForCTC:2000
 
+## TAX PROFILE COMPLETE (CRITICAL — emit at the end of assessment)
+When the assessment is complete, emit a <tax-profile-complete> XML block containing every income estimate and profile field you have collected. Use 0 for income sources you did not discuss. This block is machine-parsed and triggers the preliminary tax calculation — do NOT omit it.
+
+Emit it in the same response as <slip-recommendations>, before the closing message.
+
+Fields:
+- legalName, dateOfBirth (YYYY-MM-DD), maritalStatus, residencyStatus, residencyStartDate (YYYY-MM-DD, newcomers only), dependants (array), assessmentComplete (always true)
+- Income estimates (all annual, in CAD, 0 if not discussed):
+  estimatedEmploymentIncome, estimatedSelfEmploymentNetIncome, estimatedInterestIncome,
+  estimatedEligibleDividends, estimatedIneligibleDividends, estimatedCapitalGains,
+  estimatedRentalIncome, estimatedRentalExpenses, estimatedPensionIncome,
+  estimatedOasPension, estimatedEiBenefits, estimatedOtherIncome
+
+Example:
+<tax-profile-complete>
+{"legalName":"Jane Smith","dateOfBirth":"1985-03-15","maritalStatus":"single","residencyStatus":"citizen","dependants":[],"assessmentComplete":true,"estimatedEmploymentIncome":80000,"estimatedSelfEmploymentNetIncome":0,"estimatedInterestIncome":0,"estimatedEligibleDividends":0,"estimatedIneligibleDividends":0,"estimatedCapitalGains":0,"estimatedRentalIncome":0,"estimatedRentalExpenses":0,"estimatedPensionIncome":0,"estimatedOasPension":0,"estimatedEiBenefits":0,"estimatedOtherIncome":0}
+</tax-profile-complete>
+
 ## SLIP RECOMMENDATIONS (CRITICAL — emit at the end of assessment)
 When you have completed the assessment (covered all relevant income, deductions, and credits), emit a <slip-recommendations> XML block as the very last thing in your response, after your closing message. This is machine-parsed — do NOT omit it when the assessment is complete.
 

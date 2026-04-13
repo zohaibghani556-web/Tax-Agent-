@@ -30,6 +30,8 @@ import {
   GST_CREDIT,
   CANADA_CAREGIVER,
   ONTARIO_SENIORS_CARE,
+  MEDICAL_EXPENSES,
+  OAS_CLAWBACK,
 } from './constants';
 
 import type {
@@ -140,6 +142,8 @@ function calculateOntarioNonRefundableCredits(params: {
   eligibleDependantIsInfirm: boolean;
   caregiverForDependant18Plus: boolean;
   caregiverDependantNetIncome: number;
+  /** Ontario political contributions — Ontario Election Finances Act. Direct credit, max $1,316. */
+  ontarioPoliticalContributions: number;
 }): number {
   // Ontario Age Amount — Ontario Taxation Act s.4(3.1); mirrors federal structure
   let ontarioAgeAmount = 0;
@@ -181,7 +185,7 @@ function calculateOntarioNonRefundableCredits(params: {
     params.cppContributions +
     params.cpp2Contributions +
     params.eiPremiums +
-    (params.hasEmploymentIncome ? FEDERAL_CREDITS.canadaEmploymentAmount : 0) +
+    // Ontario Taxation Act does NOT have a Canada Employment Amount — that is federal-only (Schedule 1 line 31260)
     Math.min(params.eligiblePensionIncome, ONTARIO_CREDITS.pensionIncomeMax) +
     calculateMedicalExpenseCredit(params.totalMedicalExpenses, params.netIncome) +
     // Use pre-computed Ontario DTC amount (includes under-18 supplement) when available
@@ -204,7 +208,24 @@ function calculateOntarioNonRefundableCredits(params: {
     )
   );
 
-  return roundCRA(baseCreditsValue + ontarioDonationCredit);
+  // Ontario Political Contribution Credit — Ontario Election Finances Act.
+  // Tiered: 75% on first $400, 50% on $400–$750, 33.3% above $750. Max $1,316.
+  // Direct credit (not × 5.05%).
+  let ontarioPoliticalCredit = 0;
+  const pc = params.ontarioPoliticalContributions;
+  if (pc > 0) {
+    let rawCredit: number;
+    if (pc <= 400) {
+      rawCredit = roundCRA(pc * 0.75);
+    } else if (pc <= 750) {
+      rawCredit = roundCRA(400 * 0.75 + (pc - 400) * 0.50);
+    } else {
+      rawCredit = roundCRA(400 * 0.75 + 350 * 0.50 + (pc - 750) * 0.3333);
+    }
+    ontarioPoliticalCredit = Math.min(rawCredit, ONTARIO_CREDITS.politicalContributionMaxCredit);
+  }
+
+  return roundCRA(baseCreditsValue + ontarioDonationCredit + ontarioPoliticalCredit);
 }
 
 // ============================================================
@@ -453,6 +474,7 @@ export function calculateTaxReturn(
     volunteerFirefighter: mergedDeductions.volunteerFirefighter ?? false,
     searchAndRescue: mergedDeductions.searchAndRescue ?? false,
     adoptionExpenses: mergedDeductions.adoptionExpenses ?? 0,
+    politicalContributions: mergedDeductions.politicalContributions ?? 0,
   });
 
   const federalNonRefundableCredits = fedCredits.totalCreditValue;
@@ -494,6 +516,23 @@ export function calculateTaxReturn(
     netFederalTax = roundCRA(netFederalTax - creditApplied);
   }
 
+  // OAS Clawback — Social Benefits Repayment (line 42200) — ITA s.180.2
+  // Applies when net income > $90,997. Capped at OAS actually received.
+  const oasReceived = roundCRA(t4aoasSlips.reduce((sum, s) => sum + s.box18, 0));
+  const oasClawback = oasReceived > 0 && netIncome > OAS_CLAWBACK.threshold
+    ? Math.min(oasReceived, roundCRA((netIncome - OAS_CLAWBACK.threshold) * OAS_CLAWBACK.rate))
+    : 0;
+  if (oasClawback > 0) {
+    netFederalTax = roundCRA(netFederalTax + oasClawback);
+    edgeCaseFlags.push({
+      type: 'warning',
+      code: 'OAS_CLAWBACK',
+      message: `OAS clawback applies: $${oasClawback.toFixed(2)} of your OAS pension must be repaid (net income $${netIncome.toLocaleString('en-CA')} exceeds the $${OAS_CLAWBACK.threshold.toLocaleString('en-CA')} threshold).`,
+      affectedAmount: oasClawback,
+      resolution: 'The clawback is added to your federal tax (line 42200). Consider RRSP contributions to reduce net income below the threshold in future years.',
+    });
+  }
+
   // ── STEPS 9–10: Ontario tax on income + non-refundable credits (ON428) ───
 
   const ontarioTaxOnIncome = calculateOntarioTaxOnIncome(taxableIncome);
@@ -518,6 +557,7 @@ export function calculateTaxReturn(
     eligibleDependantIsInfirm: mergedDeductions.eligibleDependantIsInfirm ?? false,
     caregiverForDependant18Plus: mergedDeductions.caregiverForDependant18Plus ?? false,
     caregiverDependantNetIncome: mergedDeductions.caregiverDependantNetIncome ?? 0,
+    ontarioPoliticalContributions: mergedDeductions.ontarioPoliticalContributions ?? 0,
   });
 
   // ── STEP 11: Ontario dividend tax credit (ON428) ──────────────────────────
@@ -649,20 +689,20 @@ export function calculateTaxReturn(
 
   // ── Warnings ─────────────────────────────────────────────────────────────
 
-  if (
-    totalMedicalExpenses > 0 &&
-    totalMedicalExpenses < Math.min(2759, roundCRA(netIncome * 0.03))
-  ) {
+  const medThreshold = Math.min(MEDICAL_EXPENSES.threshold, roundCRA(netIncome * MEDICAL_EXPENSES.thresholdRate));
+  if (totalMedicalExpenses > 0 && totalMedicalExpenses < medThreshold) {
     warnings.push({
       severity: 'info',
       message:
         `Medical expenses ($${totalMedicalExpenses.toFixed(2)}) are below the ` +
-        `$${Math.min(2759, roundCRA(netIncome * 0.03)).toFixed(2)} threshold — no credit generated.`,
+        `$${medThreshold.toFixed(2)} threshold — no credit generated.`,
       line: CRA_LINES.medicalExpenses,
     });
   }
 
-  if (deductions.rrspContributions > deductions.rrspContributionRoom) {
+  // Only warn when the user explicitly entered their room — if room is 0 (not entered),
+  // calculateNetIncome falls back to the annual max, so there is no over-contribution.
+  if (deductions.rrspContributionRoom > 0 && deductions.rrspContributions > deductions.rrspContributionRoom) {
     warnings.push({
       severity: 'warning',
       message:

@@ -1,9 +1,8 @@
 /**
  * Capital gains calculations — ITA s.38–55
  *
- * 2025 inclusion rates (two-tier per Budget 2024):
- *   First $250,000 net gains: 50% inclusion (ITA s.38(a))
- *   Above $250,000 net gains: 66.67% inclusion
+ * 2025 inclusion rate: 50% flat (ITA s.38(a)).
+ * The proposed two-tier increase (50%/$250k / 66.67% above) was deferred to 2026.
  *
  * Losses in excess of current-year gains are carried forward (ITA s.3(b)).
  * LCGE for qualifying small business shares: $1,250,000 (ITA s.110.6).
@@ -22,23 +21,13 @@ export interface CapitalGainsResult {
 }
 
 /**
- * Applies the 2025 two-tier inclusion rate to a net capital gain.
- * First $250,000: 50% inclusion.
- * Above $250,000: 66.67% inclusion.
+ * Applies the 2025 capital gains inclusion rate (50% flat) to a net capital gain.
+ * The two-tier increase was deferred to 2026; all gains in 2025 use 50%.
  * Net gain must be ≥ 0 (losses handled separately as carryforwards).
  */
 export function applyCapitalGainsInclusionRate(netGain: number): number {
   if (netGain <= 0) return 0;
-
-  const { inclusionRateLow, inclusionRateHigh, threshold } = CAPITAL_GAINS;
-
-  if (netGain <= threshold) {
-    return roundCRA(netGain * inclusionRateLow);
-  }
-
-  const lowPortion  = roundCRA(threshold * inclusionRateLow);
-  const highPortion = roundCRA((netGain - threshold) * inclusionRateHigh);
-  return roundCRA(lowPortion + highPortion);
+  return roundCRA(netGain * CAPITAL_GAINS.inclusionRateLow);
 }
 
 /**

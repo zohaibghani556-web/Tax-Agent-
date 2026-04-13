@@ -238,6 +238,8 @@ export function calculateNetIncome(
     ? calculateMovingExpenses(deductions.movingExpensesDetail).currentYearDeduction
     : (deductions.movingExpenses ?? 0);
 
+  // NOTE: studentLoanInterest is a non-refundable TAX CREDIT (ITA s.118.62, line 31900),
+  // NOT a deduction from income. It is applied in credits.ts — do not deduct it here.
   const totalDeductions = roundCRA(
     rrspDeduction +
     (deductions.fhsaContributions ?? 0) +
@@ -246,7 +248,6 @@ export function calculateNetIncome(
     movingExpensesDeduction +
     (deductions.supportPaymentsMade ?? 0) +
     (deductions.carryingCharges ?? 0) +
-    (deductions.studentLoanInterest ?? 0) +
     (deductions.nonCapitalLossCarryforward ?? 0) +
     (deductions.disabilitySupportsDeduction ?? 0) +
     (deductions.pensionSplitDeducted ?? 0) +
@@ -274,9 +275,10 @@ export function calculateTaxableIncome(
   netIncome: number,
   deductions: DeductionsCreditsInput
 ): number {
-  const capitalGainsDeduction = deductions.capitalLossCarryforward ?? 0;
+  // ITA s.111(1)(b): allowable capital losses from prior years reduce taxable income.
+  // Note: LCGE (ITA s.110.6) is not yet modelled — add capitalGainsDeductionClaimed
+  // to DeductionsCreditsInput when needed.
+  const capitalLossDeduction = deductions.capitalLossCarryforward ?? 0;
 
-  const furtherDeductions = roundCRA(capitalGainsDeduction);
-
-  return Math.max(0, roundCRA(netIncome - furtherDeductions));
+  return Math.max(0, roundCRA(netIncome - capitalLossDeduction));
 }

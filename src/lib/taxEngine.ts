@@ -392,19 +392,12 @@ function federalPoliticalCredit(contrib: number): number {
 }
 
 /**
- * Two-tier capital gains inclusion rate (2025 spec).
- *   First $250,000 net gain: 50% inclusion.
- *   Above $250,000: 66.67% inclusion.
+ * Capital gains inclusion rate for 2025: 50% flat (ITA s.38(a)).
+ * The proposed two-tier increase (>$250k at 66.67%) was deferred to 2026.
  */
 function taxableCapitalGain(netGain: number): number {
   if (netGain <= 0) return 0;
-  if (netGain <= CAPITAL_GAINS.threshold) {
-    return r(netGain * CAPITAL_GAINS.inclusionRateLow);
-  }
-  return r(
-    r(CAPITAL_GAINS.threshold * CAPITAL_GAINS.inclusionRateLow) +
-    r((netGain - CAPITAL_GAINS.threshold) * CAPITAL_GAINS.inclusionRateHigh)
-  );
+  return r(netGain * CAPITAL_GAINS.inclusionRateLow);
 }
 
 /**

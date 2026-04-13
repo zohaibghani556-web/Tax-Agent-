@@ -337,13 +337,13 @@ describe('RRSP over-contribution', () => {
 });
 
 // ──────────────────────────────────────────────────────────────
-// TEST: Capital gains two-tier inclusion rate (2025)
-//   First $250,000 net gain: 50% inclusion
-//   Above $250,000: 66.67% inclusion (Budget 2024 spec)
+// TEST: Capital gains inclusion rate (2025 — flat 50%)
+//   The proposed two-tier increase (>$250k at 66.67%) was deferred to 2026.
+//   All 2025 capital gains use 50% inclusion regardless of amount.
 // ──────────────────────────────────────────────────────────────
 
 describe('Capital gains inclusion rate', () => {
-  it('applies two-tier rate for $350,000 gain (first $250K at 50%, remaining $100K at 66.67%)', () => {
+  it('applies flat 50% for $350,000 gain (two-tier deferred to 2026)', () => {
     const slips: TaxSlip[] = [
       {
         type: 'T5008',
@@ -366,10 +366,10 @@ describe('Capital gains inclusion rate', () => {
       baseDeductions(),
     );
 
-    // Taxable: 250,000 × 50% + 100,000 × 66.67% = 125,000 + 66,670 = 191,670
+    // Taxable: $350,000 × 50% = $175,000 (flat rate for 2025)
     const taxableGain = result.lineByLine[12700];
-    expect(taxableGain).toBeCloseTo(191670, 0);
-    expect(result.totalIncome).toBeCloseTo(191670, 0);
+    expect(taxableGain).toBeCloseTo(175000, 0);
+    expect(result.totalIncome).toBeCloseTo(175000, 0);
   });
 
   it('applies 50% inclusion for a gain exactly at $250,000 (at the tier boundary)', () => {

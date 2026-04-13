@@ -35,6 +35,43 @@ AI-powered Ontario tax filing assistant. Conversational AI (Claude API) for asse
 - After building any new module, run the FULL test suite (`npm run test:run`), not just the new tests, before declaring done. Catch regressions immediately.
 - Run `npx tsc --noEmit` before committing to catch TypeScript errors before they hit the build.
 
+## Dual-Engine Parity (critical — enforced on every tax feature)
+There are TWO tax engines that must stay in sync:
+- `src/lib/tax-engine/engine.ts` — slip-based engine (T4/T5/etc. typed inputs)
+- `src/lib/taxEngine.ts` — flat-input engine (plain number inputs, used by WhatIf/optimizer)
+
+**Any tax rule, credit, deduction, or clawback added to one engine MUST be added to the other.** Before marking any tax feature complete, explicitly check both files. Omitting a rule from one engine (e.g. OAS clawback, capital gains rate) produces silently wrong results for users of that path.
+
+## Constants Are the Only Source of Truth
+- NEVER hardcode a dollar amount, rate, or threshold in business logic. Every tax value belongs in `constants.ts` and must be imported.
+- If you see a magic number in engine code (e.g. `2759`, `90997`, `44325`), move it to `constants.ts` immediately.
+- When adding a new tax year constant, cite the CRA source in a comment (e.g. `// CRA T1 2025, Schedule 1`). Never copy-paste a prior-year value without re-verifying it against CRA's current-year publications.
+- Key 2025 values already verified: Federal BPA $16,129 | Ontario BPA $12,747 | Medical threshold $2,759 | RRSP max $32,490 | Capital gains inclusion 50% flat (two-tier deferred to 2026).
+
+## CRA Classification — Check Before Coding
+Before implementing any new deduction or credit, answer these two questions:
+1. **Is it a deduction from income** (reduces net income, appears above line 23600 on the T1)? → implement in `calculateNetIncome()` or `calculateTaxableIncome()`.
+2. **Is it a tax credit** (reduces tax payable, appears below line 30000 on Schedule 1 or ON428)? → implement in the credits aggregator, NOT in income functions.
+
+Getting this wrong causes a double benefit. Specific traps confirmed in this codebase:
+- Student loan interest → credit only (ITA s.118.62, line 31900). Do NOT deduct from net income.
+- Union dues → income deduction (ITA s.8(1)(i), line 21200). Not a credit.
+
+## Ontario vs Federal Credits — Always Check ON428
+Ontario Taxation Act credits differ from federal. Before adding any credit to `calculateOntarioNonRefundableCredits()`:
+- Verify the credit line exists on **ON428** (not just Schedule 1).
+- Canada Employment Amount (line 31260) is federal-only — ON428 has no equivalent.
+- Ontario eliminated the tuition credit after the 2017 tax year.
+- Ontario has no Home Buyers' Amount, no Digital News Credit, no Volunteer credits.
+
+## Security Checklist (enforce on every feature)
+- [ ] RLS policy on any new table
+- [ ] Input validation server-side (not just client)
+- [ ] No PII in URL parameters or logs
+- [ ] API routes require auth (Supabase JWT)
+- [ ] Every new client `fetch()` to a protected API route uses `addCsrfHeader()` from `@/lib/csrf-client`
+- [ ] Every new API route calls `validateCsrfToken(req)` and returns 403 on failure
+
 ## Key File Structure
 ```
 src/lib/tax-engine/constants.ts    — ALL 2025 rates/thresholds

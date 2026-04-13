@@ -129,8 +129,8 @@ export const FEDERAL_BPA = {
   clawbackEnd:   253414,  // Additional fully eliminated at this net income
 };
 
-/** Ontario BPA — Ontario Taxation Act s.8(1). × 5.05% = $599.18 credit */
-export const ONTARIO_BPA = 11865;
+/** Ontario BPA — Ontario Taxation Act s.8(1). × 5.05% = $643.72 credit */
+export const ONTARIO_BPA = 12747;
 
 // ============================================================
 // CPP / CPP2 / EI 2025 — source: CRA T4032
@@ -270,6 +270,9 @@ export const FEDERAL_CREDITS = {
 
   /** Adoption Expenses — ITA s.118.02 */
   adoptionExpensesMax: 19350,
+
+  /** Federal Political Contribution Credit — ITA s.127(3). Direct credit (not × 15%). Max $650. */
+  politicalContributionMaxCredit: 650,
 };
 
 // ============================================================
@@ -332,10 +335,10 @@ export const ONTARIO_DONATIONS = {
 // ============================================================
 
 export const MEDICAL_EXPENSES = {
-  threshold:         2635,   // lesser of $2,635 or 3% of net income
+  threshold:         2759,   // 2025: lesser of $2,759 or 3% of net income (ITA s.118.2(1)(d))
   thresholdRate:     0.03,
   dependantMax:      7999,   // max per dependant 18+ (not spouse)
-  dependantThreshold: 2635,
+  dependantThreshold: 2759,
 };
 
 // ============================================================

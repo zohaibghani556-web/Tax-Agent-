@@ -185,12 +185,13 @@ describe('calculateTaxReturn — single, age 28, T4 + T5, RRSP, rent', () => {
       cent(result.ontarioTaxOnIncome, 4163.40, 'ontarioTaxOnIncome');
     });
 
-    it('Ontario non-refundable credits = $967.53', () => {
-      // (ON-BPA 11,865 + CPP 3,700 + EI 1,077 + Employment 1,433) × 5.05%
+    it('Ontario non-refundable credits = $939.70', () => {
+      // (ON-BPA 12,747 + CPP 3,700 + EI 1,077) × 5.05%
       //   + (200 × 5.05% + 400 × 11.16%)
-      // = 18,075 × 5.05% + 54.74
-      // = 912.79 + 54.74 = 967.53
-      cent(result.ontarioNonRefundableCredits, 967.53, 'ontarioNRC');
+      // = 17,524 × 5.05% + 54.74
+      // = 884.96 + 54.74 = 939.70
+      // Note: Canada Employment Amount is federal-only; Ontario Taxation Act has no equivalent.
+      cent(result.ontarioNonRefundableCredits, 939.70, 'ontarioNRC');
     });
 
     it('Ontario dividend tax credit = $110.40', () => {
@@ -213,22 +214,25 @@ describe('calculateTaxReturn — single, age 28, T4 + T5, RRSP, rent', () => {
       cent(result.ontarioHealthPremium, 600, 'ontarioOHP');
     });
 
-    it('net Ontario tax = $3,685.47 (basic $3,085.47 + OHP $600)', () => {
-      cent(result.netOntarioTax, 3685.47, 'netOntarioTax');
+    it('net Ontario tax = $3,713.30 (basic $3,113.30 + OHP $600)', () => {
+      // basic = 4,163.40 - 939.70 NRC - 110.40 DTC = 3,113.30
+      cent(result.netOntarioTax, 3713.30, 'netOntarioTax');
     });
   });
 
   describe('Bottom line', () => {
-    it('total tax payable = $10,522.17', () => {
-      cent(result.totalTaxPayable, 10522.17, 'totalTaxPayable');
+    it('total tax payable = $10,550.00', () => {
+      // federal 6,836.70 + ontario 3,713.30 = 10,550.00
+      cent(result.totalTaxPayable, 10550.00, 'totalTaxPayable');
     });
 
     it('total tax deducted = $14,200 (T4 box 22)', () => {
       cent(result.totalTaxDeducted, 14200, 'totalTaxDeducted');
     });
 
-    it('balance = −$3,677.83 (refund)', () => {
-      cent(result.balanceOwing, -3677.83, 'balanceOwing');
+    it('balance = −$3,650.00 (refund)', () => {
+      // 14,200 withheld − 10,550 payable = 3,650 refund
+      cent(result.balanceOwing, -3650.00, 'balanceOwing');
       expect(result.balanceOwing).toBeLessThan(0); // confirms it is a refund
     });
   });

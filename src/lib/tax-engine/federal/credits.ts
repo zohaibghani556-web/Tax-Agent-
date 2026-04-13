@@ -16,6 +16,7 @@ import {
   CANADA_CAREGIVER,
   REFUNDABLE_MEDICAL_SUPPLEMENT,
 } from '../constants';
+
 import { roundCRA } from './brackets';
 
 // ============================================================
@@ -330,6 +331,24 @@ export function calculateCTC(
   return Math.min(credit, ctcRoom);
 }
 
+/**
+ * Federal Political Contribution Credit — ITA s.127(3)
+ * Direct credit (not a credit amount × 15%). Tiered: 75% on first $400,
+ * 50% on $400–$750, 33.3% above $750. Maximum credit $650.
+ */
+export function calculateFederalPoliticalCredit(contributions: number): number {
+  if (contributions <= 0) return 0;
+  let credit: number;
+  if (contributions <= 400) {
+    credit = roundCRA(contributions * 0.75);
+  } else if (contributions <= 750) {
+    credit = roundCRA(400 * 0.75 + (contributions - 400) * 0.50);
+  } else {
+    credit = roundCRA(400 * 0.75 + 350 * 0.50 + (contributions - 750) * 0.3333);
+  }
+  return Math.min(credit, FEDERAL_CREDITS.politicalContributionMaxCredit);
+}
+
 // ============================================================
 // AGGREGATOR
 // ============================================================
@@ -368,6 +387,8 @@ export interface FederalCreditsInput {
   volunteerFirefighter: boolean;
   searchAndRescue: boolean;
   adoptionExpenses: number;
+  /** Federal political contributions — ITA s.127(3). Direct credit, not × 15%. */
+  politicalContributions?: number;
 }
 
 export interface FederalCreditsResult {
@@ -375,6 +396,7 @@ export interface FederalCreditsResult {
   totalCreditAmount: number;
   totalCreditValue: number;
   donationCreditValue: number;
+  politicalCreditValue: number;
 }
 
 /**
@@ -418,12 +440,15 @@ export function calculateTotalFederalCredits(inputs: FederalCreditsInput): Feder
     Object.values(creditAmounts).reduce((sum, v) => sum + v, 0)
   );
   const donationCreditValue = calculateDonationCredit(inputs.totalDonations, inputs.taxableIncome);
-  const totalCreditValue = roundCRA(totalCreditAmount * FEDERAL_CREDIT_RATE + donationCreditValue);
+  // Political contribution credit is a direct credit (ITA s.127(3)), not a credit amount × 15%
+  const politicalCreditValue = calculateFederalPoliticalCredit(inputs.politicalContributions ?? 0);
+  const totalCreditValue = roundCRA(totalCreditAmount * FEDERAL_CREDIT_RATE + donationCreditValue + politicalCreditValue);
 
   return {
     creditAmounts,
     totalCreditAmount,
     totalCreditValue,
     donationCreditValue,
+    politicalCreditValue,
   };
 }

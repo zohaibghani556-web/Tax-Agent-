@@ -23,6 +23,7 @@ import {
   upsertTaxProfile,
 } from '@/lib/supabase/tax-data';
 import type { UserDeductions } from '@/lib/supabase/tax-data';
+import { addCsrfHeader } from '@/lib/csrf-client';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -37,7 +38,43 @@ interface SlipRecommendation {
   where: string;
 }
 
+interface TaxProfileComplete {
+  legalName?: string;
+  dateOfBirth?: string;
+  maritalStatus?: string;
+  residencyStatus?: string;
+  residencyStartDate?: string;
+  dependants?: unknown[];
+  assessmentComplete?: boolean;
+  estimatedEmploymentIncome: number;
+  estimatedSelfEmploymentNetIncome: number;
+  estimatedInterestIncome: number;
+  estimatedEligibleDividends: number;
+  estimatedIneligibleDividends: number;
+  estimatedCapitalGains: number;
+  estimatedRentalIncome: number;
+  estimatedRentalExpenses: number;
+  estimatedPensionIncome: number;
+  estimatedOasPension: number;
+  estimatedEiBenefits: number;
+  estimatedOtherIncome: number;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Parse <tax-profile-complete> XML block emitted by Claude at assessment end.
+ * Contains profile + income estimates for the preliminary tax calculation.
+ */
+function parseTaxProfileComplete(text: string): TaxProfileComplete | null {
+  const match = text.match(/<tax-profile-complete>([\s\S]*?)<\/tax-profile-complete>/);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[1]) as TaxProfileComplete;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Parse <slip-recommendations> XML blocks that Claude may emit.
@@ -60,6 +97,7 @@ function stripHiddenTags(text: string): string {
     .replace(/```slip-recommendations[\s\S]*?```/g, '')
     .replace(/<tax-profile-update>[\s\S]*?<\/tax-profile-update>/g, '')
     .replace(/<deductions-update>[\s\S]*?<\/deductions-update>/g, '')
+    .replace(/<tax-profile-complete>[\s\S]*?<\/tax-profile-complete>/g, '')
     .replace(/<slip-recommendations>[\s\S]*?<\/slip-recommendations>/g, '')
     .trim();
 }
@@ -216,6 +254,8 @@ export default function OnboardingPage() {
   const [streaming, setStreaming] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [slipRecs, setSlipRecs] = useState<SlipRecommendation[]>([]);
+  const [calcRunning, setCalcRunning] = useState(false);
+  const [calcDone, setCalcDone] = useState(false);
   const [userId, setUserId] = useState('');
   const [showResumeModal, setShowResumeModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -282,6 +322,134 @@ export default function OnboardingPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streaming]);
 
+  /**
+   * Layer 3 auto-pipeline: builds a preliminary TaxInput from assessment data
+   * and calls /api/calculate (flat mode). Stores result in localStorage so
+   * /calculator can display it immediately on arrival.
+   */
+  async function runAutoCalculation(profile: TaxProfileComplete) {
+    setCalcRunning(true);
+    try {
+      // Pull deductions accumulated during the chat
+      const rawDed = localStorage.getItem('taxagent_deductions');
+      const ded = rawDed ? (JSON.parse(rawDed) as Record<string, number | boolean>) : {};
+      const n = (k: string) => Number(ded[k] ?? 0);
+      const b = (k: string) => Boolean(ded[k] ?? false);
+
+      // Calculate age on Dec 31 2025
+      let age = 40; // fallback
+      if (profile.dateOfBirth) {
+        const dob = new Date(profile.dateOfBirth);
+        const dec31 = new Date('2025-12-31');
+        const raw = dec31.getFullYear() - dob.getFullYear();
+        const hadBday = dec31.getMonth() > dob.getMonth() ||
+          (dec31.getMonth() === dob.getMonth() && dec31.getDate() >= dob.getDate());
+        age = hadBday ? raw : raw - 1;
+      }
+
+      const input = {
+        // Income
+        employmentIncome:         profile.estimatedEmploymentIncome,
+        selfEmploymentNetIncome:  profile.estimatedSelfEmploymentNetIncome,
+        otherEmploymentIncome:    0,
+        pensionIncome:            profile.estimatedPensionIncome,
+        annuityIncome:            0,
+        rrspIncome:               0,
+        otherIncome:              profile.estimatedOtherIncome,
+        interestIncome:           profile.estimatedInterestIncome,
+        eligibleDividends:        profile.estimatedEligibleDividends,
+        ineligibleDividends:      profile.estimatedIneligibleDividends,
+        capitalGains:             profile.estimatedCapitalGains,
+        capitalLossesPriorYears:  n('capitalLossCarryforward'),
+        rentalIncome:             profile.estimatedRentalIncome,
+        rentalExpenses:           profile.estimatedRentalExpenses,
+        foreignIncome:            0,
+        foreignTaxPaid:           0,
+        eiRegularBenefits:        profile.estimatedEiBenefits,
+        socialAssistance:         0,
+        workersComp:              0,
+        disabilityPensionCPP:     0,
+        oasPension:               profile.estimatedOasPension,
+        netPartnershipIncome:     0,
+        scholarshipFellowship:    0,
+        researchGrants:           0,
+        // Deductions
+        rrspContribution:         n('rrspContributions'),
+        rrspContributionRoom:     n('rrspContributionRoom') || 10000,
+        prppContribution:         0,
+        fhsaContribution:         n('fhsaContributions'),
+        unionDues:                n('unionDues'),
+        profDues:                 0,
+        childcareExpenses:        n('childcareExpenses'),
+        movingExpenses:           n('movingExpenses'),
+        supportPayments:          n('supportPaymentsMade'),
+        carryingCharges:          0,
+        employmentExpenses:       0,
+        otherDeductions:          0,
+        // Credits
+        age,
+        isBlind:                  false,
+        hasDisability:            b('hasDisabilityCredit'),
+        hasDisabledSpouse:        false,
+        hasDisabledDependent:     false,
+        disabledDependentAge:     0,
+        hasSpouse:                b('hasSpouseOrCL'),
+        spouseNetIncome:          n('spouseNetIncome'),
+        numberOfDependentsUnder18: 0,
+        numberOfDependents18Plus:  0,
+        isCaregiver:              b('caregiverForDependant18Plus'),
+        tuitionFederal:           0,
+        tuitionCarryforwardFed:   n('tuitionCarryforward'),
+        studentLoanInterest:      n('studentLoanInterest'),
+        medicalExpenses:          n('medicalExpenses'),
+        charitableDonations:      n('charitableDonations'),
+        politicalContributions:   0,
+        ontarioPoliticalContributions: 0,
+        firstTimeHomeBuyer:       b('homeBuyersEligible'),
+        homeAccessibilityReno:    n('homeAccessibilityExpenses'),
+        adoptionExpenses:         0,
+        pensionIncomeSplitting:   0,
+        isVolunteerFirefighter:   b('volunteerFirefighter'),
+        isSearchAndRescue:        b('searchAndRescue'),
+        digitalNewsSubscriptions: n('digitalNewsSubscription'),
+        // Payroll — unknown before slip upload; set 0, balance owing will show gross tax
+        taxWithheld:              0,
+        cppContributedEmployee:   0,
+        cpp2ContributedEmployee:  0,
+        eiContributedEmployee:    0,
+        // Ontario
+        rentPaid:                 n('rentPaid'),
+        propertyTaxPaid:          n('propertyTaxPaid'),
+        isNorthernOntario:        false,
+        ontarioSalesTaxCreditEligible: true,
+        // Misc
+        installmentsPaid:         n('instalmentsPaid'),
+        fhsaWithdrawal:           0,
+        hasPriorYearCapitalLosses: n('capitalLossCarryforward') > 0,
+        numberOfChildren:         0,
+        numberOfChildrenUnder6:   0,
+        hasSpouseForBenefits:     b('hasSpouseOrCL'),
+      };
+
+      const res = await fetch('/api/calculate', addCsrfHeader({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'flat', input }),
+      }));
+
+      if (res.ok) {
+        const result = await res.json() as unknown;
+        localStorage.setItem('taxagent_calc_result', JSON.stringify(result));
+        localStorage.setItem('taxagent_is_preliminary', '1');
+        setCalcDone(true);
+      }
+    } catch {
+      // Non-fatal — user can still proceed to /slips and calculate from there
+    } finally {
+      setCalcRunning(false);
+    }
+  }
+
   const sendMessage = useCallback(async (userText: string) => {
     if (!userText.trim() || streaming) return;
 
@@ -297,7 +465,7 @@ export default function OnboardingPage() {
     try {
       abortRef.current = new AbortController();
 
-      const res = await fetch('/api/chat', {
+      const res = await fetch('/api/chat', addCsrfHeader({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: abortRef.current.signal,
@@ -305,7 +473,7 @@ export default function OnboardingPage() {
           messages: nextMessages,
           currentPhase: Math.min(9, Math.ceil(nextMessages.length / 3)),
         }),
-      });
+      }));
 
       if (!res.ok || !res.body) {
         setMessages((prev) => {
@@ -369,6 +537,12 @@ export default function OnboardingPage() {
         setIsComplete(true);
       }
 
+      // Layer 3 auto-pipeline: fire preliminary calculation when profile is complete
+      const profileComplete = parseTaxProfileComplete(fullText);
+      if (profileComplete?.assessmentComplete) {
+        runAutoCalculation(profileComplete);
+      }
+
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') return;
       setMessages((prev) => {
@@ -392,7 +566,7 @@ export default function OnboardingPage() {
     }
   }
 
-  function handleProceedToSlips() {
+  function handleProceed() {
     if (slipRecs.length > 0) {
       localStorage.setItem('taxagent_slip_recs', JSON.stringify(slipRecs));
     }
@@ -401,7 +575,8 @@ export default function OnboardingPage() {
     if (userId) {
       upsertTaxProfile(userId, { taxYear: 2025, assessmentComplete: true }).catch(() => { /* ignore */ });
     }
-    router.push('/slips');
+    // If preliminary calc ran successfully, go straight to calculator; otherwise upload slips first
+    router.push(calcDone ? '/calculator' : '/slips');
   }
 
   function handleRestart() {
@@ -414,6 +589,9 @@ export default function OnboardingPage() {
     localStorage.removeItem('taxagent_assessment_messages');
     localStorage.removeItem('taxagent_assessment_done');
     localStorage.removeItem('taxagent_slip_recs');
+    localStorage.removeItem('taxagent_calc_result');
+    localStorage.removeItem('taxagent_is_preliminary');
+    setCalcDone(false);
     // Clear Supabase messages
     if (userId) {
       clearMessages(userId).catch(() => { /* ignore */ });
@@ -501,11 +679,26 @@ export default function OnboardingPage() {
             )}
 
             <button
-              onClick={handleProceedToSlips}
-              className="w-full flex items-center justify-center gap-2 rounded-full bg-[#10B981] py-3.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors"
+              onClick={handleProceed}
+              disabled={calcRunning}
+              className="w-full flex items-center justify-center gap-2 rounded-full bg-[#10B981] py-3.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors disabled:opacity-60 disabled:cursor-wait"
             >
-              Proceed to upload my slips
-              <ArrowRight className="h-4 w-4" />
+              {calcRunning ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Calculating your estimate…
+                </>
+              ) : calcDone ? (
+                <>
+                  View my tax estimate
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              ) : (
+                <>
+                  Proceed to upload my slips
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </button>
           </div>
         )}

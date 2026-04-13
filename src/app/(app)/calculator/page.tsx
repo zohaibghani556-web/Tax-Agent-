@@ -411,6 +411,7 @@ export default function CalculatorPage() {
   const [result, setResult] = useState<TaxCalculationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPreliminary, setIsPreliminary] = useState(false);
   const [calculatedAt, setCalculatedAt] = useState<Date | null>(null);
   const [savedSlips, setSavedSlips] = useState<SavedSlip[]>([]);
   const [profileName, setProfileName] = useState('');
@@ -499,6 +500,7 @@ export default function CalculatorPage() {
         try {
           setResult(JSON.parse(prevResult) as TaxCalculationResult);
           setCalculatedAt(new Date());
+          setIsPreliminary(!!localStorage.getItem('taxagent_is_preliminary'));
         } catch { /* ignore */ }
       }
     }
@@ -589,6 +591,9 @@ export default function CalculatorPage() {
       setCalculatedAt(new Date());
       if (!isAutoCalc.current) setShowReveal(true);
       localStorage.setItem('taxagent_calc_result', JSON.stringify(data));
+      // Promote from preliminary to full result once slips are included
+      localStorage.removeItem('taxagent_is_preliminary');
+      setIsPreliminary(false);
       // Save to Supabase (append-only history)
       if (userId) {
         await saveCalculationResult(userId, 2025, data);
@@ -711,6 +716,23 @@ export default function CalculatorPage() {
           </button>
         </div>
       </div>
+
+      {/* ── Preliminary estimate banner ───────────────────────────────────────── */}
+      {isPreliminary && !hasSlips && (
+        <div
+          className="mb-4 rounded-xl px-5 py-4 flex items-start gap-3 print:hidden"
+          style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)' }}
+        >
+          <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-amber-300">Preliminary estimate — based on your assessment answers</p>
+            <p className="text-xs text-amber-300/60 mt-1">
+              Tax withheld at source is not yet included, so your balance owing will be higher than your actual amount.
+              Upload your T4 and other slips above to get your accurate final return.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Return Completeness Validator ────────────────────────────────────── */}
       <ValidatorPanel validation={validation} />

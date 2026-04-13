@@ -10,8 +10,8 @@ import { roundCRA } from '../federal/brackets';
 /**
  * Calculates Ontario surtax on basic Ontario tax.
  *
- * Tier 1: 20% × max(0, basicOntarioTax − $6,104)
- * Tier 2: 36% × max(0, basicOntarioTax − $7,812)  [additive, not either/or]
+ * Tier 1: 20% × max(0, basicOntarioTax − $5,818)
+ * Tier 2: 36% × max(0, basicOntarioTax − $7,446)  [additive, not either/or]
  */
 export function calculateOntarioSurtax(basicOntarioTax: number): number {
   const tier1 = Math.max(0, basicOntarioTax - ONTARIO_SURTAX.threshold1);
