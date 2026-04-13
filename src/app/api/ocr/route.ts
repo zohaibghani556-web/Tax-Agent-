@@ -239,6 +239,8 @@ export async function POST(req: NextRequest) {
       {
         model: 'claude-sonnet-4-20250514',
         max_tokens: 2048,
+        // temperature: 0 — OCR is pure extraction. Randomness produces wrong box values.
+        temperature: 0,
         system: OCR_SYSTEM,
         messages: [
           {

@@ -297,6 +297,12 @@ export async function POST(req: NextRequest) {
     currentPhase,
   );
 
+  // Inject today's date so Claude can compute ages correctly (DOB → age, credit eligibility).
+  // Without this, Claude guesses "now" from training data and gets ages wrong.
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+  const dateContext = `\n\nTODAY'S DATE: ${todayStr}. TAX YEAR IN SCOPE: 2025 (December 31, 2025 is the reference date for age, marital status, and residency). Use these dates when computing a user's age or credit eligibility — never guess.`;
+
   // Append current tax profile state as a system-level context block
   const profileContext = taxProfile
     ? `\n\n---\nCURRENT TAX PROFILE STATE:\n${JSON.stringify(taxProfile, null, 2)}\n---`
@@ -308,7 +314,7 @@ export async function POST(req: NextRequest) {
     ? `\n\n---\nCOMPUTED TAX BREAKDOWN (authoritative — do NOT recalculate, only explain):\n${JSON.stringify(taxBreakdown, null, 2)}\n---`
     : '';
 
-  const systemPrompt = enrichedSystemPrompt + (ragContext ? `\n\n---\n${ragContext}` : '') + profileContext + breakdownContext;
+  const systemPrompt = enrichedSystemPrompt + dateContext + (ragContext ? `\n\n---\n${ragContext}` : '') + profileContext + breakdownContext;
 
   // --- Call Claude with response validation (up to 2 regeneration attempts) ---
   const anthropicMessages = messages.map((m) => ({
@@ -324,7 +330,10 @@ export async function POST(req: NextRequest) {
     for (let attempt = 0; attempt < 3; attempt++) {
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 2048,
+        max_tokens: 4096,
+        // temperature: 0 — tax assessment requires consistent, deterministic responses.
+        // Never use the default (1.0) for structured data extraction or tax guidance.
+        temperature: 0,
         system: attempt === 0
           ? systemPrompt
           : systemPrompt + '\n\nIMPORTANT REMINDER: Ask only ONE question per response. Do NOT state specific tax dollar amounts. Do NOT reference IRS or US tax forms.',
@@ -350,13 +359,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Stream the final response as SSE
+    // Send the validated response as SSE.
+    // NOTE: We collect the full response before sending because the retry/validation
+    // loop (tax amount leak detection, jurisdiction checks) requires the complete text.
+    // True token-by-token streaming is incompatible with post-hoc validation.
+    // The SSE format is preserved so the client streaming handler works unchanged.
     const readable = new ReadableStream({
       start(controller) {
         const encoder = new TextEncoder();
 
         if (finalResponse) {
-          // Chunk the response to simulate streaming for client compatibility
           const chunkSize = 50;
           for (let i = 0; i < finalResponse.length; i += chunkSize) {
             const chunk = finalResponse.slice(i, i + chunkSize);
