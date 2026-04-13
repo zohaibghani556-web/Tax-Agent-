@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Clock, FileWarning, Users } from 'lucide-react';
+import { Check, CheckCircle, Clock, FileWarning, Loader2, Users } from 'lucide-react';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -13,6 +14,109 @@ const stagger = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.1 } },
 };
+
+function CPAContactForm() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setStatus('loading');
+    setErrorMsg('');
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, message, type: 'CPA inquiry' }),
+      });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (!res.ok || !data.ok) {
+        setErrorMsg(data.error ?? 'Something went wrong. Please try again.');
+        setStatus('error');
+      } else {
+        setStatus('success');
+      }
+    } catch {
+      setErrorMsg('Network error. Please try again.');
+      setStatus('error');
+    }
+  }
+
+  if (status === 'success') {
+    return (
+      <div className="flex flex-col items-center gap-4 py-8">
+        <CheckCircle className="h-12 w-12 text-[#10B981]" />
+        <p className="text-xl font-semibold text-white">Message sent!</p>
+        <p className="text-slate-400 text-center max-w-sm">
+          We'll be in touch within 24 hours to schedule a call.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-md mx-auto text-left">
+      <div>
+        <label className="block text-sm font-medium text-slate-300 mb-1.5">Your name</label>
+        <input
+          type="text"
+          required
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="Jane Smith"
+          className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#10B981]"
+          style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-300 mb-1.5">Work email</label>
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="jane@smithcpa.ca"
+          className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#10B981]"
+          style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-300 mb-1.5">
+          How many T1 returns does your firm file per year?
+        </label>
+        <textarea
+          required
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          placeholder="~200 returns. Biggest pain is manual T4 entry and chasing clients for missing slips..."
+          rows={4}
+          className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#10B981] resize-none"
+          style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
+        />
+      </div>
+      {status === 'error' && (
+        <p className="text-sm text-red-400">{errorMsg}</p>
+      )}
+      <button
+        type="submit"
+        disabled={status === 'loading'}
+        className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-[var(--emerald)] px-8 py-4 text-base font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors disabled:opacity-60"
+      >
+        {status === 'loading' ? (
+          <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</>
+        ) : (
+          'Book a 30-minute call →'
+        )}
+      </button>
+      <p className="text-center text-xs text-white/30">
+        No sales pressure. We reply within 24 hours.
+      </p>
+    </form>
+  );
+}
 
 export default function ForCPAsPage() {
   return (
@@ -43,9 +147,9 @@ export default function ForCPAsPage() {
             </motion.p>
             <motion.div variants={fadeUp} className="mt-10 flex flex-wrap gap-4 justify-center">
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Link href="mailto:cpa@taxagent.ai" className="inline-flex items-center rounded-full bg-[var(--emerald)] px-8 py-4 text-base font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors shadow-lg shadow-[#10B981]/25">
+                <a href="#contact" className="inline-flex items-center rounded-full bg-[var(--emerald)] px-8 py-4 text-base font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors shadow-lg shadow-[#10B981]/25">
                   Book a demo →
-                </Link>
+                </a>
               </motion.div>
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Link href="/pricing" className="inline-flex items-center rounded-full border border-white/30 bg-white/5 px-8 py-4 text-base font-semibold text-white hover:bg-white/10 transition-colors">
@@ -203,27 +307,19 @@ export default function ForCPAsPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="bg-[var(--navy)] py-24">
+      {/* CTA — real contact form, POSTs to /api/contact → zohaibghani556@gmail.com */}
+      <section id="contact" className="bg-[var(--navy)] py-24">
         <div className="mx-auto max-w-2xl px-6 text-center">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger}>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-bold text-white mb-4">
-              Ready to modernize your practice?
+              Want to be a design partner?
             </motion.h2>
-            <motion.p variants={fadeUp} className="text-slate-300 mb-8 leading-relaxed">
-              Book a 30-minute demo and we&apos;ll show you how TaxAgent fits into your existing workflow — no commitment required.
+            <motion.p variants={fadeUp} className="text-slate-300 mb-10 leading-relaxed">
+              We&apos;re working with a small number of CPA firms to shape the product.
+              Tell us about your practice and we&apos;ll set up a 30-minute call.
             </motion.p>
-            <motion.div variants={fadeUp} className="flex flex-wrap gap-4 justify-center">
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Link href="mailto:cpa@taxagent.ai" className="inline-flex items-center rounded-full bg-[var(--emerald)] px-8 py-4 text-base font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors">
-                  Book a demo →
-                </Link>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Link href="mailto:cpa@taxagent.ai" className="inline-flex items-center rounded-full border border-white/30 bg-white/5 px-8 py-4 text-base font-semibold text-white hover:bg-white/10 transition-colors">
-                  Email us
-                </Link>
-              </motion.div>
+            <motion.div variants={fadeUp}>
+              <CPAContactForm />
             </motion.div>
           </motion.div>
         </div>
