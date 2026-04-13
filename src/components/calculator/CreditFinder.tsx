@@ -7,11 +7,8 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Lightbulb, CheckCircle2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import type {
   TaxCalculationResult,
-  TaxProfile,
   DeductionsCreditsInput,
 } from '@/lib/tax-engine/types';
 
@@ -26,7 +23,6 @@ interface CreditSuggestion {
 function buildSuggestions(
   result: TaxCalculationResult,
   deductions: DeductionsCreditsInput,
-  profile: Partial<TaxProfile>,
 ): CreditSuggestion[] {
   const suggestions: CreditSuggestion[] = [];
 
@@ -48,96 +44,29 @@ function buildSuggestions(
   // Medical expenses — claimed but below threshold (no credit generated)
   const totalMed = deductions.medicalExpenses.reduce((s, e) => s + e.amount, 0);
   const medThreshold = Math.min(2759, Math.round(result.netIncome * 0.03 * 100) / 100);
-  if (totalMed > 0 && totalMed < medThreshold) {
+
+  if (totalMed > 0 && totalMed <= medThreshold) {
     suggestions.push({
-      id: 'medical-threshold',
+      id: 'med-low',
       title: 'Medical Expenses Below Threshold',
-      description: `Your claimed medical expenses ($${totalMed.toFixed(0)}) are below the $${medThreshold.toFixed(0)} threshold for your net income. No credit is generated. Check for unclaimed receipts — dental, prescriptions, vision care, physiotherapy, and most medical devices qualify.`,
+      description: `Your medical expenses (${new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(totalMed)}) are below the 3%-of-net-income threshold (${new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(medThreshold)}). No credit is generated yet.`,
       eligibilityNote:
-        'Threshold is the lesser of $2,759 or 3% of net income. Only amounts above the threshold generate a 15% federal credit. Claim on line 33099 (Schedule 1).',
+        'Consolidate all eligible receipts — dental, vision, prescriptions, travel to medical care. You can claim any 12-month period ending in 2025. Consider claiming in a lower-income year.',
     });
   }
 
-  // Digital news subscription — not claimed
-  if (!deductions.digitalNewsSubscription || deductions.digitalNewsSubscription === 0) {
+  // RRSP — significant room but not fully used
+  const unusedRrsp = deductions.rrspContributionRoom - deductions.rrspContributions;
+  if (unusedRrsp > 5000 && result.netIncome > 50000) {
     suggestions.push({
-      id: 'digital-news',
-      title: 'Digital News Subscription Credit',
-      estimate: 'Up to $75 federal credit',
-      description:
-        'You can claim up to $500 in eligible digital news subscription costs. The federal credit is 15% (up to $75). Qualifying subscriptions must be from a Qualified Canadian Journalism Organization (QCJO).',
+      id: 'rrsp',
+      title: 'RRSP Contribution Room Available',
+      estimate: `Up to ${new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }).format(Math.min(unusedRrsp, 32490))} deductible`,
+      description: `You have $${unusedRrsp.toLocaleString('en-CA')} in unused RRSP room. Contributing before March 3, 2026 reduces your 2025 taxable income.`,
       eligibilityNote:
-        'Claim on line 31350 (Schedule 1). Common qualifying publishers include The Globe and Mail, Toronto Star, and many local outlets. Keep your subscription receipts.',
-    });
-  }
-
-  // First-time Home Buyer's Amount — not claimed
-  if (!deductions.homeBuyersEligible) {
-    suggestions.push({
-      id: 'home-buyer',
-      title: "First Home Buyer's Amount",
-      estimate: '$1,500 federal + $750 Ontario',
-      description:
-        "If you or your spouse/partner purchased a qualifying home in 2025 and neither of you owned a home in the last 4 calendar years, you can claim $10,000 (15% = $1,500 federal credit). Ontario's First Home Buyer's Tax Credit adds up to $750.",
-      eligibilityNote:
-        'Claim $10,000 on line 31270 (Schedule 1) and $5,000 on line 63050 (ON428). The home must become your principal residence by the end of the following year.',
-    });
-  }
-
-  // Disability Tax Credit — not claimed
-  if (!deductions.hasDisabilityCredit) {
-    suggestions.push({
-      id: 'dtc',
-      title: 'Disability Tax Credit (DTC)',
-      estimate: '~$1,650 federal + ~$508 Ontario',
-      description:
-        "If you or a dependant have a severe and prolonged physical or mental impairment that markedly restricts daily activities, you may qualify for the DTC. It's worth $11,048 × 15% = ~$1,657 federally plus an Ontario equivalent.",
-      eligibilityNote:
-        'Apply to CRA with form T2201, certified by a qualified practitioner. Once approved, claim on line 31600 (Schedule 1) and line 58440 (ON428). Prior years can be amended up to 10 years back.',
-    });
-  }
-
-  // Home Accessibility Tax Credit — not claimed (relevant if 65+ or DTC)
-  if (deductions.homeAccessibilityExpenses === 0) {
-    suggestions.push({
-      id: 'home-access',
-      title: 'Home Accessibility Tax Credit',
-      estimate: 'Up to $3,000 credit',
-      description:
-        'If you are 65+ or eligible for the DTC, you can claim up to $20,000 for eligible renovations that make your home safer or more accessible — ramps, grab bars, widened doorways, walk-in tubs, stair lifts, etc. The 15% credit is worth up to $3,000.',
-      eligibilityNote:
-        'Claim on line 31285 (Schedule 1). Keep all receipts and contractor invoices. Only the homeowner or an eligible individual occupying the home can claim.',
-    });
-  }
-
-  // Unused carryforward amounts
-  if (
-    deductions.tuitionCarryforward === 0 &&
-    deductions.capitalLossCarryforward === 0 &&
-    deductions.nonCapitalLossCarryforward === 0
-  ) {
-    suggestions.push({
-      id: 'carryforward',
-      title: 'Check for Unused Carryforward Amounts',
-      description:
-        'Your CRA My Account shows any unused tuition credits, capital loss carryforwards, or non-capital loss carryforwards from prior years. These can significantly reduce your 2025 tax.',
-      eligibilityNote:
-        "Log in at canada.ca/my-cra-account → Tax Returns → Carry forward amounts. Prior-year tuition credits transfer to line 32300, capital losses go on Schedule 3.",
-    });
-  }
-
-  // Pension income splitting — if married/common-law with pension income
-  if (
-    (profile.maritalStatus === 'married' || profile.maritalStatus === 'common-law') &&
-    result.totalIncome > 60_000
-  ) {
-    suggestions.push({
-      id: 'pension-split',
-      title: 'Pension Income Splitting',
-      description:
-        'If you or your spouse/partner received eligible pension income, you may be able to split up to 50% of it with the lower-income spouse. This can reduce your combined tax bill.',
-      eligibilityNote:
-        'Both spouses must complete Form T1032 (Joint Election to Split Pension Income). Eligible pension income includes RRIF withdrawals, annuities, and registered pension plans.',
+        'Contributions to March 3, 2026 count for 2025. At your marginal rate, each $1,000 contributed saves approximately ' +
+        new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }).format(result.combinedMarginalRate * 1000) +
+        ' in tax.',
     });
   }
 
@@ -147,44 +76,42 @@ function buildSuggestions(
 interface Props {
   result: TaxCalculationResult;
   deductions: DeductionsCreditsInput;
-  profile: Partial<TaxProfile>;
+  profile?: unknown;
 }
 
-export function CreditFinder({ result, deductions, profile }: Props) {
+export function CreditFinder({ result, deductions }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
-  const suggestions = buildSuggestions(result, deductions, profile);
+  const suggestions = buildSuggestions(result, deductions);
 
   if (suggestions.length === 0) {
     return (
-      <Card>
-        <CardContent className="pt-6 pb-5 flex items-center gap-2.5 text-emerald-700">
-          <CheckCircle2 className="h-5 w-5 shrink-0" />
-          <p className="text-sm font-medium">
-            No missed credits detected — your return looks thorough!
-          </p>
-        </CardContent>
-      </Card>
+      <div className="rounded-2xl px-5 py-4 flex items-center gap-2.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <CheckCircle2 className="h-5 w-5 shrink-0 text-[#10B981]" />
+        <p className="text-sm font-medium text-white/70">
+          No missed credits detected — your return looks thorough!
+        </p>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base text-[#1A2744] flex items-center gap-2">
-          <Lightbulb className="h-4 w-4 text-amber-500" />
+    <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <h3 className="text-base font-semibold text-white flex items-center gap-2">
+          <Lightbulb className="h-4 w-4 text-amber-400" />
           Credit Finder
-          <Badge className="ml-1 bg-amber-100 text-amber-700 border-0 text-xs font-semibold">
+          <span className="ml-1 rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
             {suggestions.length} suggestion{suggestions.length !== 1 ? 's' : ''}
-          </Badge>
-        </CardTitle>
-        <p className="text-xs text-slate-500">
+          </span>
+        </h3>
+        <p className="text-xs text-white/45 mt-1">
           Potential credits and deductions you may be eligible for based on your profile.
         </p>
-      </CardHeader>
+      </div>
 
-      <CardContent className="pt-2 divide-y divide-slate-100">
+      <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
         {suggestions.map((s) => (
-          <div key={s.id} className="py-3 first:pt-1">
+          <div key={s.id} className="px-5 py-3">
             <button
               className="w-full flex items-start justify-between gap-3 text-left focus-visible:outline-none"
               onClick={() => setExpanded(expanded === s.id ? null : s.id)}
@@ -192,30 +119,30 @@ export function CreditFinder({ result, deductions, profile }: Props) {
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium text-slate-800">{s.title}</span>
+                  <span className="text-sm font-medium text-white">{s.title}</span>
                   {s.estimate && (
-                    <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs font-medium">
+                    <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: 'rgba(16,185,129,0.12)', color: '#10B981' }}>
                       {s.estimate}
-                    </Badge>
+                    </span>
                   )}
                 </div>
                 {expanded !== s.id && (
-                  <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{s.description}</p>
+                  <p className="text-xs text-white/40 mt-0.5 line-clamp-1">{s.description}</p>
                 )}
               </div>
               {expanded === s.id ? (
-                <ChevronUp className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+                <ChevronUp className="h-4 w-4 text-white/35 shrink-0 mt-0.5" />
               ) : (
-                <ChevronDown className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+                <ChevronDown className="h-4 w-4 text-white/35 shrink-0 mt-0.5" />
               )}
             </button>
 
             {expanded === s.id && (
               <div className="mt-2.5 space-y-2">
-                <p className="text-sm text-slate-600">{s.description}</p>
-                <div className="rounded-md bg-slate-50 border border-slate-200 px-3 py-2">
-                  <p className="text-xs text-slate-500">
-                    <span className="font-semibold text-slate-700">How to claim: </span>
+                <p className="text-sm text-white/60">{s.description}</p>
+                <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <p className="text-xs text-white/50">
+                    <span className="font-semibold text-white/70">How to claim: </span>
                     {s.eligibilityNote}
                   </p>
                 </div>
@@ -223,7 +150,7 @@ export function CreditFinder({ result, deductions, profile }: Props) {
             )}
           </div>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

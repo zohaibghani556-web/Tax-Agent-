@@ -82,12 +82,13 @@ export function ManualEntryForm({ onAdd, defaultType = 'T4' }: ManualEntryFormPr
 
   return (
     <Tabs value={activeTab} onValueChange={(t) => { setActiveTab(t); setErrors({}); }}>
-      <TabsList className="flex flex-wrap h-auto gap-1 bg-slate-100 p-1 rounded-lg mb-6">
+      <TabsList className="flex flex-wrap h-auto gap-1 p-1 rounded-lg mb-6" style={{ background: 'rgba(255,255,255,0.06)' }}>
         {SLIP_TYPES.map((t) => (
           <TabsTrigger
             key={t}
             value={t}
-            className="text-xs px-2.5 py-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm"
+            className="text-xs px-2.5 py-1.5 text-white/50 data-[state=active]:text-white data-[state=active]:shadow-sm"
+            style={{ ['--tw-ring-color' as string]: 'transparent' }}
           >
             {t}
           </TabsTrigger>
@@ -103,17 +104,17 @@ export function ManualEntryForm({ onAdd, defaultType = 'T4' }: ManualEntryFormPr
           <TabsContent key={slipType} value={slipType}>
             {isActive && (
               <div className="space-y-5">
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-white/50">
                   {SLIP_TYPE_LABELS[slipType]} — enter the values exactly as shown on your CRA slip.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {fields.map((field) => (
                     <div key={field.key} className="space-y-1">
-                      <Label htmlFor={`manual-${slipType}-${field.key}`} className="text-xs">
+                      <Label htmlFor={`manual-${slipType}-${field.key}`} className="text-xs text-white/50">
                         {field.label}
                         {field.required && (
-                          <span className="text-red-500 ml-1" aria-hidden>*</span>
+                          <span className="text-red-400 ml-1" aria-hidden>*</span>
                         )}
                       </Label>
                       <Input
@@ -125,7 +126,7 @@ export function ManualEntryForm({ onAdd, defaultType = 'T4' }: ManualEntryFormPr
                           handleChange(slipType, field.key, e.target.value, field.valueType)
                         }
                         className={[
-                          'text-sm',
+                          'text-sm bg-white/5 border-white/10 text-white placeholder:text-white/25',
                           errors[field.key] ? 'border-red-400 focus-visible:ring-red-400' : '',
                         ].join(' ')}
                         step={field.valueType === 'number' ? '0.01' : undefined}
@@ -150,7 +151,7 @@ export function ManualEntryForm({ onAdd, defaultType = 'T4' }: ManualEntryFormPr
 
                 <Button
                   onClick={() => handleSubmit(slipType)}
-                  className="w-full bg-[#1A2744] hover:bg-[#243461]"
+                  className="w-full bg-[#10B981] hover:bg-[#059669]"
                 >
                   {submitted === slipType ? (
                     'Slip Added!'

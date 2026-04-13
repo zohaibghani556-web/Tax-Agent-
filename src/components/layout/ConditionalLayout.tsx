@@ -20,6 +20,9 @@ const APP_PREFIXES = [
   '/calculator',
   '/filing-guide',
   '/settings',
+  '/history',
+  '/recovery',
+  '/family',
 ];
 
 function isAppRoute(pathname: string): boolean {

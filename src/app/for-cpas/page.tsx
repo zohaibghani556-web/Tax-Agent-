@@ -16,9 +16,9 @@ const stagger = {
 
 export default function ForCPAsPage() {
   return (
-    <main className="flex flex-col min-h-screen bg-white">
-      {/* Hero */}
-      <section className="bg-[var(--navy)] py-24 text-white">
+    <main className="flex flex-col min-h-screen" style={{ background: '#0a1020' }}>
+      {/* Hero — pt-24 accounts for fixed 64px NavBar */}
+      <section className="bg-[var(--navy)] pt-32 pb-24 text-white">
         <div className="mx-auto max-w-4xl px-6 text-center">
           <motion.div initial="hidden" animate="visible" variants={stagger}>
             <motion.span
@@ -58,10 +58,10 @@ export default function ForCPAsPage() {
       </section>
 
       {/* Pain points */}
-      <section className="bg-[var(--surface)] py-20">
+      <section className="py-20" style={{ background: '#0d1828' }}>
         <div className="mx-auto max-w-5xl px-6">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="text-center mb-14">
-            <motion.h2 variants={fadeUp} className="text-3xl font-bold text-[var(--text-primary)]">
+            <motion.h2 variants={fadeUp} className="text-3xl font-bold text-white">
               Sound familiar?
             </motion.h2>
           </motion.div>
@@ -74,31 +74,32 @@ export default function ForCPAsPage() {
           >
             {[
               {
-                icon: <Clock className="h-6 w-6 text-[var(--error)]" />,
+                icon: <Clock className="h-6 w-6 text-red-400" />,
                 title: '3+ hours per return on data entry',
                 body: 'Your team manually keys T4, T5, and RRSP data from client-supplied PDFs and photos. Error-prone and demoralizing.',
               },
               {
-                icon: <FileWarning className="h-6 w-6 text-[var(--warning)]" />,
+                icon: <FileWarning className="h-6 w-6 text-amber-400" />,
                 title: 'Clients send incomplete docs',
-                body: 'Chasing clients for missing slips extends your busy season. Clients don\'t know what they need to send.',
+                body: "Chasing clients for missing slips extends your busy season. Clients don't know what they need to send.",
               },
               {
-                icon: <Users className="h-6 w-6 text-[var(--text-secondary)]" />,
+                icon: <Users className="h-6 w-6 text-white/40" />,
                 title: 'No scalable client intake',
-                body: 'Every client onboards differently — email, paper, or an ad-hoc shared folder. There\'s no consistent process.',
+                body: "Every client onboards differently — email, paper, or an ad-hoc shared folder. There's no consistent process.",
               },
             ].map(({ icon, title, body }) => (
               <motion.div
                 key={title}
                 variants={fadeUp}
-                className="rounded-2xl border border-[var(--border)] bg-white p-8"
+                className="rounded-2xl p-8"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
               >
-                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.08)' }}>
                   {icon}
                 </div>
-                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">{title}</h3>
-                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{body}</p>
+                <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
+                <p className="text-sm text-white/55 leading-relaxed">{body}</p>
               </motion.div>
             ))}
           </motion.div>
@@ -106,10 +107,10 @@ export default function ForCPAsPage() {
       </section>
 
       {/* Solution */}
-      <section className="bg-white py-20">
+      <section className="py-20" style={{ background: '#0a1020' }}>
         <div className="mx-auto max-w-5xl px-6">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="text-center mb-14">
-            <motion.h2 variants={fadeUp} className="text-3xl font-bold text-[var(--text-primary)]">
+            <motion.h2 variants={fadeUp} className="text-3xl font-bold text-white">
               How TaxAgent solves it
             </motion.h2>
           </motion.div>
@@ -142,14 +143,14 @@ export default function ForCPAsPage() {
             ].map(({ step, title, body, highlight }) => (
               <motion.div key={step} variants={fadeUp} className="grid sm:grid-cols-5 gap-6 items-center">
                 <div className="sm:col-span-1 flex sm:justify-center">
-                  <div className="h-14 w-14 rounded-full bg-[var(--navy)] flex items-center justify-center text-white font-bold text-lg">
+                  <div className="h-14 w-14 rounded-full bg-[#10B981]/20 border border-[#10B981]/30 flex items-center justify-center text-[#10B981] font-bold text-lg">
                     {step}
                   </div>
                 </div>
                 <div className="sm:col-span-4">
-                  <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">{title}</h3>
-                  <p className="text-[var(--text-secondary)] leading-relaxed mb-3">{body}</p>
-                  <span className="inline-flex items-center gap-2 text-sm text-[var(--emerald)] font-medium">
+                  <h3 className="text-xl font-semibold text-white mb-2">{title}</h3>
+                  <p className="text-white/55 leading-relaxed mb-3">{body}</p>
+                  <span className="inline-flex items-center gap-2 text-sm text-[#10B981] font-medium">
                     <Check className="h-4 w-4" />
                     {highlight}
                   </span>
@@ -161,10 +162,10 @@ export default function ForCPAsPage() {
       </section>
 
       {/* Features */}
-      <section className="bg-[var(--surface)] py-20">
+      <section className="py-20" style={{ background: '#0d1828' }}>
         <div className="mx-auto max-w-5xl px-6">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="text-center mb-14">
-            <motion.h2 variants={fadeUp} className="text-3xl font-bold text-[var(--text-primary)]">
+            <motion.h2 variants={fadeUp} className="text-3xl font-bold text-white">
               Everything your practice needs
             </motion.h2>
           </motion.div>
@@ -179,21 +180,22 @@ export default function ForCPAsPage() {
               { title: 'Client portal', body: 'Each client gets a secure portal to upload documents, answer questions, and track their return status.' },
               { title: 'Bulk workflows', body: 'Manage hundreds of clients simultaneously. Filter by status, missing docs, or review stage.' },
               { title: 'TaxCycle & Cantax export', body: 'One-click structured data export in formats your existing software understands.' },
-              { title: 'White-label available', body: 'Run TaxAgent under your firm\'s brand. Custom domain, logo, and colour scheme.' },
+              { title: "White-label available", body: "Run TaxAgent under your firm's brand. Custom domain, logo, and colour scheme." },
               { title: 'API access', body: 'Integrate client data directly into your practice management system via REST API.' },
               { title: 'Dedicated account manager', body: 'A dedicated CSM helps your team onboard and gets you to full utilization fast.' },
             ].map(({ title, body }) => (
               <motion.div
                 key={title}
                 variants={fadeUp}
-                className="rounded-xl border border-[var(--border)] bg-white p-6 flex gap-4"
+                className="rounded-xl p-6 flex gap-4"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
               >
                 <div className="mt-0.5 h-5 w-5 flex-shrink-0">
-                  <Check className="h-5 w-5 text-[var(--emerald)]" />
+                  <Check className="h-5 w-5 text-[#10B981]" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-[var(--text-primary)] mb-1">{title}</h3>
-                  <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{body}</p>
+                  <h3 className="font-semibold text-white mb-1">{title}</h3>
+                  <p className="text-sm text-white/55 leading-relaxed">{body}</p>
                 </div>
               </motion.div>
             ))}

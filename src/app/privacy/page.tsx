@@ -11,12 +11,12 @@ const CONTACT_EMAIL = 'privacy@taxagent.ai';
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
-      <p className="text-sm text-slate-500 mb-2">Last updated: {LAST_UPDATED}</p>
-      <h1 className="text-3xl sm:text-4xl font-bold text-[#1A2744] mb-4">
+    <main className="mx-auto max-w-3xl px-6 pt-28 pb-16">
+      <p className="text-sm text-white/40 mb-2">Last updated: {LAST_UPDATED}</p>
+      <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">
         Privacy Policy
       </h1>
-      <p className="text-slate-600 mb-10 leading-relaxed">
+      <p className="text-white/60 mb-10 leading-relaxed">
         TaxAgent.ai (&quot;<strong>we</strong>&quot;, &quot;<strong>us</strong>&quot;, or &quot;
         <strong>our</strong>&quot;) is committed to protecting your personal
         information. This policy explains what we collect, why we collect it, how
@@ -42,7 +42,7 @@ export default function PrivacyPage() {
 
       <Section title="2. What personal information we collect">
         <p>We collect only the information needed to provide our service:</p>
-        <ul className="mt-3 space-y-2 list-disc list-inside text-slate-600">
+        <ul className="mt-3 space-y-2 list-disc list-inside text-white/60">
           <li>
             <strong>Identity &amp; contact:</strong> name, email address, date of
             birth, province of residence.
@@ -70,7 +70,7 @@ export default function PrivacyPage() {
       </Section>
 
       <Section title="3. Why we collect it (purposes)">
-        <ul className="space-y-2 list-disc list-inside text-slate-600">
+        <ul className="space-y-2 list-disc list-inside text-white/60">
           <li>To generate a personalised tax assessment and filing guide.</li>
           <li>To extract data from uploaded tax slips via OCR.</li>
           <li>To authenticate your account and keep it secure.</li>
@@ -84,7 +84,7 @@ export default function PrivacyPage() {
       </Section>
 
       <Section title="4. How we protect your information">
-        <ul className="space-y-2 list-disc list-inside text-slate-600">
+        <ul className="space-y-2 list-disc list-inside text-white/60">
           <li>All data is encrypted in transit using TLS 1.3.</li>
           <li>All data is encrypted at rest using AES-256.</li>
           <li>
@@ -108,7 +108,7 @@ export default function PrivacyPage() {
           We share data only with trusted sub-processors needed to run the
           service:
         </p>
-        <ul className="mt-3 space-y-2 list-disc list-inside text-slate-600">
+        <ul className="mt-3 space-y-2 list-disc list-inside text-white/60">
           <li>
             <strong>Supabase</strong> — database and authentication (Canadian
             data region).
@@ -143,7 +143,7 @@ export default function PrivacyPage() {
 
       <Section title="8. Your rights under PIPEDA">
         <p>You have the right to:</p>
-        <ul className="mt-3 space-y-2 list-disc list-inside text-slate-600">
+        <ul className="mt-3 space-y-2 list-disc list-inside text-white/60">
           <li>
             <strong>Access</strong> the personal information we hold about you.
           </li>
@@ -187,7 +187,7 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
-      <div className="mt-12 pt-8 border-t border-slate-200 text-sm text-slate-500">
+      <div className="mt-12 pt-8 border-t border-white/10 text-sm text-white/40">
         <p>
           Questions? Contact our Privacy Officer at{' '}
           <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#10B981] hover:underline">
@@ -196,7 +196,7 @@ export default function PrivacyPage() {
           .
         </p>
         <p className="mt-2">
-          <Link href="/" className="text-[#1A2744] hover:underline">
+          <Link href="/" className="text-[#10B981] hover:underline">
             ← Back to home
           </Link>
         </p>
@@ -214,8 +214,8 @@ function Section({
 }) {
   return (
     <section className="mb-10">
-      <h2 className="text-xl font-semibold text-[#1A2744] mb-3">{title}</h2>
-      <div className="text-slate-600 leading-relaxed">{children}</div>
+      <h2 className="text-xl font-semibold text-white mb-3">{title}</h2>
+      <div className="text-white/60 leading-relaxed">{children}</div>
     </section>
   );
 }

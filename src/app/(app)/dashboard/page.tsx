@@ -464,8 +464,16 @@ export default function DashboardPage() {
           </Link>
           <Link
             href="/filing-guide"
-            className="flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white/30 cursor-not-allowed"
-            style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
+            className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+              hasCalculation
+                ? 'text-white/70 hover:text-white'
+                : 'text-white/25 pointer-events-none'
+            }`}
+            style={{
+              background: hasCalculation ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)',
+              border: hasCalculation ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.05)',
+            }}
+            aria-disabled={!hasCalculation}
           >
             <BookOpen className="h-4 w-4" />
             Filing guide

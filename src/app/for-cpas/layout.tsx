@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'For CPAs | TaxAgent.ai',
     description: 'Automate Canadian tax data entry. Client portal, OCR, and TaxCycle export for accounting firms.',
-    url: 'https://taxagent-pink.vercel.app/for-cpas',
+    url: 'https://taxagent.ai/for-cpas',
   },
 };
 

@@ -10,8 +10,6 @@
 
 import { useState } from 'react';
 import { TrendingDown } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import type { TaxCalculationResult, DeductionsCreditsInput } from '@/lib/tax-engine/types';
 
 interface Props {
@@ -67,124 +65,122 @@ export function WhatIfEngine({ result, deductions }: Props) {
   const isActive = rrspDelta > 0 || donationDelta > 0;
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base text-[#1A2744] flex items-center gap-2">
-          <TrendingDown className="h-4 w-4 text-emerald-600" />
+    <div className="rounded-2xl p-5 space-y-5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <div>
+        <h3 className="text-base font-semibold text-white flex items-center gap-2">
+          <TrendingDown className="h-4 w-4 text-[#10B981]" />
           What-If Engine
-        </CardTitle>
-        <p className="text-xs text-slate-500">
+        </h3>
+        <p className="text-xs text-white/45 mt-1">
           Adjust contributions to see real-time tax savings. Uses your actual marginal rate.
         </p>
-      </CardHeader>
+      </div>
 
-      <CardContent className="space-y-5 pt-2">
-        {/* ── RRSP slider ────────────────────────────────────────────── */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-baseline">
-            <label className="text-sm font-medium text-slate-700">
-              Additional RRSP Contribution
-            </label>
-            <span className="text-sm font-semibold text-slate-900 tabular-nums">
-              {formatCad(rrspDelta)}
-            </span>
-          </div>
-
-          <input
-            type="range"
-            min={0}
-            max={Math.max(1, maxAdditionalRrsp)}
-            step={100}
-            value={rrspDelta}
-            disabled={maxAdditionalRrsp === 0}
-            onChange={(e) => setRrspDelta(Number(e.target.value))}
-            className="w-full h-2 accent-[#1A2744] disabled:opacity-40"
-          />
-
-          <div className="flex justify-between text-xs text-slate-400">
-            <span>$0</span>
-            <span>
-              {maxAdditionalRrsp > 0
-                ? `${formatCad(maxAdditionalRrsp)} available room`
-                : 'RRSP room fully used'}
-            </span>
-          </div>
-
-          {rrspDelta > 0 && (
-            <p className="text-sm text-emerald-700 font-medium">
-              → Saves{' '}
-              <span className="font-bold">{formatCad(rrspSavings)}</span> in taxes
-              <span className="text-xs text-slate-400 font-normal ml-1">
-                ({(result.combinedMarginalRate * 100).toFixed(1)}% marginal rate)
-              </span>
-            </p>
-          )}
+      {/* ── RRSP slider ────────────────────────────────────────────── */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-baseline">
+          <label className="text-sm font-medium text-white/70">
+            Additional RRSP Contribution
+          </label>
+          <span className="text-sm font-semibold text-white tabular-nums">
+            {formatCad(rrspDelta)}
+          </span>
         </div>
 
-        <Separator />
+        <input
+          type="range"
+          min={0}
+          max={Math.max(1, maxAdditionalRrsp)}
+          step={100}
+          value={rrspDelta}
+          disabled={maxAdditionalRrsp === 0}
+          onChange={(e) => setRrspDelta(Number(e.target.value))}
+          className="w-full h-2 accent-[#10B981] disabled:opacity-40"
+        />
 
-        {/* ── Donations slider ───────────────────────────────────────── */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-baseline">
-            <label className="text-sm font-medium text-slate-700">
-              Additional Charitable Donations
-            </label>
-            <span className="text-sm font-semibold text-slate-900 tabular-nums">
-              {formatCad(donationDelta)}
-            </span>
-          </div>
-
-          <input
-            type="range"
-            min={0}
-            max={5000}
-            step={50}
-            value={donationDelta}
-            onChange={(e) => setDonationDelta(Number(e.target.value))}
-            className="w-full h-2 accent-[#1A2744]"
-          />
-
-          <div className="flex justify-between text-xs text-slate-400">
-            <span>$0</span>
-            <span>$5,000</span>
-          </div>
-
-          {donationDelta > 0 && (
-            <p className="text-sm text-emerald-700 font-medium">
-              → Generates{' '}
-              <span className="font-bold">{formatCad(donationSavings)}</span> in credits
-              <span className="text-xs text-slate-400 font-normal ml-1">
-                (federal + Ontario tiered donation credit)
-              </span>
-            </p>
-          )}
+        <div className="flex justify-between text-xs text-white/35">
+          <span>$0</span>
+          <span>
+            {maxAdditionalRrsp > 0
+              ? `${formatCad(maxAdditionalRrsp)} available room`
+              : 'RRSP room fully used'}
+          </span>
         </div>
 
-        {/* ── Summary ────────────────────────────────────────────────── */}
-        {isActive && (
-          <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 space-y-1.5">
-            <p className="text-sm font-semibold text-emerald-800">
-              Total estimated savings:{' '}
-              <span className="tabular-nums">{formatCad(totalSavings)}</span>
-            </p>
-            <p className="text-sm text-emerald-700">
-              New outcome:{' '}
-              <span
-                className={`font-bold tabular-nums ${
-                  newBalance < 0 ? 'text-emerald-700' : 'text-red-600'
-                }`}
-              >
-                {newBalance < 0
-                  ? `${formatCad(Math.abs(newBalance))} refund`
-                  : `${formatCad(newBalance)} owing`}
-              </span>
-            </p>
-            <p className="text-xs text-slate-400 pt-0.5">
-              RRSP deadline: March 3, 2026 · Donations claimed on 2025 return
-            </p>
-          </div>
+        {rrspDelta > 0 && (
+          <p className="text-sm text-[#10B981] font-medium">
+            → Saves{' '}
+            <span className="font-bold">{formatCad(rrspSavings)}</span> in taxes
+            <span className="text-xs text-white/35 font-normal ml-1">
+              ({(result.combinedMarginalRate * 100).toFixed(1)}% marginal rate)
+            </span>
+          </p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+
+      <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+
+      {/* ── Donations slider ───────────────────────────────────────── */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-baseline">
+          <label className="text-sm font-medium text-white/70">
+            Additional Charitable Donations
+          </label>
+          <span className="text-sm font-semibold text-white tabular-nums">
+            {formatCad(donationDelta)}
+          </span>
+        </div>
+
+        <input
+          type="range"
+          min={0}
+          max={5000}
+          step={50}
+          value={donationDelta}
+          onChange={(e) => setDonationDelta(Number(e.target.value))}
+          className="w-full h-2 accent-[#10B981]"
+        />
+
+        <div className="flex justify-between text-xs text-white/35">
+          <span>$0</span>
+          <span>$5,000</span>
+        </div>
+
+        {donationDelta > 0 && (
+          <p className="text-sm text-[#10B981] font-medium">
+            → Generates{' '}
+            <span className="font-bold">{formatCad(donationSavings)}</span> in credits
+            <span className="text-xs text-white/35 font-normal ml-1">
+              (federal + Ontario tiered donation credit)
+            </span>
+          </p>
+        )}
+      </div>
+
+      {/* ── Summary ────────────────────────────────────────────────── */}
+      {isActive && (
+        <div className="rounded-xl p-4 space-y-1.5" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
+          <p className="text-sm font-semibold text-[#10B981]">
+            Total estimated savings:{' '}
+            <span className="tabular-nums">{formatCad(totalSavings)}</span>
+          </p>
+          <p className="text-sm text-white/70">
+            New outcome:{' '}
+            <span
+              className={`font-bold tabular-nums ${
+                newBalance < 0 ? 'text-[#10B981]' : 'text-red-400'
+              }`}
+            >
+              {newBalance < 0
+                ? `${formatCad(Math.abs(newBalance))} refund`
+                : `${formatCad(newBalance)} owing`}
+            </span>
+          </p>
+          <p className="text-xs text-white/35 pt-0.5">
+            RRSP deadline: March 3, 2026 · Donations claimed on 2025 return
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
