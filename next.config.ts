@@ -89,8 +89,10 @@ export default withSentryConfig(nextConfig, {
   authToken: process.env.SENTRY_AUTH_TOKEN,
   // Don't expose source maps in the browser bundle
   sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
-  // Suppress the Sentry SDK logger in production
-  disableLogger: true,
-  // Don't auto-create Vercel Cron monitors
-  automaticVercelMonitors: false,
+  webpack: {
+    // Suppress SDK logger calls in production bundles (replaces deprecated disableLogger)
+    treeshake: { removeDebugLogging: true },
+    // Don't auto-create Vercel Cron monitors (replaces deprecated automaticVercelMonitors)
+    automaticVercelMonitors: false,
+  },
 });
