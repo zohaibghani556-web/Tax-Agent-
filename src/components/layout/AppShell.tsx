@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   LogOut,
   MessageSquare,
+  RotateCcw,
   Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { href: '/onboarding', icon: MessageSquare, label: 'Assessment' },
   { href: '/slips', icon: FileText, label: 'My Slips' },
   { href: '/calculator', icon: Calculator, label: 'Calculator' },
+  { href: '/recovery', icon: RotateCcw, label: 'Recovery' },
   { href: '/filing-guide', icon: BookOpen, label: 'Filing Guide' },
   { href: '/history', icon: Clock, label: 'History' },
   { href: '/settings', icon: Settings, label: 'Settings' },
