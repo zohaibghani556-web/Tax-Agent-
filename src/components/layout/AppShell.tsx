@@ -14,6 +14,7 @@ import {
   MessageSquare,
   RotateCcw,
   Settings,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { href: '/slips', icon: FileText, label: 'My Slips' },
   { href: '/calculator', icon: Calculator, label: 'Calculator' },
   { href: '/recovery', icon: RotateCcw, label: 'Recovery' },
+  { href: '/family', icon: Users, label: 'Family' },
   { href: '/filing-guide', icon: BookOpen, label: 'Filing Guide' },
   { href: '/history', icon: Clock, label: 'History' },
   { href: '/settings', icon: Settings, label: 'Settings' },
