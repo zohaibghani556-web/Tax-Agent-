@@ -8,6 +8,7 @@ import {
   BookOpen,
   Calculator,
   Clock,
+  ExternalLink,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -124,8 +125,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* Sign out */}
-        <div className="px-2 pb-4 border-t border-white/10 pt-3">
+        {/* Bottom links: back to site + sign out */}
+        <div className="px-2 pb-4 border-t border-white/10 pt-3 space-y-0.5">
+          <Link
+            href="/"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-white/10 hover:text-white transition-all group"
+          >
+            <ExternalLink className="h-4 w-4 text-slate-400 group-hover:text-white" />
+            Back to site
+          </Link>
           <button
             onClick={handleSignOut}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-white/10 hover:text-white transition-all w-full text-left group"
@@ -143,8 +151,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/dashboard" className="text-lg font-semibold text-white">
             TaxAgent<span className="text-[var(--emerald)]">.ai</span>
           </Link>
-          <div className="h-8 w-8 rounded-full bg-[var(--emerald)]/20 flex items-center justify-center text-[var(--emerald)] text-xs font-bold">
-            {displayInitials}
+          <div className="flex items-center gap-3">
+            <Link href="/" className="text-xs text-slate-400 hover:text-white transition-colors flex items-center gap-1">
+              <ExternalLink className="h-3.5 w-3.5" />
+              Site
+            </Link>
+            <div className="h-8 w-8 rounded-full bg-[var(--emerald)]/20 flex items-center justify-center text-[var(--emerald)] text-xs font-bold">
+              {displayInitials}
+            </div>
           </div>
         </header>
 
