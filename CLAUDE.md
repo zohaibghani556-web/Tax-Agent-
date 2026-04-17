@@ -15,7 +15,7 @@ AI-powered Ontario tax filing assistant. Conversational AI (Claude API) for asse
 - Next.js 14+ App Router, TypeScript strict mode
 - Supabase: PostgreSQL, Auth (MFA), Storage, Vault, RLS on ALL tables
 - Vercel deployment
-- Claude API (claude-sonnet-4-20250514) for chat + OCR
+- Claude API (claude-sonnet-4-6) for chat + OCR
 - Tailwind CSS + shadcn/ui
 - Canadian data residency (Supabase ca-central-1)
 

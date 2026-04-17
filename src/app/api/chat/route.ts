@@ -330,7 +330,7 @@ export async function POST(req: NextRequest) {
     // Attempt generation with post-validation, max 2 retries
     for (let attempt = 0; attempt < 3; attempt++) {
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 4096,
         // temperature: 0 — tax assessment requires consistent, deterministic responses.
         // Never use the default (1.0) for structured data extraction or tax guidance.

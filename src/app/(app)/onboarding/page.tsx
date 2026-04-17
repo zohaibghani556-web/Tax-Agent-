@@ -2,7 +2,7 @@
 
 /**
  * AI Assessment — streaming CPA-style chat that interviews the user about
- * their 2025 tax situation. Uses /api/chat (Claude claude-sonnet-4-20250514).
+ * their 2025 tax situation. Uses /api/chat (Claude claude-sonnet-4-6).
  *
  * Flow:
  *  1. AI greets the user and conducts a 9-phase assessment interview.

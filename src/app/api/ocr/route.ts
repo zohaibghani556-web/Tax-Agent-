@@ -237,7 +237,7 @@ export async function POST(req: NextRequest) {
 
     const response = await anthropic.messages.create(
       {
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 2048,
         // temperature: 0 — OCR is pure extraction. Randomness produces wrong box values.
         temperature: 0,
