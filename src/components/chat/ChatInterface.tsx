@@ -9,9 +9,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Progress } from '@/components/ui/progress';
+import { ArrowUp, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   extractProfileUpdate,
@@ -35,6 +33,7 @@ interface Message {
 interface ChatInterfaceProps {
   initialProfile?: Partial<TaxProfile>;
   onProfileUpdate?: (profile: Partial<TaxProfile>) => void;
+  quickReplies?: string[];
   className?: string;
 }
 
@@ -60,27 +59,23 @@ function MessageBubble({ message }: { message: Message }) {
   const displayText = isUser ? message.content : stripProfileBlock(message.content);
 
   return (
-    <div
-      className={cn(
-        'flex w-full',
-        isUser ? 'justify-end' : 'justify-start'
-      )}
-    >
-      {!isUser && (
-        <div className="mr-2 mt-1 flex-shrink-0">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-            T
-          </div>
-        </div>
-      )}
-
+    <div className={cn('flex w-full', isUser ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed',
+          'max-w-[80%] rounded-2xl px-4 py-3 text-[14px] leading-relaxed',
           isUser
-            ? 'rounded-br-sm bg-primary text-primary-foreground'
-            : 'rounded-bl-sm bg-muted text-foreground'
+            ? 'rounded-br-sm text-white'
+            : 'rounded-bl-sm border'
         )}
+        style={
+          isUser
+            ? { background: '#10B981' }
+            : {
+                background: 'rgba(255,255,255,0.05)',
+                borderColor: 'rgba(255,255,255,0.10)',
+                color: 'rgba(255,255,255,0.85)',
+              }
+        }
       >
         {displayText}
         {message.streaming && (
@@ -95,9 +90,12 @@ function MessageBubble({ message }: { message: Message }) {
 // MAIN COMPONENT
 // ============================================================
 
+const DEFAULT_QUICK_REPLIES = ['Yes', 'No', 'Not sure'];
+
 export function ChatInterface({
   initialProfile,
   onProfileUpdate,
+  quickReplies = DEFAULT_QUICK_REPLIES,
   className,
 }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -111,14 +109,19 @@ export function ChatInterface({
 
   const progress = calculateAssessmentProgress(profile);
 
+  // Derive a friendly step label from progress percentage (14-question flow)
+  const TOTAL_STEPS = 14;
+  const stepNum = Math.max(1, Math.min(TOTAL_STEPS, Math.round((progress.percent / 100) * TOTAL_STEPS) + 1));
+  const minsLeft = Math.max(1, Math.round(((100 - progress.percent) / 100) * 7));
+
   // Auto-scroll to latest message
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   // Send a message and stream the response
-  const sendMessage = useCallback(async () => {
-    const text = input.trim();
+  const sendMessage = useCallback(async (override?: string) => {
+    const text = (override ?? input).trim();
     if (!text || isLoading) return;
 
     setInput('');
@@ -233,96 +236,149 @@ export function ChatInterface({
     [sendMessage]
   );
 
+  const showQuickReplies = quickReplies.length > 0 && !isLoading && messages.length > 0;
+
   return (
     <div className={cn('flex h-full flex-col', className)}>
-      {/* Header */}
-      <div className="flex-shrink-0 border-b bg-background px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-base font-semibold">Tax Assessment</h1>
-            <p className="text-xs text-muted-foreground">2025 tax year · Ontario</p>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>{progress.percent}%</span>
+
+      {/* ── Top bar ─────────────────────────────────────────────── */}
+      <div
+        className="h-16 flex-shrink-0 flex items-center gap-3 px-5 border-b"
+        style={{
+          background: 'rgba(10,16,32,0.80)',
+          backdropFilter: 'blur(16px)',
+          borderColor: 'rgba(255,255,255,0.05)',
+        }}
+      >
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{
+            background: 'rgba(16,185,129,0.15)',
+            border: '1px solid rgba(16,185,129,0.25)',
+            color: '#10B981',
+          }}
+        >
+          <MessageSquare className="w-4 h-4" />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="text-white font-semibold text-[14px]">AI assessment</div>
+          <div className="text-[11px]" style={{ color: 'rgba(255,255,255,0.40)' }}>
+            Step {stepNum} of {TOTAL_STEPS} · about {minsLeft} min left
           </div>
         </div>
-        <Progress value={progress.percent} className="mt-2 h-1.5" />
+
+        <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#10B981' }}>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          Live
+        </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        {messages.length === 0 && (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-center text-sm text-muted-foreground">
-              Starting your tax assessment…
-            </p>
-          </div>
-        )}
+      {/* ── Message thread ──────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 md:px-6 md:py-8">
+        <div className="max-w-2xl mx-auto space-y-4">
+          {messages.length === 0 && (
+            <div className="flex h-full items-center justify-center pt-24">
+              <p className="text-center text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                Starting your tax assessment…
+              </p>
+            </div>
+          )}
 
-        <div className="space-y-4">
           {messages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />
           ))}
+
+          {error && (
+            <div
+              className="rounded-2xl px-4 py-3 text-sm"
+              style={{
+                background: 'rgba(239,68,68,0.10)',
+                border: '1px solid rgba(239,68,68,0.25)',
+                color: 'rgba(239,68,68,0.90)',
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <div ref={bottomRef} />
         </div>
-
-        {error && (
-          <div className="mt-4 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {error}
-          </div>
-        )}
-
-        <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div className="flex-shrink-0 border-t bg-background px-4 py-3">
-        <div className="flex items-end gap-2">
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Type your answer…"
-            rows={1}
-            className="max-h-32 min-h-[40px] flex-1 resize-none py-2.5 text-sm"
-            disabled={isLoading}
-          />
-          <Button
-            onClick={() => void sendMessage()}
-            disabled={!input.trim() || isLoading}
-            size="icon"
-            className="mb-0.5 flex-shrink-0"
-            aria-label="Send message"
+      {/* ── Composer area ───────────────────────────────────────── */}
+      <div
+        className="flex-shrink-0 border-t px-4 py-4 md:px-6"
+        style={{
+          background: 'rgba(10,16,32,0.80)',
+          backdropFilter: 'blur(16px)',
+          borderColor: 'rgba(255,255,255,0.05)',
+        }}
+      >
+        <div className="max-w-2xl mx-auto">
+
+          {/* Quick-reply chips */}
+          {showQuickReplies && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {quickReplies.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => void sendMessage(q)}
+                  className="text-[12px] rounded-full px-3.5 py-1.5 transition-colors"
+                  style={{
+                    color: 'rgba(255,255,255,0.70)',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.10)',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; e.currentTarget.style.color = 'rgba(255,255,255,1)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.70)'; }}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Glass composer */}
+          <div
+            className="flex items-end gap-2 rounded-2xl p-2"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.10)',
+            }}
           >
-            <SendIcon />
-          </Button>
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type your answer…"
+              rows={1}
+              disabled={isLoading}
+              className="flex-1 bg-transparent outline-none resize-none max-h-32 text-[14px] px-3 py-2"
+              style={{
+                color: 'white',
+                minHeight: '40px',
+              }}
+            />
+            <button
+              onClick={() => void sendMessage()}
+              disabled={!input.trim() || isLoading}
+              aria-label="Send message"
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors disabled:opacity-40"
+              style={{ background: '#10B981' }}
+              onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = '#059669'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#10B981'; }}
+            >
+              <ArrowUp className="w-4 h-4 text-white" />
+            </button>
+          </div>
+
+          <p className="mt-2 text-center text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
+            Enter to send · Shift+Enter for new line
+          </p>
         </div>
-        <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-          Enter to send · Shift+Enter for new line
-        </p>
       </div>
     </div>
-  );
-}
-
-// ============================================================
-// ICONS
-// ============================================================
-
-function SendIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="size-4"
-    >
-      <path d="M22 2 11 13" />
-      <path d="M22 2 15 22 11 13 2 9l20-7z" />
-    </svg>
   );
 }
