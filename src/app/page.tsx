@@ -1,10 +1,9 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   motion,
-  useInView,
   useReducedMotion,
   useMotionValue,
   useSpring,
@@ -14,17 +13,16 @@ import {
   Bot,
   ScanLine,
   FileCheck2,
-  CheckCircle2,
   Check,
   Shield,
-  Lock,
-  Trash2,
-  Flag,
-  Loader2,
+  MessageSquare,
+  Upload,
+  Calculator,
+  Users,
+  RotateCcw,
 } from 'lucide-react';
 import { AnimatedHeroBackground } from '@/components/ui/animated-hero-background';
 import { MagneticButton } from '@/components/ui/magnetic-button';
-import { CountUp } from '@/components/animations/CountUp';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    SHARED ANIMATION CONFIG
@@ -44,16 +42,6 @@ const fadeUp = {
 const stagger = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.1 } },
-};
-
-const itemStagger = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.06 } },
-};
-
-const listItem = {
-  hidden: { opacity: 0, x: -12 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.35, ease: easeOut } },
 };
 
 const scaleIn = {
@@ -107,7 +95,113 @@ function AnimatedHeadline() {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   FEATURE CARD WITH HOVER GLOW
+   LIVE ESTIMATOR CARD — hero right column, slider-based instant preview
+───────────────────────────────────────────────────────────────────────────── */
+
+function LiveEstimatorCard() {
+  const [income, setIncome] = useState(62000);
+  const [rrsp, setRrsp] = useState(2400);
+  // Quick Ontario estimate for display only — not used for CRA filing
+  // Approximates combined federal + Ontario net tax minus basic personal amounts
+  const tax = Math.max(0, income * 0.205 - rrsp * 0.205 - 2355);
+  const withheld = income * 0.22;
+  const refund = Math.max(0, Math.round(withheld - tax));
+
+  return (
+    <div className="relative">
+      {/* Radial emerald glow behind card */}
+      <div
+        className="absolute -inset-8 rounded-[32px] pointer-events-none"
+        aria-hidden
+        style={{
+          background: 'radial-gradient(ellipse at center, var(--emerald-glow) 0%, transparent 70%)',
+        }}
+      />
+      <motion.div
+        animate={{ y: [0, -10, 0] }}
+        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+        className="relative rounded-2xl p-6 backdrop-blur-xl"
+        style={{
+          background: 'var(--surface-overlay)',
+          border: '1px solid var(--border)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        }}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <span className="text-[11px] font-semibold tracking-[0.15em] uppercase text-emerald-400">
+            Instant estimator
+          </span>
+          <span className="text-[11px] text-white/40 font-mono">2025 · ON</span>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <div className="flex justify-between text-xs mb-2">
+              <span className="text-white/60">Employment income</span>
+              <span className="text-white font-mono tabular-nums">
+                ${income.toLocaleString('en-CA')}
+              </span>
+            </div>
+            <input
+              type="range"
+              min="20000"
+              max="150000"
+              step="1000"
+              value={income}
+              onChange={(e) => setIncome(Number(e.target.value))}
+              className="w-full accent-emerald-500"
+              aria-label="Employment income"
+            />
+          </div>
+          <div>
+            <div className="flex justify-between text-xs mb-2">
+              <span className="text-white/60">RRSP contributions</span>
+              <span className="text-white font-mono tabular-nums">
+                ${rrsp.toLocaleString('en-CA')}
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="20000"
+              step="100"
+              value={rrsp}
+              onChange={(e) => setRrsp(Number(e.target.value))}
+              className="w-full accent-emerald-500"
+              aria-label="RRSP contributions"
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 pt-5 border-t border-white/5">
+          <div className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/40 mb-1">
+            Estimated refund
+          </div>
+          <div
+            className="text-5xl font-bold text-emerald-400 tabular-nums"
+            style={{ letterSpacing: '-0.02em' }}
+          >
+            ${refund.toLocaleString('en-CA')}
+          </div>
+          <p className="text-xs text-white/40 mt-2">
+            Based on federal + Ontario 2025 rates. CRA-accurate when you file.
+          </p>
+        </div>
+
+        <Link
+          href="/onboarding"
+          className="block w-full mt-5 text-center font-semibold py-3.5 rounded-full text-white bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] transition-colors"
+          style={{ boxShadow: '0 10px 30px var(--emerald-glow)' }}
+        >
+          Start my free assessment →
+        </Link>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   FEATURE CARD WITH HOVER GLOW + GROUP-HOVER ICON ROTATION
 ───────────────────────────────────────────────────────────────────────────── */
 
 interface FeatureCardProps {
@@ -127,23 +221,24 @@ function FeatureCard({ icon, title, body, delay = 0 }: FeatureCardProps) {
         boxShadow: '0 24px 48px rgba(0,0,0,0.4), 0 0 0 1px rgba(16,185,129,0.3)',
       }}
       transition={{ duration: 0.25 }}
-      className="group h-full rounded-2xl p-8 cursor-default"
+      className="group h-full rounded-2xl p-7 cursor-default"
       style={{
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.08)',
+        background: 'var(--surface-overlay)',
+        border: '1px solid var(--border)',
         backdropFilter: 'blur(12px)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
       }}
     >
-      <motion.div
-        whileHover={{ rotate: 8, scale: 1.08 }}
-        transition={{ duration: 0.2 }}
-        className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/20"
-      >
+      <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/20 transition-transform duration-200 group-hover:scale-[1.08] group-hover:rotate-[8deg]">
         {icon}
-      </motion.div>
-      <h3 className="text-lg font-semibold text-white mt-5">{title}</h3>
-      <p className="mt-2 text-sm text-white/60 leading-relaxed">{body}</p>
+      </div>
+      <h3
+        className="text-[19px] font-bold text-white"
+        style={{ letterSpacing: '-0.01em' }}
+      >
+        {title}
+      </h3>
+      <p className="mt-2 text-sm text-white/55 leading-relaxed">{body}</p>
     </motion.div>
   );
 }
@@ -200,7 +295,7 @@ function PricingCard({
   const ctaBg = {
     primary: 'bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] text-white shadow-lg shadow-emerald-500/25',
     secondary: 'bg-white/8 hover:bg-white/12 text-white border border-white/10',
-    outline: 'bg-[#1A2744] hover:bg-[#243358] text-white',
+    outline: 'bg-[var(--navy-light)] hover:bg-[var(--surface-elevated)] text-white',
   }[ctaVariant];
 
   return (
@@ -224,7 +319,7 @@ function PricingCard({
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--emerald)] px-3 py-1 text-xs font-semibold text-white">
             <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-            Most Popular
+            Most popular
           </span>
         </div>
       )}
@@ -232,39 +327,47 @@ function PricingCard({
       <div
         className="flex flex-col flex-1 rounded-2xl p-8"
         style={{
-          background: isPopular ? 'rgba(16,185,129,0.06)' : 'rgba(255,255,255,0.03)',
-          border: isPopular ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)',
+          background: isPopular
+            ? 'linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02))'
+            : 'var(--surface-overlay)',
+          border: isPopular
+            ? '1px solid rgba(16,185,129,0.40)'
+            : '1px solid var(--border)',
           boxShadow: isPopular
             ? '0 0 60px rgba(16,185,129,0.12), 0 20px 40px rgba(0,0,0,0.3)'
             : '0 8px 32px rgba(0,0,0,0.2)',
         }}
       >
-        {/* Floating glow for popular card */}
+        {/* Pulse glow for popular card */}
         {isPopular && (
           <motion.div
             className="absolute inset-0 rounded-2xl pointer-events-none"
             animate={{ opacity: [0.5, 1, 0.5] }}
             transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-            style={{
-              boxShadow: '0 0 60px rgba(16,185,129,0.15)',
-              borderRadius: 16,
-            }}
+            style={{ boxShadow: '0 0 60px rgba(16,185,129,0.15)', borderRadius: 16 }}
           />
         )}
 
-        <p className="text-sm font-semibold uppercase tracking-[0.15em] mb-3"
-          style={{ color: isPopular ? 'var(--emerald)' : 'rgba(255,255,255,0.5)' }}>
+        <p
+          className="text-sm font-semibold uppercase tracking-[0.15em] mb-3"
+          style={{ color: isPopular ? 'var(--emerald)' : 'rgba(255,255,255,0.5)' }}
+        >
           {planName}
         </p>
         <div className="flex items-end gap-1 mb-1">
-          <span className="text-4xl font-bold text-white">{price}</span>
+          <span className="text-4xl font-bold text-white tabular-nums">{price}</span>
           {period && <span className="text-base text-white/40 mb-1">{period}</span>}
         </div>
         <p className="text-sm text-white/50 mb-7">{description}</p>
 
-        <div className="h-px mb-6" style={{
-          background: isPopular ? 'linear-gradient(90deg, rgba(16,185,129,0.5), transparent)' : 'rgba(255,255,255,0.07)'
-        }} />
+        <div
+          className="h-px mb-6"
+          style={{
+            background: isPopular
+              ? 'linear-gradient(90deg, rgba(16,185,129,0.5), transparent)'
+              : 'rgba(255,255,255,0.07)',
+          }}
+        />
 
         <ul className="space-y-2.5 flex-1 mb-8">
           {features.map((f) => (
@@ -289,382 +392,245 @@ function PricingCard({
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   ANIMATED PROGRESS BAR
-───────────────────────────────────────────────────────────────────────────── */
-
-function AnimatedProgressBar({ label, pct }: { label: string; pct: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-40px' });
-
-  return (
-    <div ref={ref}>
-      <div className="flex justify-between text-xs text-slate-400 mb-1.5">
-        <span>{label}</span>
-        <span>
-          <CountUp end={pct} suffix="%" />
-        </span>
-      </div>
-      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-        <motion.div
-          className="h-full rounded-full bg-[var(--emerald)]"
-          initial={{ width: 0 }}
-          animate={{ width: isInView ? `${pct}%` : 0 }}
-          transition={{ duration: 1.2, delay: 0.2, ease: easeOut }}
-        />
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   INSTANT ESTIMATOR — pre-auth wow moment (Group 2)
-───────────────────────────────────────────────────────────────────────────── */
-
-interface EstimateResult {
-  estimatedRefund: number;
-  estimatedOwing: number;
-  marginalRate: number;
-  isRefund: boolean;
-}
-
-function InstantEstimator() {
-  const [employment, setEmployment] = useState('');
-  const [withheld, setWithheld] = useState('');
-  const [rrsp, setRrsp] = useState('');
-  const [rent, setRent] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<EstimateResult | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [apiError, setApiError] = useState('');
-
-  function validate(): boolean {
-    const e: Record<string, string> = {};
-    if (!employment) e.employment = 'Required';
-    else if (isNaN(Number(employment.replace(/,/g, '')))) e.employment = 'Must be a number';
-    if (!withheld) e.withheld = 'Required';
-    else if (isNaN(Number(withheld.replace(/,/g, '')))) e.withheld = 'Must be a number';
-    if (rrsp && isNaN(Number(rrsp.replace(/,/g, '')))) e.rrsp = 'Must be a number';
-    if (rent && isNaN(Number(rent.replace(/,/g, '')))) e.rent = 'Must be a number';
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  }
-
-  function parse(v: string): number {
-    return Number(v.replace(/,/g, '')) || 0;
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!validate()) return;
-    setLoading(true);
-    setResult(null);
-    setApiError('');
-    try {
-      const res = await fetch('/api/estimate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employmentIncome: parse(employment),
-          taxWithheld: parse(withheld),
-          rrspContributions: parse(rrsp),
-          rentPaid: parse(rent),
-        }),
-      });
-      const data = await res.json() as EstimateResult & { error?: string };
-      if (!res.ok) { setApiError(data.error ?? 'Could not calculate. Please try again.'); return; }
-      setResult(data);
-    } catch {
-      setApiError('Network error. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function formatCad(n: number): string {
-    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }).format(n);
-  }
-
-  return (
-    <section className="py-20" style={{ background: 'linear-gradient(180deg, #0a1020 0%, #0d1828 50%, #0a1020 100%)' }}>
-      <div className="mx-auto max-w-3xl px-6">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-60px' }}
-          variants={stagger}
-        >
-          <motion.p variants={fadeUp} className="text-center text-xs font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3">
-            Free Estimate
-          </motion.p>
-          <motion.h2 variants={fadeUp} className="text-center text-2xl sm:text-3xl font-bold text-white mb-2">
-            See your estimated refund in 30 seconds
-          </motion.h2>
-          <motion.p variants={fadeUp} className="text-center text-sm text-white/50 mb-10">
-            No account needed
-          </motion.p>
-
-          <motion.div
-            variants={scaleIn}
-            className="rounded-2xl p-6 sm:p-8"
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.09)',
-              backdropFilter: 'blur(12px)',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
-            }}
-          >
-            <form onSubmit={handleSubmit} noValidate>
-              {/* Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                {[
-                  { id: 'employment', label: 'Employment income', placeholder: 'e.g. 65,000', value: employment, set: setEmployment, err: errors.employment },
-                  { id: 'withheld', label: 'Tax withheld (T4 box 22)', placeholder: 'e.g. 12,000', value: withheld, set: setWithheld, err: errors.withheld },
-                  { id: 'rrsp', label: 'RRSP contributions', placeholder: 'optional', value: rrsp, set: setRrsp, err: errors.rrsp },
-                  { id: 'rent', label: 'Rent paid in 2025', placeholder: 'optional', value: rent, set: setRent, err: errors.rent },
-                ].map(({ id, label, placeholder, value, set, err }) => (
-                  <div key={id}>
-                    <label htmlFor={id} className="block text-xs font-semibold text-white/60 mb-1.5">{label}</label>
-                    <div className="flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.07)', border: `1px solid ${err ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.12)'}` }}>
-                      <span className="text-sm text-white/40">$</span>
-                      <input
-                        id={id}
-                        type="text"
-                        inputMode="decimal"
-                        value={value}
-                        onChange={(e) => set(e.target.value)}
-                        placeholder={placeholder}
-                        className="flex-1 bg-transparent text-sm text-white placeholder-white/25 focus:outline-none"
-                      />
-                    </div>
-                    {err && <p className="text-xs text-red-400 mt-1">{err}</p>}
-                  </div>
-                ))}
-              </div>
-
-              {apiError && <p className="text-xs text-red-400 mb-4">{apiError}</p>}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 rounded-full bg-[var(--emerald)] py-3.5 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors disabled:opacity-60 relative overflow-hidden"
-              >
-                {loading ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Calculating…</>
-                ) : (
-                  'Calculate my estimate →'
-                )}
-              </button>
-            </form>
-
-            {/* Result */}
-            {result && (
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, ease: easeOut }}
-                className="mt-6 space-y-4"
-              >
-                <div
-                  className="rounded-xl p-5 text-center"
-                  style={{ background: result.isRefund ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${result.isRefund ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}` }}
-                >
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: result.isRefund ? 'var(--emerald)' : 'var(--warning)' }}>
-                    {result.isRefund ? 'Estimated Refund' : 'Balance Owing'}
-                  </p>
-                  <p className="text-4xl font-black tabular-nums" style={{ color: result.isRefund ? 'var(--emerald)' : 'var(--warning)' }}>
-                    {formatCad(result.isRefund ? result.estimatedRefund : result.estimatedOwing)}
-                  </p>
-                  <p className="text-xs text-white/50 mt-2">
-                    Based on a single Ontario filer at {(result.marginalRate * 100).toFixed(0)}% marginal rate
-                  </p>
-                </div>
-
-                <p className="text-xs text-white/35 text-center leading-relaxed">
-                  Estimate only. Actual amount depends on all income sources, deductions, and credits.
-                  Create your free account for a precise calculation.
-                </p>
-
-                <Link
-                  href="/signup"
-                  className="block text-center rounded-full bg-[var(--emerald)] py-3 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors"
-                >
-                  Get my precise calculation → Create free account
-                </Link>
-              </motion.div>
-            )}
-          </motion.div>
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
    MAIN PAGE
 ───────────────────────────────────────────────────────────────────────────── */
 
 export default function HomePage() {
   return (
-    <div className="flex flex-col min-h-screen" style={{ background: '#0a1020' }}>
+    <div className="flex flex-col min-h-screen" style={{ background: 'var(--background)' }}>
 
       {/* ══ HERO ══════════════════════════════════════════════════════════════ */}
-      <AnimatedHeroBackground minHeight="calc(100vh - 0px)">
-        <div className="mx-auto max-w-4xl px-6 pt-32 pb-24 sm:pt-44 sm:pb-32 text-center">
+      <AnimatedHeroBackground>
+        <div className="relative mx-auto max-w-6xl px-6 pt-32 pb-24 sm:pt-40 sm:pb-28 grid lg:grid-cols-2 gap-12 items-center">
 
-          {/* 2025 badge — pulse glow */}
-          <motion.div
-            initial={{ y: 16 }}
-            animate={{ y: 0 }}
-            transition={{ duration: 0.5, ease: easeOut }}
-            className="mb-8 inline-block"
-          >
-            <span
-              className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 text-sm font-medium text-[var(--emerald)]"
-              style={{ boxShadow: '0 0 20px rgba(16,185,129,0.15)' }}
-            >
-              <span className="relative flex h-2 w-2">
-                <motion.span
-                  className="absolute inline-flex h-full w-full rounded-full bg-[var(--emerald)]"
-                  animate={{ scale: [1, 1.8, 1], opacity: [0.8, 0, 0.8] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--emerald)]" />
-              </span>
-              2025 Tax Season — Now Open
-            </span>
-          </motion.div>
-
-          {/* Word-by-word headline */}
-          <AnimatedHeadline />
-
-          {/* Subheadline */}
-          <motion.p
-            initial={{ y: 16 }}
-            animate={{ y: 0 }}
-            transition={{ duration: 0.5, delay: 0.75, ease: easeOut }}
-            className="mt-6 text-lg sm:text-xl text-white/60 max-w-2xl mx-auto leading-relaxed"
-          >
-            Answer a few questions. Upload your T4. Get your exact refund — free for simple returns.
-          </motion.p>
-
-          {/* CTA buttons with magnetic effect */}
-          <motion.div
-            initial={{ y: 16 }}
-            animate={{ y: 0 }}
-            transition={{ duration: 0.5, delay: 0.9, ease: easeOut }}
-            className="mt-10 flex flex-wrap gap-4 justify-center"
-          >
-            <MagneticButton radius={120} strength={0.35}>
-              <Link
-                href="/onboarding"
-                className="inline-flex items-center justify-center rounded-full bg-[var(--emerald)] px-8 py-4 text-base font-semibold text-white shadow-xl shadow-emerald-500/30 hover:bg-[var(--emerald-dark)] transition-colors"
-              >
-                Start my free assessment →
-              </Link>
-            </MagneticButton>
-            <MagneticButton radius={120} strength={0.3}>
-              <Link
-                href="#how-it-works"
-                className="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/5 px-8 py-4 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/10 transition-colors"
-              >
-                See how it works
-              </Link>
-            </MagneticButton>
-          </motion.div>
-
-          {/* Refund card — floating with shine + CountUp */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, delay: 1.0, ease: easeOut }}
-            className="mt-16 mx-auto max-w-sm"
-          >
+          {/* Left — headline, CTAs, trust bar */}
+          <div>
+            {/* Eyebrow pill */}
             <motion.div
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-              className="group relative rounded-2xl p-6 text-left overflow-hidden cursor-default"
-              style={{
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                backdropFilter: 'blur(20px)',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-              }}
+              initial={{ y: 16, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.5, ease: easeOut }}
+              className="mb-6 inline-block"
             >
-              {/* Shine effect on hover */}
-              <motion.div
-                className="absolute inset-0 pointer-events-none"
-                initial={{ x: '-100%', opacity: 0 }}
-                whileHover={{ x: '200%', opacity: 1 }}
-                transition={{ duration: 0.6 }}
-                style={{
-                  background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.06) 50%, transparent 60%)',
-                }}
-              />
-
-              <p className="text-xs font-semibold text-white/40 uppercase tracking-[0.15em] mb-4">2025 Tax Return</p>
-              <p className="text-sm text-white/60 mb-1">Estimated Refund</p>
-              <p className="text-4xl font-bold text-[var(--emerald)]">
-                $<CountUp end={3247} duration={2} decimals={2} suffix="" immediate />
-              </p>
-              <p className="mt-2 text-xs text-white/40">Based on your T4 + RRSP contribution</p>
-              <div className="mt-4 flex items-center gap-2 text-xs text-[var(--emerald)]">
-                <CheckCircle2 className="h-4 w-4" />
-                CRA-accurate calculation
-              </div>
-            </motion.div>
-          </motion.div>
-
-          {/* Trust bar — staggered slide-in */}
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={stagger}
-            transition={{ delayChildren: 1.2 }}
-            className="mt-10 flex flex-wrap justify-center gap-5 text-sm text-white/40"
-          >
-            {[
-              '🔒 Data stored in Canada',
-              '✓ PIPEDA compliant',
-              '✓ Free for simple returns',
-              '✓ Not affiliated with CRA',
-            ].map((item, i) => (
-              <motion.span
-                key={item}
-                variants={fadeUp}
-                custom={i * 0.08}
+              <span
+                className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-400"
+                style={{ boxShadow: '0 0 20px rgba(16,185,129,0.15)' }}
               >
-                {item}
-              </motion.span>
-            ))}
+                <span className="relative flex h-1.5 w-1.5">
+                  <motion.span
+                    className="absolute inline-flex h-full w-full rounded-full bg-emerald-400"
+                    animate={{ scale: [1, 1.8, 1], opacity: [0.8, 0, 0.8] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                </span>
+                2025 Tax Season · Ontario, Canada
+              </span>
+            </motion.div>
+
+            {/* Word-by-word headline */}
+            <AnimatedHeadline />
+
+            {/* Subcopy */}
+            <motion.p
+              initial={{ y: 16, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.75, ease: easeOut }}
+              className="mt-6 text-[17px] text-white/60 leading-relaxed max-w-xl mb-8"
+            >
+              Answer a few questions. Upload your T4. Get your exact refund — free for simple
+              returns, no accountant required.
+            </motion.p>
+
+            {/* CTA buttons */}
+            <motion.div
+              initial={{ y: 16, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.9, ease: easeOut }}
+              className="flex flex-wrap items-center gap-3 mb-8"
+            >
+              <MagneticButton radius={120} strength={0.35}>
+                <Link
+                  href="/onboarding"
+                  className="inline-flex items-center justify-center rounded-full bg-[var(--emerald)] px-7 py-4 text-base font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors"
+                  style={{ boxShadow: '0 10px 30px var(--emerald-glow)' }}
+                >
+                  Start my free assessment →
+                </Link>
+              </MagneticButton>
+              <MagneticButton radius={120} strength={0.3}>
+                <Link
+                  href="#how-it-works"
+                  className="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/5 px-7 py-4 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/10 transition-colors"
+                >
+                  See how it works
+                </Link>
+              </MagneticButton>
+            </motion.div>
+
+            {/* Trust bar */}
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={stagger}
+              transition={{ delayChildren: 1.2 }}
+              className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px] text-white/50"
+            >
+              {[
+                '🔒 Data stored in Canada',
+                '✓ PIPEDA compliant',
+                '✓ Free for simple returns',
+                '✓ Not affiliated with CRA',
+              ].map((item, i) => (
+                <motion.span key={item} variants={fadeUp} custom={i * 0.08}>
+                  {item}
+                </motion.span>
+              ))}
+            </motion.div>
+          </div>
+
+          {/* Right — live estimator card */}
+          <motion.div
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.65, delay: 0.6, ease: easeOut }}
+            className="relative"
+          >
+            <LiveEstimatorCard />
           </motion.div>
         </div>
       </AnimatedHeroBackground>
 
-      {/* ══ INSTANT ESTIMATOR ════════════════════════════════════════════════ */}
-      <InstantEstimator />
+      {/* ══ HOW IT WORKS ══════════════════════════════════════════════════════ */}
+      <section
+        id="how-it-works"
+        className="relative py-28"
+        style={{ background: 'var(--background)' }}
+      >
+        {/* Subtle 60px grid overlay at 3% opacity */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          aria-hidden
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+            backgroundSize: '60px 60px',
+          }}
+        />
+
+        <div className="relative mx-auto max-w-5xl px-6">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={stagger}
+            className="text-center mb-14"
+          >
+            <motion.p
+              variants={fadeUp}
+              className="text-[11px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-3"
+            >
+              How it works
+            </motion.p>
+            <motion.h2
+              variants={fadeUp}
+              className="text-white font-bold"
+              style={{
+                fontSize: 'clamp(28px, 4vw, 44px)',
+                letterSpacing: '-0.02em',
+                lineHeight: 1.1,
+              }}
+            >
+              From zero to filed in 15 minutes.
+            </motion.h2>
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={stagger}
+            className="grid md:grid-cols-3 gap-6"
+          >
+            {[
+              {
+                n: '01',
+                icon: <MessageSquare className="w-5 h-5" />,
+                title: 'Answer a few questions',
+                body: '5 minutes. A conversation — not a 40-page questionnaire. We figure out which credits apply to you.',
+              },
+              {
+                n: '02',
+                icon: <Upload className="w-5 h-5" />,
+                title: 'Upload your slips',
+                body: 'Snap a photo of your T4. OCR extracts every box. Confirm and move on.',
+              },
+              {
+                n: '03',
+                icon: <FileCheck2 className="w-5 h-5" />,
+                title: 'Review and file',
+                body: "See your refund, line by line. File direct with CRA when you're ready. Free for simple returns.",
+              },
+            ].map(({ n, icon, title, body }) => (
+              <motion.div
+                key={n}
+                variants={scaleIn}
+                className="relative rounded-2xl p-7"
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid var(--border)',
+                  backdropFilter: 'blur(12px)',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                }}
+              >
+                <div className="text-[13px] font-mono text-emerald-400/80 tracking-widest mb-4">
+                  {n}
+                </div>
+                <div className="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-400 mb-4">
+                  {icon}
+                </div>
+                <h3 className="text-white font-bold text-[18px] mb-2">{title}</h3>
+                <p className="text-white/55 text-[14px] leading-relaxed">{body}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
 
       {/* ══ FEATURES ══════════════════════════════════════════════════════════ */}
       <section
         id="features"
         className="py-28"
-        style={{ background: 'linear-gradient(180deg, #0a1020 0%, #0d1828 100%)' }}
+        style={{ background: 'var(--surface)' }}
       >
-        <div className="mx-auto max-w-5xl px-6">
+        <div className="mx-auto max-w-6xl px-6">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: '-80px' }}
             variants={stagger}
-            className="text-center mb-16"
+            className="text-center mb-14 max-w-2xl mx-auto"
           >
-            <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3">
+            <motion.p
+              variants={fadeUp}
+              className="text-[11px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-3"
+            >
               Features
             </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-bold text-white">
-              Everything you need to file with confidence
+            <motion.h2
+              variants={fadeUp}
+              className="text-white font-bold mb-4"
+              style={{
+                fontSize: 'clamp(28px, 4vw, 44px)',
+                letterSpacing: '-0.02em',
+                lineHeight: 1.1,
+              }}
+            >
+              Tax filing that feels like a conversation.
             </motion.h2>
-            <motion.p variants={fadeUp} className="mt-4 text-white/50 max-w-xl mx-auto">
-              No accountant required. No tax jargon. Just clear guidance.
+            <motion.p variants={fadeUp} className="text-[16px] text-white/55 leading-relaxed">
+              Built for Ontarians who&apos;ve never filed, just arrived, or are tired of paying
+              $120 to retype their T4.
             </motion.p>
           </motion.div>
 
@@ -673,26 +639,44 @@ export default function HomePage() {
             whileInView="visible"
             viewport={{ once: true, margin: '-80px' }}
             variants={stagger}
-            className="grid gap-5 sm:grid-cols-3"
+            className="grid gap-5 md:grid-cols-2 lg:grid-cols-3"
           >
             {[
               {
-                icon: <Bot className="h-6 w-6 text-[var(--emerald)]" />,
-                title: 'AI Assessment',
-                body: 'Chat naturally about your income. The AI figures out your situation — employment, investments, RRSP, everything.',
+                icon: <ScanLine className="h-6 w-6 text-[var(--emerald)]" />,
+                title: 'OCR slip reading',
+                body: 'Photograph your T4, T5, or any CRA slip. Every box extracted automatically. You just confirm.',
                 delay: 0,
               },
               {
-                icon: <ScanLine className="h-6 w-6 text-[var(--emerald)]" />,
-                title: 'OCR Slip Reading',
-                body: 'Photograph your T4, T5, or any CRA slip. Every box extracted automatically. You just confirm.',
-                delay: 0.1,
+                icon: <Bot className="h-6 w-6 text-[var(--emerald)]" />,
+                title: 'AI assessment',
+                body: 'A short chat figures out your credits — newcomer, tuition, medical, moving. No forms to decode.',
+                delay: 0.06,
               },
               {
-                icon: <FileCheck2 className="h-6 w-6 text-[var(--emerald)]" />,
-                title: 'Personalized Filing Guide',
-                body: 'A step-by-step guide with your exact line numbers, amounts, and deadlines. Know exactly what to enter.',
-                delay: 0.2,
+                icon: <Calculator className="h-6 w-6 text-[var(--emerald)]" />,
+                title: 'CRA-accurate math',
+                body: 'Every dollar runs through a deterministic tax engine. Federal + Ontario, 2025 rates, audit-ready.',
+                delay: 0.12,
+              },
+              {
+                icon: <Users className="h-6 w-6 text-[var(--emerald)]" />,
+                title: 'Joint optimizer',
+                body: 'Split RRSP, pension, medical, and tuition transfers between partners to minimize household tax.',
+                delay: 0.18,
+              },
+              {
+                icon: <RotateCcw className="h-6 w-6 text-[var(--emerald)]" />,
+                title: 'Retroactive recovery',
+                body: 'Scan the last 10 years of returns for missed credits. Many Ontarians recover $1,500+.',
+                delay: 0.24,
+              },
+              {
+                icon: <Shield className="h-6 w-6 text-[var(--emerald)]" />,
+                title: 'Canadian-grade privacy',
+                body: 'Data stored in Canada. PIPEDA compliant. SIN encrypted at rest. Never shared, ever.',
+                delay: 0.3,
               },
             ].map((card) => (
               <FeatureCard key={card.title} {...card} />
@@ -701,172 +685,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══ HOW IT WORKS ══════════════════════════════════════════════════════ */}
-      <section
-        id="how-it-works"
-        className="py-28 relative"
-        style={{
-          background: '#0d1828',
-          backgroundImage: `
-            linear-gradient(rgba(16, 185, 129, 0.025) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(16, 185, 129, 0.025) 1px, transparent 1px)
-          `,
-          backgroundSize: '60px 60px',
-        }}
-      >
-        <div className="mx-auto max-w-5xl px-6">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            variants={stagger}
-            className="text-center mb-16"
-          >
-            <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3">
-              How It Works
-            </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-bold text-white">
-              From zero to filed in under 30 minutes
-            </motion.h2>
-          </motion.div>
-
-          <div className="grid gap-8 sm:grid-cols-3 relative">
-            {/* Animated connector line */}
-            <motion.div
-              initial={{ scaleX: 0 }}
-              whileInView={{ scaleX: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.9, ease: easeOut, delay: 0.4 }}
-              aria-hidden
-              className="hidden sm:block absolute top-5 left-[16.67%] right-[16.67%] h-px origin-left"
-              style={{
-                background: 'linear-gradient(90deg, rgba(16,185,129,0.2) 0%, rgba(16,185,129,0.6) 50%, rgba(16,185,129,0.2) 100%)',
-              }}
-            />
-
-            {[
-              {
-                n: '1',
-                title: 'Tell us about yourself',
-                body: 'A quick AI conversation covers your income, life changes, and deductions.',
-              },
-              {
-                n: '2',
-                title: 'Upload your slips',
-                body: 'Photograph your T4 and any other documents. OCR reads every number.',
-              },
-              {
-                n: '3',
-                title: 'Get your personalized guide',
-                body: 'Your exact refund calculated. A line-by-line filing guide ready to use.',
-              },
-            ].map(({ n, title, body }, i) => (
-              <motion.div
-                key={n}
-                initial={{ opacity: 0, scale: 0.7, y: 20 }}
-                whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                viewport={{ once: true, margin: '-60px' }}
-                transition={{
-                  type: 'spring',
-                  stiffness: 280,
-                  damping: 22,
-                  delay: 0.2 + i * 0.15,
-                }}
-                className="text-center relative z-10"
-              >
-                <motion.div
-                  whileHover={{ scale: 1.1 }}
-                  transition={{ type: 'spring', stiffness: 400 }}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full font-bold text-sm text-white"
-                  style={{
-                    background: 'linear-gradient(135deg, var(--emerald), var(--emerald-dark))',
-                    boxShadow: '0 0 20px rgba(16,185,129,0.4)',
-                  }}
-                >
-                  {n}
-                </motion.div>
-                <h3 className="mt-5 font-semibold text-white">{title}</h3>
-                <p className="mt-2 text-sm text-white/50 max-w-xs mx-auto">{body}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ WHAT YOU GET ══════════════════════════════════════════════════════ */}
-      <section
-        className="py-28"
-        style={{ background: 'linear-gradient(180deg, #0d1828 0%, #0a1020 100%)' }}
-      >
-        <div className="mx-auto max-w-5xl px-6">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            variants={stagger}
-            className="text-center mb-14"
-          >
-            <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3">
-              Coverage
-            </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-bold text-white">
-              Built for real Canadian tax situations
-            </motion.h2>
-            <motion.p variants={fadeUp} className="mt-4 text-white/50 max-w-xl mx-auto">
-              Whether you have a single T4 or a complex portfolio, we&apos;ve got you covered.
-            </motion.p>
-          </motion.div>
-
-          <div className="grid sm:grid-cols-2 gap-x-16 gap-y-0 max-w-3xl mx-auto">
-            {[
-              [
-                'Federal + Ontario tax calculated',
-                'RRSP optimization suggestions',
-                'Ontario Trillium Benefit estimate',
-                'Capital gains + dividend income',
-                'Self-employment income support',
-                'New Canadian (newcomer) support',
-              ],
-              [
-                'What-if scenario engine',
-                '7-credit missed credit finder',
-                'CRA line-by-line guide',
-                'PDF export ready',
-                'Secure Canadian data storage',
-                'Free for simple T4 returns',
-              ],
-            ].map((col, colIdx) => (
-              <motion.ul
-                key={colIdx}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, margin: '-60px' }}
-                variants={itemStagger}
-                className="space-y-0"
-              >
-                {col.map((text) => (
-                  <motion.li
-                    key={text}
-                    variants={listItem}
-                    className="flex items-center gap-3 py-3 border-b border-white/5"
-                  >
-                    <span className="flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center bg-emerald-500/15">
-                      <Check className="h-3 w-3 text-[var(--emerald)]" />
-                    </span>
-                    <span className="text-sm text-white/70">{text}</span>
-                  </motion.li>
-                ))}
-              </motion.ul>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ══ PRICING ═══════════════════════════════════════════════════════════ */}
       <section
         id="pricing"
         className="py-28"
-        style={{ background: '#0a1020' }}
+        style={{ background: 'var(--background)' }}
       >
         <div className="mx-auto max-w-5xl px-6">
           <motion.div
@@ -874,14 +697,28 @@ export default function HomePage() {
             whileInView="visible"
             viewport={{ once: true, margin: '-80px' }}
             variants={stagger}
-            className="text-center mb-16"
+            className="text-center mb-14 max-w-2xl mx-auto"
           >
-            <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3">
+            <motion.p
+              variants={fadeUp}
+              className="text-[11px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-3"
+            >
               Pricing
             </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-bold text-white">
-              Simple, transparent pricing
+            <motion.h2
+              variants={fadeUp}
+              className="text-white font-bold mb-4"
+              style={{
+                fontSize: 'clamp(28px, 4vw, 44px)',
+                letterSpacing: '-0.02em',
+                lineHeight: 1.1,
+              }}
+            >
+              Flat pricing. No upsells. No surprises.
             </motion.h2>
+            <motion.p variants={fadeUp} className="text-[16px] text-white/55 leading-relaxed">
+              The simple return is genuinely free. Pro is $49 flat, whatever your situation.
+            </motion.p>
           </motion.div>
 
           <motion.div
@@ -892,234 +729,119 @@ export default function HomePage() {
             className="grid gap-6 sm:grid-cols-3 items-stretch"
           >
             <PricingCard
-              planName="Free"
-              price="$0"
-              period=""
-              description="For simple returns with one T4"
+              planName="Simple"
+              price="Free"
+              period=" · simple returns"
+              description="For T4 + basic credits. Students, first-time filers, newcomers with one job."
               features={[
-                'AI chat assessment',
-                'T4 OCR upload',
-                'Federal + Ontario calc',
-                'Filing guide PDF',
-                'Canadian data storage',
+                'AI assessment',
+                'OCR slip reading',
+                'CRA NETFILE submission',
+                '1 tax year',
+                'Email support',
               ]}
-              ctaLabel="Start free"
+              ctaLabel="Start for free"
               ctaHref="/signup"
               ctaVariant="secondary"
               delay={0}
             />
             <PricingCard
               planName="Pro"
-              price="$29"
-              period="/yr"
-              description="For complex returns with multiple slips"
+              price="$49"
+              period=" / return"
+              description="Everything — self-employment, RRSP, capital gains, medical, rental, crypto. Flat fee, per return."
               features={[
-                'Everything in Free',
-                'All slip types (T5, T5008, T3, T4A)',
-                'RRSP optimization',
-                'What-if scenario engine',
-                'Missed credit finder',
-                'Capital gains + dividends',
-                'Self-employment income',
-                'Priority support',
-                'Unlimited amendments',
-                '5-year return history',
+                'Everything in Simple',
+                'Self-employment / T2125',
+                'Rental, capital gains, crypto',
+                'Joint return optimizer',
+                'Retroactive recovery scan',
+                'Priority chat support',
               ]}
               isPopular
-              ctaLabel="Start free trial →"
+              ctaLabel="Start my return →"
               ctaHref="/signup"
               ctaVariant="primary"
               delay={0.12}
             />
             <PricingCard
-              planName="CPA Portal"
-              price="Custom"
-              period=""
-              description="For accounting firms and tax professionals"
+              planName="Family"
+              price="$149"
+              period=" / year"
+              description="Up to 5 returns. Joint optimizer included. For families who file together."
               features={[
-                'Client portal + document collection',
-                'Bulk filing workflows',
-                'TaxCycle + Cantax export',
-                'White-label available',
-                'API access',
-                'Dedicated account manager',
+                'Up to 5 Pro returns',
+                'Full family optimizer',
+                'Dependant credit transfer',
+                'Household dashboard',
+                'Priority support',
               ]}
-              ctaLabel="Book a demo"
-              ctaHref="/for-cpas"
-              ctaVariant="outline"
+              ctaLabel="Get Family plan"
+              ctaHref="/signup"
+              ctaVariant="secondary"
               delay={0.24}
             />
           </motion.div>
         </div>
       </section>
 
-      {/* ══ FOR CPAs TEASER ═══════════════════════════════════════════════════ */}
-      <section
-        className="py-28"
-        style={{ background: '#0d1828' }}
-      >
-        <div className="mx-auto max-w-5xl px-6">
-          <div className="grid sm:grid-cols-2 gap-12 items-center">
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: '-80px' }}
-              variants={stagger}
-            >
-              <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3">
-                For CPAs
-              </motion.p>
-              <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-bold text-white">
-                Built for the modern CPA practice
-              </motion.h2>
-              <motion.p variants={fadeUp} className="mt-4 text-white/60 leading-relaxed">
-                Save 3+ hours per return. Automate data entry. Let clients prepare everything before they walk in the door.
-              </motion.p>
-              <motion.ul variants={fadeUp} className="mt-6 space-y-3">
-                {[
-                  'Client portal with document collection',
-                  'Structured export for TaxCycle and Cantax',
-                  'White-label available',
-                ].map((item) => (
-                  <li key={item} className="flex items-center gap-3 text-white/70 text-sm">
-                    <span className="flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center bg-emerald-500/15">
-                      <Check className="h-3 w-3 text-[var(--emerald)]" />
-                    </span>
-                    {item}
-                  </li>
-                ))}
-              </motion.ul>
-              <motion.div variants={fadeUp} className="mt-8">
-                <Link
-                  href="/for-cpas"
-                  className="text-[var(--emerald)] font-semibold hover:underline text-sm"
-                >
-                  Learn more about the CPA portal →
-                </Link>
-              </motion.div>
-            </motion.div>
-
-            {/* CPA Dashboard card — slide in from right with depth */}
-            <motion.div
-              initial={{ opacity: 0, x: 40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.7, ease: easeOut }}
-            >
-              <div
-                className="rounded-2xl p-7 relative overflow-hidden"
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  backdropFilter: 'blur(12px)',
-                  boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
-                }}
-              >
-                <p className="text-xs font-semibold text-white/40 uppercase tracking-[0.15em] mb-5">CPA Dashboard</p>
-                <div className="flex items-baseline gap-2 mb-1">
-                  <p className="text-3xl font-bold text-white">
-                    <CountUp end={32} duration={1.5} />
-                  </p>
-                  <span className="text-white/60 text-sm">clients</span>
-                </div>
-                <p className="text-sm text-white/50 mb-8">ready for review</p>
-                <div className="space-y-5">
-                  {[
-                    { label: 'Documents uploaded', pct: 85 },
-                    { label: 'Reviews completed', pct: 62 },
-                    { label: 'Returns filed', pct: 40 },
-                  ].map(({ label, pct }) => (
-                    <AnimatedProgressBar key={label} label={label} pct={pct} />
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ══ TRUST + SECURITY ══════════════════════════════════════════════════ */}
-      <section
-        className="py-28"
-        style={{ background: 'linear-gradient(180deg, #0d1828 0%, #0a1020 100%)' }}
-      >
-        <div className="mx-auto max-w-5xl px-6 text-center">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            variants={stagger}
-          >
-            <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3">
-              Security
-            </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-bold text-white">
-              Your data is protected by design
-            </motion.h2>
-            <motion.p variants={fadeUp} className="mt-4 text-white/50 max-w-2xl mx-auto leading-relaxed">
-              Your personal and financial information is encrypted in transit and at rest, stored exclusively on Canadian servers
-              in compliance with PIPEDA. We never sell, share, or monetize your data. Delete your account anytime — your
-              data is gone within 30 days.
-            </motion.p>
-            <motion.div
-              variants={stagger}
-              className="mt-12 flex flex-wrap justify-center gap-4"
-            >
-              {[
-                { icon: <Flag className="h-4 w-4" />, label: 'Canadian servers' },
-                { icon: <Lock className="h-4 w-4" />, label: '256-bit encryption' },
-                { icon: <Shield className="h-4 w-4" />, label: 'PIPEDA compliant' },
-                { icon: <Trash2 className="h-4 w-4" />, label: 'Delete anytime' },
-              ].map(({ icon, label }, i) => (
-                <motion.div
-                  key={label}
-                  variants={scaleIn}
-                  custom={i * 0.08}
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-center gap-2.5 rounded-full px-5 py-3 text-sm text-white/70"
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    backdropFilter: 'blur(8px)',
-                  }}
-                >
-                  <span className="text-[var(--emerald)]">{icon}</span>
-                  <span>{label}</span>
-                </motion.div>
-              ))}
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
-
       {/* ══ FOOTER ════════════════════════════════════════════════════════════ */}
-      <footer style={{ background: '#060d18' }} className="text-white border-t border-white/5">
-        <div className="mx-auto max-w-5xl px-6 py-16">
-          <div className="grid sm:grid-cols-5 gap-10 mb-12">
+      <footer
+        className="border-t border-white/5 pt-16 pb-10"
+        style={{ background: 'var(--background)' }}
+      >
+        <div className="mx-auto max-w-6xl px-6">
+          {/* 4-column grid */}
+          <div className="grid md:grid-cols-4 gap-10 mb-12">
             {/* Brand */}
-            <div className="sm:col-span-2">
-              <p className="text-xl font-semibold">
-                TaxAgent<span className="text-[var(--emerald)]">.ai</span>
-              </p>
-              <p className="mt-2 text-sm text-white/40">Canada&apos;s AI tax agent</p>
-              <p className="mt-4 text-xs text-white/25 max-w-xs leading-relaxed">
-                Helping Canadians file with confidence since 2025. Not affiliated with the Canada Revenue Agency.
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div
+                  className="w-8 h-8 rounded-xl border border-emerald-500/30 flex items-center justify-center relative"
+                  style={{ background: 'var(--navy)' }}
+                >
+                  <span
+                    className="text-white font-bold text-lg leading-none"
+                    style={{ letterSpacing: '-0.04em' }}
+                  >
+                    T
+                  </span>
+                  <span
+                    className="absolute w-1.5 h-1.5 rounded-full bg-emerald-500"
+                    style={{ top: '18px', right: '7px' }}
+                  />
+                </div>
+                <span
+                  className="font-semibold text-[16px]"
+                  style={{ letterSpacing: '-0.025em' }}
+                >
+                  <span className="text-white">TaxAgent</span>
+                  <span className="text-emerald-500">.ai</span>
+                </span>
+              </div>
+              <p className="text-white/45 text-[13px] leading-relaxed max-w-xs">
+                AI-guided Canadian personal tax filing. Built in Toronto for Ontario residents.
               </p>
             </div>
 
             {/* Product */}
             <div>
-              <p className="text-xs font-semibold text-white/30 uppercase tracking-[0.15em] mb-4">Product</p>
-              <ul className="space-y-2">
+              <div className="text-[11px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-4">
+                Product
+              </div>
+              <ul className="space-y-2.5">
                 {[
+                  { label: 'How it works', href: '/#how-it-works' },
                   { label: 'Features', href: '/#features' },
                   { label: 'Pricing', href: '/pricing' },
-                  { label: 'Calculator', href: '/calculator' },
-                  { label: 'Filing Guide', href: '/filing-guide' },
+                  { label: 'For CPAs', href: '/for-cpas' },
+                  { label: 'Estimate', href: '/estimate' },
                 ].map(({ label, href }) => (
                   <li key={label}>
-                    <Link href={href} className="text-sm text-white/50 hover:text-white transition-colors">
+                    <Link
+                      href={href}
+                      className="text-[13px] text-white/60 hover:text-white transition-colors"
+                    >
                       {label}
                     </Link>
                   </li>
@@ -1127,14 +849,24 @@ export default function HomePage() {
               </ul>
             </div>
 
-            {/* For CPAs */}
+            {/* Support */}
             <div>
-              <p className="text-xs font-semibold text-white/30 uppercase tracking-[0.15em] mb-4">For CPAs</p>
-              <ul className="space-y-2">
-                {['CPA Portal', 'Book a Demo', 'Pricing', 'Integrations'].map((l) => (
-                  <li key={l}>
-                    <Link href="/for-cpas" className="text-sm text-white/50 hover:text-white transition-colors">
-                      {l}
+              <div className="text-[11px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-4">
+                Support
+              </div>
+              <ul className="space-y-2.5">
+                {[
+                  { label: 'Help center', href: '#' },
+                  { label: 'Contact', href: '#' },
+                  { label: 'Status', href: '#' },
+                  { label: 'Security', href: '#' },
+                ].map(({ label, href }) => (
+                  <li key={label}>
+                    <Link
+                      href={href}
+                      className="text-[13px] text-white/60 hover:text-white transition-colors"
+                    >
+                      {label}
                     </Link>
                   </li>
                 ))}
@@ -1143,14 +875,21 @@ export default function HomePage() {
 
             {/* Legal */}
             <div>
-              <p className="text-xs font-semibold text-white/30 uppercase tracking-[0.15em] mb-4">Legal</p>
-              <ul className="space-y-2">
+              <div className="text-[11px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-4">
+                Legal
+              </div>
+              <ul className="space-y-2.5">
                 {[
-                  { label: 'Privacy Policy', href: '/privacy' },
-                  { label: 'Terms of Service', href: '/terms' },
+                  { label: 'Privacy', href: '/privacy' },
+                  { label: 'Terms', href: '/terms' },
+                  { label: 'PIPEDA', href: '#' },
+                  { label: 'CRA registration', href: '#' },
                 ].map(({ label, href }) => (
                   <li key={label}>
-                    <Link href={href} className="text-sm text-white/50 hover:text-white transition-colors">
+                    <Link
+                      href={href}
+                      className="text-[13px] text-white/60 hover:text-white transition-colors"
+                    >
                       {label}
                     </Link>
                   </li>
@@ -1159,8 +898,18 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="border-t border-white/5 pt-8 text-center text-xs text-white/20">
-            © 2025 TaxAgent.ai · Not affiliated with CRA · Built in Canada 🇨🇦
+          {/* Trust strip */}
+          <div className="pt-8 border-t border-white/5 flex flex-wrap items-center justify-between gap-4">
+            <div className="text-[12px] text-white/35">
+              © 2026 TaxAgent.ai · Not affiliated with CRA · Data stored in Canada
+            </div>
+            <div className="flex items-center gap-5 text-[12px] text-white/45">
+              <span className="flex items-center gap-1.5">🔒 PIPEDA compliant</span>
+              <span className="flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5" />
+                SOC 2 in progress
+              </span>
+            </div>
           </div>
         </div>
       </footer>
