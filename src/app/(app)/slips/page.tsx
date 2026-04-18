@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Pencil, Trash2, FileText, Check, ArrowRight, ChevronRight, Cloud } from 'lucide-react';
+import { Pencil, Trash2, FileText, Check, ArrowRight, ChevronRight, Cloud, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -28,6 +28,17 @@ interface SlipRec {
   where: string;
 }
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const SLIP_GRID = [
+  { icon: '💼', type: 'T4',    desc: 'Employment income' },
+  { icon: '🏦', type: 'T5',    desc: 'Investment income' },
+  { icon: '🎓', type: 'T2202', desc: 'Tuition & education' },
+  { icon: '📈', type: 'T5008', desc: 'Securities transactions' },
+  { icon: '🏛',  type: 'T4A',   desc: 'Pension & other income' },
+  { icon: '📊', type: 'T3',    desc: 'Trust income' },
+] as const;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatCad(n: number): string {
@@ -46,19 +57,6 @@ function primaryAmount(slip: SavedSlip): string {
   return '';
 }
 
-function GlassCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div
-      className={`rounded-2xl ${className}`}
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-    >
-      {children}
-    </div>
-  );
-}
-
-// ── Page ─────────────────────────────────────────────────────────────────────
-
 function formatLastSaved(date: Date | null): string {
   if (!date) return '';
   const diffMs = Date.now() - date.getTime();
@@ -67,6 +65,96 @@ function formatLastSaved(date: Date | null): string {
   if (diffMin < 60) return `${diffMin} min ago`;
   return date.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
 }
+
+// ── Slip type card ─────────────────────────────────────────────────────────────
+
+type SlipCardStatus = 'done' | 'review' | 'pending';
+
+const TONE: Record<SlipCardStatus, { bg: string; border: string; text: string; label: string }> = {
+  done:    { bg: 'rgba(16,185,129,0.10)',  border: 'rgba(16,185,129,0.30)',  text: '#10B981', label: 'Extracted' },
+  review:  { bg: 'rgba(245,158,11,0.10)',  border: 'rgba(245,158,11,0.30)',  text: '#F59E0B', label: 'Review needed' },
+  pending: { bg: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.10)', text: 'rgba(255,255,255,0.5)', label: 'Not uploaded' },
+};
+
+function SlipTypeCard({
+  icon,
+  type,
+  desc,
+  slipsForType,
+  onUploadClick,
+}: {
+  icon: string;
+  type: string;
+  desc: string;
+  slipsForType: SavedSlip[];
+  onUploadClick: () => void;
+}) {
+  let status: SlipCardStatus = 'pending';
+  if (slipsForType.length > 0) {
+    // Mark review if the primary box is zero/missing on any entered slip
+    const hasIncomplete = slipsForType.some((s) => {
+      const def = SLIP_PRIMARY_BOX[s.type];
+      if (!def) return false;
+      const v = s.data[def.key];
+      return typeof v !== 'number' || v === 0;
+    });
+    status = hasIncomplete ? 'review' : 'done';
+  }
+
+  const t = TONE[status];
+  const count = slipsForType.length;
+
+  return (
+    <div
+      className="rounded-2xl p-5 transition-all hover:-translate-y-0.5 cursor-pointer"
+      style={{ background: t.bg, border: `1px solid ${t.border}` }}
+      onClick={status === 'pending' ? onUploadClick : undefined}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div
+          className="w-11 h-11 rounded-xl flex items-center justify-center text-[22px]"
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)' }}
+        >
+          {icon}
+        </div>
+        <span
+          className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
+          style={{ color: t.text, background: t.bg, border: `1px solid ${t.border}` }}
+        >
+          {t.label}
+        </span>
+      </div>
+      <div className="text-white font-bold text-[16px] mb-0.5">{type}</div>
+      <div className="text-[12px] mb-4" style={{ color: 'rgba(255,255,255,0.45)' }}>
+        {status === 'pending' ? desc : `${count} slip${count !== 1 ? 's' : ''} entered`}
+      </div>
+      {status === 'pending' ? (
+        <button
+          className="w-full text-white font-semibold text-[13px] py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)' }}
+          onClick={(e) => { e.stopPropagation(); onUploadClick(); }}
+        >
+          <Upload className="w-3.5 h-3.5" />
+          Upload {type}
+        </button>
+      ) : (
+        <button
+          className="w-full font-semibold text-[13px] py-2 rounded-lg transition-colors"
+          style={{
+            background: status === 'done' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+            border: `1px solid ${t.border}`,
+            color: t.text,
+          }}
+          onClick={(e) => { e.stopPropagation(); onUploadClick(); }}
+        >
+          {status === 'done' ? 'View / add another →' : 'Review extracted boxes →'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SlipsPage() {
   const router = useRouter();
@@ -78,6 +166,7 @@ export default function SlipsPage() {
   const [userId, setUserId] = useState('');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const addFormRef = useRef<HTMLDivElement>(null);
 
   // Load user + slips from Supabase (primary) + localStorage (fallback)
   useEffect(() => {
@@ -93,18 +182,15 @@ export default function SlipsPage() {
       }
       setAssessmentDone(!!localStorage.getItem('taxagent_assessment_done'));
 
-      // Load from Supabase first
       let loaded: SavedSlip[] = [];
       if (uid) {
         loaded = await getSlips(uid, 2025);
       }
 
       if (loaded.length > 0) {
-        // DB is the source of truth
         setSlips(loaded);
         localStorage.setItem('taxagent_slips', JSON.stringify(loaded));
       } else {
-        // Fall back to localStorage
         const saved = localStorage.getItem('taxagent_slips');
         if (saved) {
           try { setSlips(JSON.parse(saved) as SavedSlip[]); } catch { /* ignore */ }
@@ -114,7 +200,6 @@ export default function SlipsPage() {
     init().catch(() => { /* ignore */ });
   }, []);
 
-  // Debounced sync to Supabase + localStorage on every slip change
   const syncSlips = useCallback((updated: SavedSlip[], uid: string) => {
     localStorage.setItem('taxagent_slips', JSON.stringify(updated));
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -151,55 +236,73 @@ export default function SlipsPage() {
     syncSlips(updated, userId);
   }
 
-  // Which recommended slip types have been entered already
+  function scrollToAddForm() {
+    addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   const enteredTypes = new Set(slips.map((s) => s.type));
   const recsDone = slipRecs.filter((r) => enteredTypes.has(r.type)).length;
   const recsTotal = slipRecs.length;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-10 space-y-6">
 
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div>
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-white">Tax Slips</h1>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.15em] font-semibold mb-2" style={{ color: '#10B981' }}>
+              STEP 2 OF 4
+            </p>
+            <h1 className="text-white font-bold text-[28px] md:text-[30px] mb-2" style={{ letterSpacing: '-0.02em' }}>
+              Upload your tax slips
+            </h1>
+            <p className="text-[15px] max-w-2xl" style={{ color: 'rgba(255,255,255,0.55)' }}>
+              Photograph or drag in any slip — T4, T5, T2202. Our OCR extracts every box and you just confirm.
+              Most people are done in under 5 minutes.
+            </p>
+          </div>
           {lastSaved && (
-            <span className="flex items-center gap-1 text-xs text-white/30">
+            <span className="flex-shrink-0 flex items-center gap-1 text-xs pt-1" style={{ color: 'rgba(255,255,255,0.30)' }}>
               <Cloud className="h-3 w-3" />
               {formatLastSaved(lastSaved)}
             </span>
           )}
         </div>
-        <p className="text-white/40 mt-1 text-sm">
-          Upload or manually enter your 2025 CRA slips.
-        </p>
       </div>
 
       {/* ── If no assessment: prompt to start ─────────────────────── */}
       {!assessmentDone && slipRecs.length === 0 && (
-        <GlassCard className="px-5 py-5 flex items-center justify-between gap-4">
+        <div
+          className="px-5 py-5 rounded-2xl flex items-center justify-between gap-4"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+        >
           <div>
             <p className="text-sm font-semibold text-white">Complete your assessment first</p>
-            <p className="text-xs text-white/40 mt-0.5">
+            <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.40)' }}>
               The AI assessment will tell you exactly which slips to upload.
             </p>
           </div>
           <Link
             href="/onboarding"
-            className="flex-shrink-0 flex items-center gap-1.5 rounded-full bg-[var(--emerald)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors"
+            className="flex-shrink-0 flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-white transition-colors"
+            style={{ background: '#10B981' }}
           >
             Start assessment
             <ChevronRight className="h-3.5 w-3.5" />
           </Link>
-        </GlassCard>
+        </div>
       )}
 
       {/* ── Slip checklist from assessment ────────────────────────── */}
       {slipRecs.length > 0 && (
-        <GlassCard className="p-5">
+        <div
+          className="p-5 rounded-2xl"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+        >
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-semibold text-white">Slips from your assessment</p>
-            <span className="text-xs text-white/40">{recsDone}/{recsTotal} uploaded</span>
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.40)' }}>{recsDone}/{recsTotal} uploaded</span>
           </div>
           <div className="space-y-2">
             {slipRecs.map((rec) => {
@@ -213,15 +316,18 @@ export default function SlipsPage() {
                     border: `1px solid ${done ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.06)'}`,
                   }}
                 >
-                  <div className={`h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0 ${done ? 'bg-[var(--emerald)]' : 'bg-white/10'}`}>
-                    {done ? <Check className="h-3.5 w-3.5 text-white" /> : <FileText className="h-3.5 w-3.5 text-white/40" />}
+                  <div
+                    className="h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: done ? '#10B981' : 'rgba(255,255,255,0.10)' }}
+                  >
+                    {done ? <Check className="h-3.5 w-3.5 text-white" /> : <FileText className="h-3.5 w-3.5" style={{ color: 'rgba(255,255,255,0.40)' }} />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-semibold ${done ? 'text-[var(--emerald)]' : 'text-white/70'}`}>{rec.type}</p>
-                    <p className="text-xs text-white/40 truncate">{rec.description}</p>
+                    <p className="text-sm font-semibold" style={{ color: done ? '#10B981' : 'rgba(255,255,255,0.70)' }}>{rec.type}</p>
+                    <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.40)' }}>{rec.description}</p>
                   </div>
                   {!done && (
-                    <span className="text-[10px] text-white/30 text-right max-w-[120px] leading-tight">
+                    <span className="text-[10px] text-right max-w-[120px] leading-tight" style={{ color: 'rgba(255,255,255,0.30)' }}>
                       {rec.where}
                     </span>
                   )}
@@ -229,12 +335,30 @@ export default function SlipsPage() {
               );
             })}
           </div>
-        </GlassCard>
+        </div>
       )}
 
-      {/* ── Upload / Manual entry ─────────────────────────────────── */}
-      <GlassCard className="p-5">
-        <p className="text-sm font-semibold text-white mb-4">Add a Slip</p>
+      {/* ── Dashed dropzone ────────────────────────────────────────── */}
+      <div
+        ref={addFormRef}
+        className="rounded-2xl p-6 md:p-8"
+        style={{
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px dashed rgba(255,255,255,0.15)',
+          backdropFilter: 'blur(12px)',
+        }}
+      >
+        <div className="text-center mb-6">
+          <div
+            className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3"
+            style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.25)' }}
+          >
+            <Upload className="w-5 h-5" style={{ color: '#10B981' }} />
+          </div>
+          <p className="text-white font-semibold text-[15px] mb-1">Drag any slip here, or click to browse</p>
+          <p className="text-[12px]" style={{ color: 'rgba(255,255,255,0.40)' }}>JPG, PNG, or PDF · up to 10MB · auto-detected</p>
+        </div>
+
         <Tabs value={activeInputTab} onValueChange={setActiveInputTab}>
           <TabsList
             className="w-full mb-5 rounded-xl p-1"
@@ -260,11 +384,28 @@ export default function SlipsPage() {
             <ManualEntryForm onAdd={addSlip} />
           </TabsContent>
         </Tabs>
-      </GlassCard>
+      </div>
+
+      {/* ── Slip type grid ─────────────────────────────────────────── */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {SLIP_GRID.map(({ icon, type, desc }) => (
+          <SlipTypeCard
+            key={type}
+            icon={icon}
+            type={type}
+            desc={desc}
+            slipsForType={slips.filter((s) => s.type === type)}
+            onUploadClick={scrollToAddForm}
+          />
+        ))}
+      </div>
 
       {/* ── Entered slips list ────────────────────────────────────── */}
       {slips.length > 0 && (
-        <GlassCard className="overflow-hidden">
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+        >
           <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <p className="text-sm font-semibold text-white">
               {slips.length} slip{slips.length !== 1 ? 's' : ''} entered
@@ -275,37 +416,39 @@ export default function SlipsPage() {
               <div key={slip.id} className="flex items-center gap-4 px-5 py-4">
                 <div
                   className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'rgba(16,185,129,0.1)' }}
+                  style={{ background: 'rgba(16,185,129,0.10)' }}
                 >
-                  <FileText className="h-5 w-5 text-[var(--emerald)]" />
+                  <FileText className="h-5 w-5" style={{ color: '#10B981' }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span
-                      className="text-xs font-bold px-2 py-0.5 rounded-full text-[var(--emerald)]"
-                      style={{ background: 'rgba(16,185,129,0.12)' }}
+                      className="text-xs font-bold px-2 py-0.5 rounded-full"
+                      style={{ color: '#10B981', background: 'rgba(16,185,129,0.12)' }}
                     >
                       {slip.type}
                     </span>
-                    <span className="text-sm text-white/70 truncate">
+                    <span className="text-sm truncate" style={{ color: 'rgba(255,255,255,0.70)' }}>
                       {slip.issuerName || SLIP_TYPE_LABELS[slip.type] || slip.type}
                     </span>
                   </div>
                   {primaryAmount(slip) && (
-                    <p className="text-xs text-white/40 tabular-nums mt-0.5">{primaryAmount(slip)}</p>
+                    <p className="text-xs tabular-nums mt-0.5" style={{ color: 'rgba(255,255,255,0.40)' }}>{primaryAmount(slip)}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <button
                     onClick={() => setEditTarget(slip)}
-                    className="h-8 w-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                    className="h-8 w-8 rounded-lg flex items-center justify-center transition-colors"
+                    style={{ color: 'rgba(255,255,255,0.40)' }}
                     aria-label={`Edit ${slip.type}`}
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => deleteSlip(slip.id)}
-                    className="h-8 w-8 rounded-lg flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                    className="h-8 w-8 rounded-lg flex items-center justify-center transition-colors"
+                    style={{ color: 'rgba(255,255,255,0.40)' }}
                     aria-label={`Delete ${slip.type}`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -314,18 +457,22 @@ export default function SlipsPage() {
               </div>
             ))}
           </div>
-        </GlassCard>
+        </div>
       )}
 
       {/* ── Go to calculator CTA ─────────────────────────────────── */}
       {slips.length > 0 && (
         <button
           onClick={() => router.push('/calculator')}
-          className="w-full flex items-center justify-center gap-2 rounded-full py-4 text-sm font-semibold text-white bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-colors"
+          className="w-full flex items-center justify-center gap-2 rounded-full py-4 text-sm font-semibold text-white transition-colors"
+          style={{
+            background: '#10B981',
+            boxShadow: '0 10px 30px rgba(16,185,129,0.3)',
+          }}
         >
-          <Check className="h-4 w-4 text-[var(--emerald)]" />
+          <Check className="h-4 w-4" />
           Calculate my taxes
-          <ArrowRight className="h-4 w-4 text-[var(--emerald)]" />
+          <ArrowRight className="h-4 w-4" />
         </button>
       )}
 
