@@ -48,7 +48,7 @@ function CPAContactForm() {
   if (status === 'success') {
     return (
       <div className="flex flex-col items-center gap-4 py-8">
-        <CheckCircle className="h-12 w-12 text-[#10B981]" />
+        <CheckCircle className="h-12 w-12 text-[var(--emerald)]" />
         <p className="text-xl font-semibold text-white">Message sent!</p>
         <p className="text-slate-400 text-center max-w-sm">
           We&apos;ll be in touch within 24 hours to schedule a call.
@@ -67,7 +67,7 @@ function CPAContactForm() {
           value={name}
           onChange={e => setName(e.target.value)}
           placeholder="Jane Smith"
-          className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#10B981]"
+          className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[var(--emerald)]"
           style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
         />
       </div>
@@ -79,7 +79,7 @@ function CPAContactForm() {
           value={email}
           onChange={e => setEmail(e.target.value)}
           placeholder="jane@smithcpa.ca"
-          className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#10B981]"
+          className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[var(--emerald)]"
           style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
         />
       </div>
@@ -93,7 +93,7 @@ function CPAContactForm() {
           onChange={e => setMessage(e.target.value)}
           placeholder="~200 returns. Biggest pain is manual T4 entry and chasing clients for missing slips..."
           rows={4}
-          className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#10B981] resize-none"
+          className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[var(--emerald)] resize-none"
           style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
         />
       </div>
@@ -127,7 +127,7 @@ export default function ForCPAsPage() {
           <motion.div initial="hidden" animate="visible" variants={stagger}>
             <motion.span
               variants={fadeUp}
-              className="inline-flex items-center gap-2 rounded-full border border-[#10B981]/30 bg-[#10B981]/10 px-4 py-1.5 text-sm font-medium text-[#10B981] mb-8"
+              className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 text-sm font-medium text-[var(--emerald)] mb-8"
             >
               CPA Portal
             </motion.span>
@@ -147,7 +147,7 @@ export default function ForCPAsPage() {
             </motion.p>
             <motion.div variants={fadeUp} className="mt-10 flex flex-wrap gap-4 justify-center">
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <a href="#contact" className="inline-flex items-center rounded-full bg-[var(--emerald)] px-8 py-4 text-base font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors shadow-lg shadow-[#10B981]/25">
+                <a href="#contact" className="inline-flex items-center rounded-full bg-[var(--emerald)] px-8 py-4 text-base font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors shadow-lg shadow-emerald-500/25">
                   Book a demo →
                 </a>
               </motion.div>
@@ -247,14 +247,14 @@ export default function ForCPAsPage() {
             ].map(({ step, title, body, highlight }) => (
               <motion.div key={step} variants={fadeUp} className="grid sm:grid-cols-5 gap-6 items-center">
                 <div className="sm:col-span-1 flex sm:justify-center">
-                  <div className="h-14 w-14 rounded-full bg-[#10B981]/20 border border-[#10B981]/30 flex items-center justify-center text-[#10B981] font-bold text-lg">
+                  <div className="h-14 w-14 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-[var(--emerald)] font-bold text-lg">
                     {step}
                   </div>
                 </div>
                 <div className="sm:col-span-4">
                   <h3 className="text-xl font-semibold text-white mb-2">{title}</h3>
                   <p className="text-white/55 leading-relaxed mb-3">{body}</p>
-                  <span className="inline-flex items-center gap-2 text-sm text-[#10B981] font-medium">
+                  <span className="inline-flex items-center gap-2 text-sm text-[var(--emerald)] font-medium">
                     <Check className="h-4 w-4" />
                     {highlight}
                   </span>
@@ -295,7 +295,7 @@ export default function ForCPAsPage() {
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
               >
                 <div className="mt-0.5 h-5 w-5 flex-shrink-0">
-                  <Check className="h-5 w-5 text-[#10B981]" />
+                  <Check className="h-5 w-5 text-[var(--emerald)]" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-white mb-1">{title}</h3>

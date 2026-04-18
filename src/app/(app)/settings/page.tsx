@@ -39,7 +39,7 @@ function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
         background: 'rgba(255,255,255,0.06)',
         border: '1px solid rgba(255,255,255,0.12)',
       }}
-      onFocus={e => { e.currentTarget.style.borderColor = '#10B981'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(16,185,129,0.2)'; }}
+      onFocus={e => { e.currentTarget.style.borderColor = 'var(--emerald)'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(16,185,129,0.2)'; }}
       onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.boxShadow = 'none'; }}
     />
   );
@@ -64,7 +64,7 @@ function SaveButton({ onClick }: { onClick?: () => void }) {
   return (
     <button
       onClick={onClick ?? (() => toast.success('Changes saved', { duration: 2000 }))}
-      className="flex items-center gap-2 rounded-full bg-[#10B981] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors"
+      className="flex items-center gap-2 rounded-full bg-[var(--emerald)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors"
     >
       <Save className="h-4 w-4" />
       Save changes
@@ -84,7 +84,7 @@ function Toggle({ label, description, checked, onChange }: {
       </div>
       <button
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${checked ? 'bg-[#10B981]' : 'bg-white/10'}`}
+        className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${checked ? 'bg-[var(--emerald)]' : 'bg-white/10'}`}
         role="switch"
         aria-checked={checked}
       >

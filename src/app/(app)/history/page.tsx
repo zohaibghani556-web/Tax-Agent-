@@ -85,7 +85,7 @@ export default function HistoryPage() {
           </div>
           <a
             href="/calculator"
-            className="inline-flex items-center gap-2 rounded-full bg-[#10B981] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors"
+            className="inline-flex items-center gap-2 rounded-full bg-[var(--emerald)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors"
           >
             Open calculator
             <ChevronRight className="h-4 w-4" />
@@ -125,7 +125,7 @@ export default function HistoryPage() {
                           {isRefund ? 'refund' : 'owing'}
                         </span>
                         {isLatest && (
-                          <span className="inline-flex items-center rounded-full bg-[#10B981]/20 px-2 py-0.5 text-[10px] font-semibold text-[#10B981]">
+                          <span className="inline-flex items-center rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-[var(--emerald)]">
                             Latest
                           </span>
                         )}

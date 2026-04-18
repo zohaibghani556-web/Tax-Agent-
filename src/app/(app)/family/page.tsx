@@ -191,7 +191,7 @@ function ResultsPanel({ result, ccExpenses }: { result: FamilyOptimization; ccEx
             <p className="text-white/50 text-sm mb-1">Household tax savings</p>
             <p
               className="text-4xl font-bold"
-              style={{ color: hasSavings ? '#4ade80' : '#ffffff' }}
+              style={{ color: hasSavings ? 'var(--emerald)' : '#ffffff' }}
             >
               {fmt(result.savingsFromOptimization)}
             </p>
@@ -202,7 +202,7 @@ function ResultsPanel({ result, ccExpenses }: { result: FamilyOptimization; ccEx
           {hasSavings ? (
             <div
               className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium"
-              style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80' }}
+              style={{ background: 'var(--emerald-tint)', color: 'var(--emerald)' }}
             >
               <TrendingDown className="w-4 h-4" />
               Optimized
@@ -229,10 +229,10 @@ function ResultsPanel({ result, ccExpenses }: { result: FamilyOptimization; ccEx
           </div>
           <div
             className="rounded-xl p-4"
-            style={{ background: 'rgba(74,222,128,0.08)' }}
+            style={{ background: 'var(--emerald-tint)' }}
           >
             <p className="text-xs text-white/40 mb-1">Optimal combined tax</p>
-            <p className="font-semibold text-lg" style={{ color: '#4ade80' }}>
+            <p className="font-semibold text-lg" style={{ color: 'var(--emerald)' }}>
               {fmt(result.familyTaxOptimal)}
             </p>
           </div>
@@ -246,14 +246,14 @@ function ResultsPanel({ result, ccExpenses }: { result: FamilyOptimization; ccEx
           {[
             {
               label: 'Spouse A',
-              color: '#818cf8',
+              color: 'var(--info)',
               netIncome: result.spouseANetIncome,
               taxNaive: result.spouseATaxNaive,
               taxOptimal: result.spouseATaxOptimal,
             },
             {
               label: 'Spouse B',
-              color: '#34d399',
+              color: 'var(--emerald)',
               netIncome: result.spouseBNetIncome,
               taxNaive: result.spouseBTaxNaive,
               taxOptimal: result.spouseBTaxOptimal,
@@ -301,7 +301,7 @@ function ResultsPanel({ result, ccExpenses }: { result: FamilyOptimization; ccEx
               className="flex items-start gap-3 rounded-xl p-4"
               style={{ background: 'rgba(255,255,255,0.04)' }}
             >
-              <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#4ade80' }} />
+              <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--emerald)' }} />
               <div>
                 <p className="text-white text-sm font-medium">Childcare — {fmt(ccExpenses)}</p>
                 <p className="text-white/50 text-xs mt-0.5">
@@ -321,7 +321,7 @@ function ResultsPanel({ result, ccExpenses }: { result: FamilyOptimization; ccEx
               className="flex items-start gap-3 rounded-xl p-4"
               style={{ background: 'rgba(255,255,255,0.04)' }}
             >
-              <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#4ade80' }} />
+              <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--emerald)' }} />
               <div>
                 <p className="text-white text-sm font-medium">
                   Pension split — {fmt(Math.abs(splitAmt))} from {splitFrom} to {splitTo}
@@ -464,8 +464,7 @@ export default function FamilyPage() {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-3">
             <div
-              className="w-10 h-10 rounded-2xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #818cf8, #34d399)' }}
+              className="w-10 h-10 rounded-2xl flex items-center justify-center bg-[var(--emerald-tint)] ring-1 ring-[rgba(16,185,129,0.2)]"
             >
               <Users className="w-5 h-5 text-white" />
             </div>
@@ -513,13 +512,13 @@ export default function FamilyPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <SpouseForm
             label="Spouse A"
-            color="#818cf8"
+            color="var(--info)"
             value={spouseA}
             onChange={setSpouseA}
           />
           <SpouseForm
             label="Spouse B"
-            color="#34d399"
+            color="var(--emerald)"
             value={spouseB}
             onChange={setSpouseB}
           />
@@ -529,11 +528,7 @@ export default function FamilyPage() {
         <div className="flex justify-center mb-8">
           <button
             onClick={() => setHasRun(true)}
-            className="px-8 py-3 rounded-2xl font-semibold text-white text-base transition-all"
-            style={{
-              background: 'linear-gradient(135deg, #818cf8, #34d399)',
-              boxShadow: '0 0 24px rgba(129,140,248,0.3)',
-            }}
+            className="px-8 py-3 rounded-full font-semibold text-white text-base transition-all bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] shadow-[0_10px_30px_rgba(16,185,129,0.3)]"
           >
             <span className="flex items-center gap-2">
               <Sparkles className="w-4 h-4" />

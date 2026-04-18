@@ -30,7 +30,7 @@ export default function AppError({
       </p>
       <button
         onClick={reset}
-        className="rounded-full bg-[#10B981] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors"
+        className="rounded-full bg-[var(--emerald)] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors"
       >
         Try again
       </button>

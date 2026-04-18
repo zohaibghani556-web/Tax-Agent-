@@ -231,9 +231,9 @@ function ValidatorPanel({ validation }: { validation: ValidationResult }) {
   const issueCount = errors.length + warnings.length;
 
   const barColour =
-    completionPct >= 80 ? '#10B981'
-    : completionPct >= 50 ? '#F59E0B'
-    : '#EF4444';
+    completionPct >= 80 ? 'var(--emerald)'
+    : completionPct >= 50 ? 'var(--warning)'
+    : 'var(--error)';
 
   return (
     <div className="mb-4 rounded-xl overflow-hidden print:hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
@@ -267,7 +267,7 @@ function ValidatorPanel({ validation }: { validation: ValidationResult }) {
           <button
             onClick={() => setOpen(!open)}
             className="flex items-center gap-1.5 text-xs shrink-0 transition-colors hover:opacity-80"
-            style={{ color: errors.length > 0 ? '#FCA5A5' : '#FCD34D' }}
+            style={{ color: errors.length > 0 ? 'var(--error)' : 'var(--warning)' }}
           >
             <AlertTriangle className="h-3.5 w-3.5" />
             {issueCount} issue{issueCount !== 1 ? 's' : ''}
@@ -393,13 +393,13 @@ function CreditsFoundBanner({ result }: { result: TaxCalculationResult }) {
       className="rounded-xl p-4 flex items-start gap-3"
       style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}
     >
-      <Sparkles className="h-4 w-4 text-[#10B981] shrink-0 mt-0.5" />
+      <Sparkles className="h-4 w-4 text-[var(--emerald)] shrink-0 mt-0.5" />
       <div>
-        <p className="text-sm font-semibold text-[#10B981]">
+        <p className="text-sm font-semibold text-[var(--emerald)]">
           We found {count === 1 ? '1 credit' : `${count} credits`} applied to your return —
           saving you approximately {new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }).format(Math.abs(totalValue))}
         </p>
-        {sub && <p className="text-xs text-[#10B981]/70 mt-0.5">{sub}</p>}
+        {sub && <p className="text-xs text-emerald-500/70 mt-0.5">{sub}</p>}
       </div>
     </div>
   );
@@ -744,7 +744,7 @@ export default function CalculatorPage() {
           className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/5 transition-colors"
         >
           <div className="flex items-center gap-2">
-            <Settings2 className="h-4 w-4 text-[#10B981]" />
+            <Settings2 className="h-4 w-4 text-[var(--emerald)]" />
             <span className="text-sm font-semibold text-white/80">Deductions & Credits</span>
             <span className="text-xs text-white/40">— enter these to maximize your refund</span>
           </div>
@@ -760,7 +760,7 @@ export default function CalculatorPage() {
 
             {/* Section: Deductions */}
             <div>
-              <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Deductions — reduce your taxable income</p>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-[0.15em] mb-3">Deductions — reduce your taxable income</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <DeductionField label="RRSP Contributions" hint="Contributions made Jan 1, 2025 – Mar 3, 2026. Dollar-for-dollar income reduction." value={userDeductions.rrspContributions} onChange={(v) => updateDeduction('rrspContributions', v)} />
@@ -780,7 +780,7 @@ export default function CalculatorPage() {
 
             {/* Section: Ontario Trillium / Housing */}
             <div>
-              <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Housing — Ontario Trillium Benefit</p>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-[0.15em] mb-3">Housing — Ontario Trillium Benefit</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <DeductionField label="Annual Rent Paid" hint="Total rent paid in 2025. 20% is treated as property tax — worth up to $1,248/yr in OTB for renters." value={userDeductions.rentPaid} onChange={(v) => updateDeduction('rentPaid', v)} />
@@ -795,7 +795,7 @@ export default function CalculatorPage() {
 
             {/* Section: Credits */}
             <div>
-              <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Credits — reduce your tax payable</p>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-[0.15em] mb-3">Credits — reduce your tax payable</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <DeductionField label="Medical Expenses" hint="Prescriptions, dental, glasses, physio, hearing aids, medical devices. Only the amount above $2,759 or 3% of income generates a credit." value={userDeductions.medicalExpenses} onChange={(v) => updateDeduction('medicalExpenses', v)} />
                 <DeductionField label="Charitable Donations" hint="Donations to registered Canadian charities. First $200 → 15% credit. Above $200 → 29–33% credit. Worth combining with spouse." value={userDeductions.charitableDonations} onChange={(v) => updateDeduction('charitableDonations', v)} />
@@ -808,7 +808,7 @@ export default function CalculatorPage() {
 
             {/* Section: Canada Training Credit */}
             <div>
-              <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Canada Training Credit — refundable, 50% of training fees</p>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-[0.15em] mb-3">Canada Training Credit — refundable, 50% of training fees</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <DeductionField label="CTC Room (from 2024 NOA)" hint="Your Canada Training Credit room carried forward — found on line 45375 of your 2024 Notice of Assessment. Builds at $250/year." value={userDeductions.canadaTrainingCreditRoom} onChange={(v) => updateDeduction('canadaTrainingCreditRoom', v)} />
                 <DeductionField label="Eligible Training Fees Paid in 2025" hint="Tuition or professional training fees paid to an eligible institution in 2025 (from T2202 or receipt). Credit = 50% of fees, capped at your room." value={userDeductions.trainingFeesForCTC} onChange={(v) => updateDeduction('trainingFeesForCTC', v)} />
@@ -817,11 +817,11 @@ export default function CalculatorPage() {
 
             {/* Section: Personal Situation */}
             <div>
-              <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Personal Situation — spouse, dependants, caregiving</p>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-[0.15em] mb-3">Personal Situation — spouse, dependants, caregiving</p>
               <div className="space-y-4">
                 {/* Spouse / CL toggle */}
                 <div className="flex items-start gap-3">
-                  <input type="checkbox" id="hasSpouseOrCL" checked={userDeductions.hasSpouseOrCL} onChange={(e) => updateDeduction('hasSpouseOrCL', e.target.checked)} className="mt-1 h-4 w-4 accent-[#10B981]" />
+                  <input type="checkbox" id="hasSpouseOrCL" checked={userDeductions.hasSpouseOrCL} onChange={(e) => updateDeduction('hasSpouseOrCL', e.target.checked)} className="mt-1 h-4 w-4 accent-[var(--emerald)]" />
                   <div className="flex-1">
                     <label htmlFor="hasSpouseOrCL" className="text-xs font-semibold text-white/60 cursor-pointer">I have a spouse or common-law partner</label>
                     <p className="text-[10px] text-white/30 mt-0.5">You may be able to claim a spouse amount credit if their net income is less than $16,129.</p>
@@ -835,7 +835,7 @@ export default function CalculatorPage() {
 
                 {/* Eligible dependant toggle */}
                 <div className="flex items-start gap-3">
-                  <input type="checkbox" id="hasEligibleDependant" checked={userDeductions.hasEligibleDependant} onChange={(e) => updateDeduction('hasEligibleDependant', e.target.checked)} className="mt-1 h-4 w-4 accent-[#10B981]" />
+                  <input type="checkbox" id="hasEligibleDependant" checked={userDeductions.hasEligibleDependant} onChange={(e) => updateDeduction('hasEligibleDependant', e.target.checked)} className="mt-1 h-4 w-4 accent-[var(--emerald)]" />
                   <div className="flex-1">
                     <label htmlFor="hasEligibleDependant" className="text-xs font-semibold text-white/60 cursor-pointer">I support an eligible dependant (single parent)</label>
                     <p className="text-[10px] text-white/30 mt-0.5">Single parents can claim one child or other dependant — worth up to $16,129 × 15% = $2,419 in federal credit.</p>
@@ -849,7 +849,7 @@ export default function CalculatorPage() {
 
                 {/* Caregiver toggle */}
                 <div className="flex items-start gap-3">
-                  <input type="checkbox" id="caregiverForDependant18Plus" checked={userDeductions.caregiverForDependant18Plus} onChange={(e) => updateDeduction('caregiverForDependant18Plus', e.target.checked)} className="mt-1 h-4 w-4 accent-[#10B981]" />
+                  <input type="checkbox" id="caregiverForDependant18Plus" checked={userDeductions.caregiverForDependant18Plus} onChange={(e) => updateDeduction('caregiverForDependant18Plus', e.target.checked)} className="mt-1 h-4 w-4 accent-[var(--emerald)]" />
                   <div className="flex-1">
                     <label htmlFor="caregiverForDependant18Plus" className="text-xs font-semibold text-white/60 cursor-pointer">I am the caregiver for an infirm adult (18+) — parent, sibling, adult child</label>
                     <p className="text-[10px] text-white/30 mt-0.5">Canada Caregiver Amount: up to $7,999 (reduced by their net income above $18,783). Requires a physical or mental infirmity.</p>
@@ -865,7 +865,7 @@ export default function CalculatorPage() {
 
             {/* Section: Toggles */}
             <div>
-              <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-3">Other Credits</p>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-[0.15em] mb-3">Other Credits</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   { key: 'hasDisabilityCredit' as const, label: 'I have an approved Disability Tax Credit (T2201 on file with CRA)', hint: '$9,872 amount × 15% = $1,481 federal credit.' },
@@ -874,7 +874,7 @@ export default function CalculatorPage() {
                   { key: 'searchAndRescue' as const, label: 'I performed 200+ hours of search and rescue volunteering in 2025', hint: '$3,000 amount × 15% = $450 credit (line 31255).' },
                 ].map(({ key, label, hint }) => (
                   <div key={key} className="flex items-start gap-3 rounded-lg px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <input type="checkbox" id={key} checked={userDeductions[key] as boolean} onChange={(e) => updateDeduction(key, e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#10B981]" />
+                    <input type="checkbox" id={key} checked={userDeductions[key] as boolean} onChange={(e) => updateDeduction(key, e.target.checked)} className="mt-0.5 h-4 w-4 accent-[var(--emerald)]" />
                     <div>
                       <label htmlFor={key} className="text-xs font-semibold text-white/60 cursor-pointer leading-snug">{label}</label>
                       <p className="text-[10px] text-white/30 mt-0.5">{hint}</p>
@@ -887,7 +887,7 @@ export default function CalculatorPage() {
             <button
               onClick={() => { isAutoCalc.current = false; runCalc(); }}
               disabled={loading || !hasSlips}
-              className="flex items-center gap-2 rounded-full bg-[#10B981] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors disabled:opacity-40"
+              className="flex items-center gap-2 rounded-full bg-[var(--emerald)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors disabled:opacity-40"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
               {loading ? 'Calculating…' : 'Recalculate with these deductions'}
@@ -909,7 +909,7 @@ export default function CalculatorPage() {
           </p>
           <a
             href="/slips"
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#10B981] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors"
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[var(--emerald)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors"
           >
             <FileText className="h-4 w-4" />
             Add your slips
@@ -1035,15 +1035,15 @@ export default function CalculatorPage() {
                     style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}
                   >
                     <div>
-                      <p className="text-sm font-semibold text-[#10B981]">Ontario Trillium Benefit (ON-BEN)</p>
-                      <p className="text-xs text-[#10B981]/60 mt-0.5">Estimated annual benefit from renting — paid monthly starting July 2026</p>
+                      <p className="text-sm font-semibold text-[var(--emerald)]">Ontario Trillium Benefit (ON-BEN)</p>
+                      <p className="text-xs text-emerald-500/60 mt-0.5">Estimated annual benefit from renting — paid monthly starting July 2026</p>
                     </div>
-                    <span className="font-bold tabular-nums text-[#10B981] text-sm shrink-0 ml-4">{formatCad(result.estimatedOTB)} / yr</span>
+                    <span className="font-bold tabular-nums text-[var(--emerald)] text-sm shrink-0 ml-4">{formatCad(result.estimatedOTB)} / yr</span>
                   </div>
                 )}
 
                 {/* Result card (Group 3B — Share button) */}
-                <div className={`rounded-2xl p-6 ${isRefund ? 'bg-[#10B981]' : 'bg-red-500'}`}>
+                <div className={`rounded-2xl p-6 ${isRefund ? 'bg-[var(--emerald)]' : 'bg-red-500'}`}>
                   <div className="flex items-start justify-between gap-3 mb-1">
                     <p className="text-sm font-semibold text-white/80">{isRefund ? 'Your estimated refund' : 'Amount owing'}</p>
                     <button

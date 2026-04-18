@@ -68,7 +68,7 @@ function MetricCard({
         <div className="h-8 w-32 rounded-lg mb-1" style={{ background: 'rgba(255,255,255,0.06)', animation: 'pulse 2s infinite' }} />
       ) : (
         <p className={`text-2xl font-bold tabular-nums ${
-          highlight === 'emerald' ? 'text-[#10B981]'
+          highlight === 'emerald' ? 'text-[var(--emerald)]'
           : highlight === 'red' ? 'text-red-400'
           : 'text-white'
         }`}>
@@ -98,7 +98,7 @@ function ChecklistStep({
   return (
     <Link href={href} className="flex items-center gap-4 py-4 group">
       <div className={`h-9 w-9 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold transition-colors ${
-        status === 'done' ? 'bg-[#10B981] text-white'
+        status === 'done' ? 'bg-[var(--emerald)] text-white'
         : status === 'active' ? 'bg-white/15 text-white border border-white/20'
         : 'bg-white/5 text-white/25'
       }`}>
@@ -302,7 +302,7 @@ export default function DashboardPage() {
         <div className="mt-3 flex items-center gap-3">
           <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
             <div
-              className="h-full rounded-full bg-[#10B981] transition-all duration-500"
+              className="h-full rounded-full bg-[var(--emerald)] transition-all duration-500"
               style={{ width: `${progressPct}%` }}
             />
           </div>
@@ -367,7 +367,7 @@ export default function DashboardPage() {
           </p>
           <Link
             href="/onboarding"
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#10B981] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors"
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[var(--emerald)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors"
           >
             <MessageSquare className="h-4 w-4" />
             Start assessment
@@ -391,7 +391,7 @@ export default function DashboardPage() {
               <Clock className="h-4 w-4 text-white/40" />
               <h2 className="text-base font-semibold text-white">Recent calculations</h2>
             </div>
-            <Link href="/history" className="text-xs text-[#10B981] hover:underline flex items-center gap-1">
+            <Link href="/history" className="text-xs text-[var(--emerald)] hover:underline flex items-center gap-1">
               View all
               <ChevronRight className="h-3 w-3" />
             </Link>
@@ -419,7 +419,7 @@ export default function DashboardPage() {
                       <span className={`text-sm font-bold tabular-nums ${isRefund ? 'text-emerald-400' : 'text-amber-400'}`}>
                         {isRefund ? '+' : '-'}{formatCad(amount)}
                       </span>
-                      {i === 0 && <span className="ml-2 text-[10px] font-semibold text-[#10B981] bg-[#10B981]/10 rounded-full px-1.5 py-0.5">Latest</span>}
+                      {i === 0 && <span className="ml-2 text-[10px] font-semibold text-[var(--emerald)] bg-emerald-500/10 rounded-full px-1.5 py-0.5">Latest</span>}
                     </div>
                   </div>
                   <span className="text-xs text-white/30 tabular-nums">
@@ -437,11 +437,11 @@ export default function DashboardPage() {
 
       {/* ── Quick actions ─────────────────────────────────────────── */}
       <div>
-        <p className="text-xs font-semibold text-white/30 uppercase tracking-widest mb-3">Quick actions</p>
+        <p className="text-xs font-semibold text-white/30 uppercase tracking-[0.15em] mb-3">Quick actions</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Link
             href="/onboarding"
-            className="flex items-center justify-center gap-2 rounded-xl bg-[#10B981] px-4 py-3 text-sm font-semibold text-white hover:bg-[#059669] transition-colors"
+            className="flex items-center justify-center gap-2 rounded-full bg-[var(--emerald)] px-4 py-3 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-colors"
           >
             <MessageSquare className="h-4 w-4" />
             {assessmentDone ? 'Continue' : 'Start assessment'}

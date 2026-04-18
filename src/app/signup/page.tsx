@@ -14,7 +14,7 @@ const inputStyle = {
   border: '1px solid rgba(255,255,255,0.12)',
 };
 const labelCls =
-  'absolute left-4 top-1 text-[10px] font-semibold text-white/40 uppercase tracking-wide pointer-events-none transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-placeholder-shown:font-normal peer-placeholder-shown:tracking-normal peer-placeholder-shown:text-white/40 peer-focus:top-1 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:text-[#10B981]';
+  'absolute left-4 top-1 text-[10px] font-semibold text-white/40 uppercase tracking-wide pointer-events-none transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-placeholder-shown:font-normal peer-placeholder-shown:tracking-normal peer-placeholder-shown:text-white/40 peer-focus:top-1 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:text-[var(--emerald)]';
 const cardStyle = {
   background: 'rgba(255,255,255,0.04)',
   border: '1px solid rgba(255,255,255,0.10)',
@@ -43,7 +43,7 @@ function PasswordStrength({ password }: { password: string }) {
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1">
         {checks.map(({ label, met }) => (
-          <span key={label} className={`flex items-center gap-1 text-xs ${met ? 'text-[#10B981]' : 'text-white/30'}`}>
+          <span key={label} className={`flex items-center gap-1 text-xs ${met ? 'text-[var(--emerald)]' : 'text-white/30'}`}>
             <Check className="h-3 w-3" />{label}
           </span>
         ))}
@@ -65,8 +65,8 @@ function Checkbox({
       onClick={onChange}
       className={`mt-0.5 h-4 w-4 flex-shrink-0 rounded flex items-center justify-center transition-colors`}
       style={{
-        border: checked ? '2px solid #10B981' : '2px solid rgba(255,255,255,0.20)',
-        background: checked ? '#10B981' : 'transparent',
+        border: checked ? '2px solid var(--emerald)' : '2px solid rgba(255,255,255,0.20)',
+        background: checked ? 'var(--emerald)' : 'transparent',
       }}
       role="checkbox"
       aria-checked={checked}
@@ -127,13 +127,13 @@ function SignupForm() {
           style={cardStyle}
         >
           <div className="mx-auto mb-4 h-14 w-14 rounded-full flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.15)' }}>
-            <MailCheck className="h-7 w-7 text-[#10B981]" />
+            <MailCheck className="h-7 w-7 text-[var(--emerald)]" />
           </div>
           <h1 className="text-xl font-bold text-white">Check your email</h1>
           <p className="mt-2 text-sm text-white/50">
             We&apos;ve sent a confirmation link to <strong className="text-white/80">{email}</strong>. Click it to activate your account.
           </p>
-          <Link href="/login" className="mt-6 inline-block text-sm text-[#10B981] font-semibold hover:underline">
+          <Link href="/login" className="mt-6 inline-block text-sm text-[var(--emerald)] font-semibold hover:underline">
             Back to sign in
           </Link>
         </motion.div>
@@ -152,7 +152,7 @@ function SignupForm() {
       >
         <div className="text-center mb-8">
           <Link href="/" className="inline-block text-xl font-semibold text-white">
-            TaxAgent<span className="text-[#10B981]">.ai</span>
+            TaxAgent<span className="text-[var(--emerald)]">.ai</span>
           </Link>
           <h1 className="mt-4 text-2xl font-bold text-white">Create your account</h1>
           <p className="mt-1 text-sm text-white/50">Free to start — no credit card needed</p>
@@ -232,9 +232,9 @@ function SignupForm() {
             <Checkbox checked={agreed} onChange={() => setAgreed(!agreed)} />
             <span className="text-xs text-white/50 leading-relaxed">
               I agree to the{' '}
-              <Link href="/terms" className="text-[#10B981] hover:underline">Terms of Service</Link>
+              <Link href="/terms" className="text-[var(--emerald)] hover:underline">Terms of Service</Link>
               {' '}and{' '}
-              <Link href="/privacy" className="text-[#10B981] hover:underline">Privacy Policy</Link>
+              <Link href="/privacy" className="text-[var(--emerald)] hover:underline">Privacy Policy</Link>
             </span>
           </label>
 
@@ -251,7 +251,7 @@ function SignupForm() {
             disabled={!agreed || !pipedaConsent || loading}
             whileHover={agreed && !loading ? { scale: 1.02 } : {}}
             whileTap={agreed && !loading ? { scale: 0.98 } : {}}
-            className="w-full rounded-full bg-[#10B981] px-4 py-3 text-sm font-semibold text-white hover:bg-[#059669] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full rounded-full bg-[var(--emerald)] px-4 py-3 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Creating account…</> : 'Create account'}
           </motion.button>
@@ -259,7 +259,7 @@ function SignupForm() {
 
         <p className="mt-6 text-center text-sm text-white/50">
           Already have an account?{' '}
-          <Link href="/login" className="text-[#10B981] font-semibold hover:underline">
+          <Link href="/login" className="text-[var(--emerald)] font-semibold hover:underline">
             Sign in
           </Link>
         </p>

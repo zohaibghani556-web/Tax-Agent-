@@ -33,7 +33,7 @@ export default function PrivacyPage() {
         </p>
         <p className="mt-3">
           Our Privacy Officer can be reached at{' '}
-          <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#10B981] hover:underline">
+          <a href={`mailto:${CONTACT_EMAIL}`} className="text-[var(--emerald)] hover:underline">
             {CONTACT_EMAIL}
           </a>
           .
@@ -164,7 +164,7 @@ export default function PrivacyPage() {
         </ul>
         <p className="mt-3">
           To exercise any of these rights, email{' '}
-          <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#10B981] hover:underline">
+          <a href={`mailto:${CONTACT_EMAIL}`} className="text-[var(--emerald)] hover:underline">
             {CONTACT_EMAIL}
           </a>
           . We will respond within 30 days.
@@ -190,13 +190,13 @@ export default function PrivacyPage() {
       <div className="mt-12 pt-8 border-t border-white/10 text-sm text-white/40">
         <p>
           Questions? Contact our Privacy Officer at{' '}
-          <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#10B981] hover:underline">
+          <a href={`mailto:${CONTACT_EMAIL}`} className="text-[var(--emerald)] hover:underline">
             {CONTACT_EMAIL}
           </a>
           .
         </p>
         <p className="mt-2">
-          <Link href="/" className="text-[#10B981] hover:underline">
+          <Link href="/" className="text-[var(--emerald)] hover:underline">
             ← Back to home
           </Link>
         </p>

@@ -120,7 +120,7 @@ export default function TermsPage() {
         <p className="mt-3">
           You retain ownership of all personal data and documents you upload.
           See our{' '}
-          <Link href="/privacy" className="text-[#10B981] hover:underline">
+          <Link href="/privacy" className="text-[var(--emerald)] hover:underline">
             Privacy Policy
           </Link>{' '}
           for details.
@@ -156,13 +156,13 @@ export default function TermsPage() {
       <div className="mt-12 pt-8 border-t border-white/10 text-sm text-white/40">
         <p>
           Questions about these Terms? Email us at{' '}
-          <a href={`mailto:${CONTACT_EMAIL}`} className="text-[#10B981] hover:underline">
+          <a href={`mailto:${CONTACT_EMAIL}`} className="text-[var(--emerald)] hover:underline">
             {CONTACT_EMAIL}
           </a>
           .
         </p>
         <p className="mt-2">
-          <Link href="/" className="text-[#10B981] hover:underline">
+          <Link href="/" className="text-[var(--emerald)] hover:underline">
             ← Back to home
           </Link>
         </p>

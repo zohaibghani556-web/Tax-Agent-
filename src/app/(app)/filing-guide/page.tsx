@@ -144,7 +144,7 @@ export default function FilingGuidePage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-[#10B981]" />
+            <BookOpen className="h-6 w-6 text-[var(--emerald)]" />
             Filing Guide
           </h1>
           <p className="text-sm text-white/40 mt-0.5">
@@ -200,7 +200,7 @@ export default function FilingGuidePage() {
           </div>
           <a
             href="/onboarding"
-            className="inline-flex items-center gap-2 rounded-full bg-[#10B981] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors"
+            className="inline-flex items-center gap-2 rounded-full bg-[var(--emerald)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors"
           >
             Start assessment
             <ChevronRight className="h-4 w-4" />
@@ -214,7 +214,7 @@ export default function FilingGuidePage() {
           className="flex flex-col items-center gap-5 rounded-2xl px-6 py-12 text-center"
           style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)' }}
         >
-          <BookOpen className="h-10 w-10 text-[#10B981]/60" />
+          <BookOpen className="h-10 w-10 text-emerald-500/60" />
           <div className="space-y-1">
             <p className="font-semibold text-white/80">Generate your personalized filing guide</p>
             <p className="text-sm text-white/40 max-w-xs">
@@ -224,7 +224,7 @@ export default function FilingGuidePage() {
           <button
             onClick={generateGuide}
             disabled={calcLoading}
-            className="inline-flex items-center gap-2 rounded-full bg-[#10B981] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-full bg-[var(--emerald)] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors disabled:opacity-40"
           >
             {calcLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />}
             {calcLoading ? 'Preparing…' : 'Generate My Filing Guide'}
@@ -247,7 +247,7 @@ export default function FilingGuidePage() {
           className="flex flex-col items-center gap-4 rounded-2xl px-6 py-12"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
         >
-          <Loader2 className="h-8 w-8 text-[#10B981] animate-spin" />
+          <Loader2 className="h-8 w-8 text-[var(--emerald)] animate-spin" />
           <p className="text-sm font-medium text-white/70">Generating your personalized guide…</p>
           <p className="text-xs text-white/30">Claude is reading your tax data</p>
         </div>
@@ -277,7 +277,7 @@ export default function FilingGuidePage() {
               {guide.requiredForms.map((form) => (
                 <span
                   key={form}
-                  className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold text-[#10B981]"
+                  className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold text-[var(--emerald)]"
                   style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.2)' }}
                 >
                   {form}
@@ -296,7 +296,7 @@ export default function FilingGuidePage() {
             </div>
             <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
               <div
-                className="h-full rounded-full bg-[#10B981] transition-all duration-500"
+                className="h-full rounded-full bg-[var(--emerald)] transition-all duration-500"
                 style={{ width: `${progressPct}%` }}
               />
             </div>
@@ -322,7 +322,7 @@ export default function FilingGuidePage() {
                       aria-label={done ? 'Mark incomplete' : 'Mark complete'}
                     >
                       {done
-                        ? <CheckSquare className="h-5 w-5 text-[#10B981]" />
+                        ? <CheckSquare className="h-5 w-5 text-[var(--emerald)]" />
                         : <Square className="h-5 w-5 text-white/25" />}
                     </button>
 
@@ -353,7 +353,7 @@ export default function FilingGuidePage() {
                           style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.2)' }}
                         >
                           <span className="text-xs text-white/40">Enter:</span>
-                          <span className="text-sm font-bold text-[#10B981] tabular-nums">
+                          <span className="text-sm font-bold text-[var(--emerald)] tabular-nums">
                             {formatCad(step.value)}
                           </span>
                         </div>
@@ -419,7 +419,7 @@ export default function FilingGuidePage() {
                   className="flex items-start gap-4 py-3"
                   style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
                 >
-                  <span className="text-xs font-semibold text-[#10B981] tabular-nums shrink-0 w-28">
+                  <span className="text-xs font-semibold text-[var(--emerald)] tabular-nums shrink-0 w-28">
                     {d.date}
                   </span>
                   <span className="text-sm text-white/50">{d.description}</span>

@@ -182,7 +182,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             position: absolute;
             top: -40px;
             left: 0;
-            background: #10B981;
+            background: var(--emerald);
             color: white;
             padding: 8px;
             z-index: 100;

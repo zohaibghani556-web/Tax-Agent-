@@ -14,7 +14,7 @@ const inputStyle = {
   border: '1px solid rgba(255,255,255,0.12)',
 };
 const labelCls =
-  'absolute left-4 top-1 text-[10px] font-semibold text-white/40 uppercase tracking-wide pointer-events-none transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-placeholder-shown:font-normal peer-placeholder-shown:tracking-normal peer-placeholder-shown:text-white/40 peer-focus:top-1 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:text-[#10B981]';
+  'absolute left-4 top-1 text-[10px] font-semibold text-white/40 uppercase tracking-wide pointer-events-none transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-placeholder-shown:font-normal peer-placeholder-shown:tracking-normal peer-placeholder-shown:text-white/40 peer-focus:top-1 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:text-[var(--emerald)]';
 
 function LoginForm() {
   const router = useRouter();
@@ -58,7 +58,7 @@ function LoginForm() {
       >
         <div className="text-center mb-8">
           <Link href="/" className="inline-block text-xl font-semibold text-white">
-            TaxAgent<span className="text-[#10B981]">.ai</span>
+            TaxAgent<span className="text-[var(--emerald)]">.ai</span>
           </Link>
           <h1 className="mt-4 text-2xl font-bold text-white">Welcome back</h1>
           <p className="mt-1 text-sm text-white/50">Sign in to your account</p>
@@ -119,7 +119,7 @@ function LoginForm() {
             disabled={loading}
             whileHover={loading ? {} : { scale: 1.02 }}
             whileTap={loading ? {} : { scale: 0.98 }}
-            className="w-full rounded-full bg-[#10B981] px-4 py-3 text-sm font-semibold text-white hover:bg-[#059669] transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
+            className="w-full rounded-full bg-[var(--emerald)] px-4 py-3 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
           >
             {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Signing in…</> : 'Sign in'}
           </motion.button>
@@ -127,7 +127,7 @@ function LoginForm() {
 
         <p className="mt-6 text-center text-sm text-white/50">
           Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-[#10B981] font-semibold hover:underline">
+          <Link href="/signup" className="text-[var(--emerald)] font-semibold hover:underline">
             Start free →
           </Link>
         </p>

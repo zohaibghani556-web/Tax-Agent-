@@ -177,7 +177,7 @@ function Bubble({ role, content }: { role: 'user' | 'assistant'; content: string
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
       {!isUser && (
         <div className="mr-2.5 mt-0.5 flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
-          style={{ background: 'linear-gradient(135deg, #10B981, #059669)' }}>
+          style={{ background: 'linear-gradient(135deg, var(--emerald), var(--emerald-dark))' }}>
           CPA
         </div>
       )}
@@ -203,7 +203,7 @@ function TypingIndicator() {
   return (
     <div className="flex justify-start mb-4">
       <div className="mr-2.5 flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
-        style={{ background: 'linear-gradient(135deg, #10B981, #059669)' }}>
+        style={{ background: 'linear-gradient(135deg, var(--emerald), var(--emerald-dark))' }}>
         CPA
       </div>
       <div
@@ -230,11 +230,11 @@ function SlipCard({ slip }: { slip: SlipRecommendation }) {
       className="rounded-xl p-4 flex items-start gap-3"
       style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.2)' }}
     >
-      <FileText className="h-5 w-5 text-[#10B981] flex-shrink-0 mt-0.5" />
+      <FileText className="h-5 w-5 text-[var(--emerald)] flex-shrink-0 mt-0.5" />
       <div>
         <p className="text-sm font-semibold text-white">{slip.type}</p>
         <p className="text-xs text-white/60 mt-0.5">{slip.description}</p>
-        <p className="text-xs text-[#10B981]/80 mt-1">📍 {slip.where}</p>
+        <p className="text-xs text-emerald-500/80 mt-1">📍 {slip.where}</p>
       </div>
     </div>
   );
@@ -617,7 +617,7 @@ export default function OnboardingPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowResumeModal(false)}
-                className="flex-1 rounded-full bg-[#10B981] py-2.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors"
+                className="flex-1 rounded-full bg-[var(--emerald)] py-2.5 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors"
               >
                 Continue assessment
               </button>
@@ -681,7 +681,7 @@ export default function OnboardingPage() {
             <button
               onClick={handleProceed}
               disabled={calcRunning}
-              className="w-full flex items-center justify-center gap-2 rounded-full bg-[#10B981] py-3.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors disabled:opacity-60 disabled:cursor-wait"
+              className="w-full flex items-center justify-center gap-2 rounded-full bg-[var(--emerald)] py-3.5 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors disabled:opacity-60 disabled:cursor-wait"
             >
               {calcRunning ? (
                 <>
@@ -729,7 +729,7 @@ export default function OnboardingPage() {
               onClick={() => sendMessage(input)}
               disabled={!input.trim() || streaming}
               className="flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center transition-colors disabled:opacity-30"
-              style={{ background: '#10B981' }}
+              style={{ background: 'var(--emerald)' }}
               aria-label="Send"
             >
               {streaming

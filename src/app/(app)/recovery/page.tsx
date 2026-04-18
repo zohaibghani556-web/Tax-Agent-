@@ -160,7 +160,7 @@ function OpportunityCard({ op }: { op: RecoveryOpportunity }) {
               : 'rgba(255,255,255,0.05)',
           }}
         >
-          <p className={`text-base font-bold tabular-nums ${op.t1AdjRequired ? 'text-[#10B981]' : 'text-white/60'}`}>
+          <p className={`text-base font-bold tabular-nums ${op.t1AdjRequired ? 'text-[var(--emerald)]' : 'text-white/60'}`}>
             {formatCad(op.estimatedAmount)}
           </p>
         </div>
@@ -293,7 +293,7 @@ export default function RecoveryPage() {
         {totalRecoverable > 0 ? (
           <GlassCard className="p-6 text-center">
             <p className="text-sm text-white/50 mb-2">Potentially recoverable via T1-ADJ</p>
-            <p className="text-5xl font-black text-[#10B981] tabular-nums">
+            <p className="text-5xl font-black text-[var(--emerald)] tabular-nums">
               {formatCad(totalRecoverable)}
             </p>
             <p className="text-sm text-white/40 mt-3">
@@ -302,7 +302,7 @@ export default function RecoveryPage() {
                 href="https://www.canada.ca/en/revenue-agency/services/about-canada-revenue-agency-cra/complaints-disputes/request-change-return.html"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#10B981] hover:underline"
+                className="text-[var(--emerald)] hover:underline"
               >
                 File a T1-ADJ at My Account
               </a>
@@ -310,7 +310,7 @@ export default function RecoveryPage() {
           </GlassCard>
         ) : (
           <GlassCard className="p-6 text-center">
-            <CheckCircle className="h-12 w-12 text-[#10B981] mx-auto mb-3" />
+            <CheckCircle className="h-12 w-12 text-[var(--emerald)] mx-auto mb-3" />
             <p className="text-lg font-semibold text-white">Your {noa.taxYear} return looks optimized</p>
             <p className="text-sm text-white/40 mt-2">
               No missed credits were detected based on the information in your NOA.
@@ -322,7 +322,7 @@ export default function RecoveryPage() {
         {t1adjOps.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-[#10B981]" />
+              <TrendingUp className="h-4 w-4 text-[var(--emerald)]" />
               <p className="text-sm font-semibold text-white">
                 {t1adjOps.length} missed credit{t1adjOps.length !== 1 ? 's' : ''} found
               </p>
@@ -348,10 +348,9 @@ export default function RecoveryPage() {
         {opportunities.length > 0 && (
           <button
             onClick={() => downloadGuide(data)}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-semibold text-white transition-colors"
-            style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)' }}
+            className="w-full flex items-center justify-center gap-2 rounded-full py-4 text-sm font-semibold text-white bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-colors"
           >
-            <Download className="h-4 w-4 text-[#10B981]" />
+            <Download className="h-4 w-4 text-[var(--emerald)]" />
             Download T1-ADJ Recovery Guide
           </button>
         )}
@@ -389,7 +388,7 @@ export default function RecoveryPage() {
           { label: 'Process', value: 'T1-ADJ', sub: 'Free, online' },
         ].map((item) => (
           <GlassCard key={item.label} className="p-4 text-center">
-            <p className="text-2xl font-black text-[#10B981]">{item.value}</p>
+            <p className="text-2xl font-black text-[var(--emerald)]">{item.value}</p>
             <p className="text-[10px] text-white/40 mt-1 leading-snug">{item.label}</p>
             <p className="text-[10px] text-white/25 mt-0.5">{item.sub}</p>
           </GlassCard>
@@ -406,7 +405,7 @@ export default function RecoveryPage() {
           <label className="flex items-center gap-3 cursor-pointer flex-1">
             <div
               onClick={() => setHasSpouse((v) => !v)}
-              className={`relative w-10 h-6 rounded-full transition-colors cursor-pointer ${hasSpouse ? 'bg-[#10B981]' : 'bg-white/10'}`}
+              className={`relative w-10 h-6 rounded-full transition-colors cursor-pointer ${hasSpouse ? 'bg-[var(--emerald)]' : 'bg-white/10'}`}
             >
               <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${hasSpouse ? 'left-5' : 'left-1'}`} />
             </div>
@@ -485,7 +484,7 @@ export default function RecoveryPage() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <Button onClick={scan} className="w-full bg-[#10B981] hover:bg-[#059669] gap-2">
+            <Button onClick={scan} className="w-full rounded-full bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] shadow-[0_10px_30px_rgba(16,185,129,0.3)] gap-2">
               <TrendingUp className="h-4 w-4" />
               Scan for missed credits
             </Button>
@@ -494,7 +493,7 @@ export default function RecoveryPage() {
 
         {state.status === 'scanning' && (
           <div className="rounded-xl p-12 flex flex-col items-center gap-4" style={{ background: 'rgba(255,255,255,0.02)' }}>
-            <Loader2 className="h-8 w-8 animate-spin text-[#10B981]" />
+            <Loader2 className="h-8 w-8 animate-spin text-[var(--emerald)]" />
             <div className="text-center">
               <p className="text-sm font-semibold text-white/80">Scanning your return…</p>
               <p className="text-xs text-white/40 mt-1">
@@ -548,7 +547,7 @@ export default function RecoveryPage() {
             },
           ].map((item) => (
             <div key={item.name} className="flex items-start gap-3">
-              <CheckCircle className="h-4 w-4 text-[#10B981] flex-shrink-0 mt-0.5" />
+              <CheckCircle className="h-4 w-4 text-[var(--emerald)] flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-white/80">{item.name}</p>
                 <p className="text-xs text-white/40 mt-0.5">{item.detail}</p>

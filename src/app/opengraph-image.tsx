@@ -33,7 +33,7 @@ export default function OgImage() {
             marginBottom: '32px',
           }}
         >
-          <span style={{ color: '#10B981', fontSize: '18px', fontWeight: 600 }}>
+          <span style={{ color: 'var(--emerald)', fontSize: '18px', fontWeight: 600 }}>
             2025 Tax Season · Ontario, Canada
           </span>
         </div>
@@ -73,7 +73,7 @@ export default function OgImage() {
             { value: 'Canada', label: 'data residency' },
           ].map(({ value, label }) => (
             <div key={label} style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '36px', fontWeight: 700, color: '#10B981' }}>{value}</span>
+              <span style={{ fontSize: '36px', fontWeight: 700, color: 'var(--emerald)' }}>{value}</span>
               <span style={{ fontSize: '18px', color: 'rgba(255,255,255,0.45)', marginTop: '4px' }}>{label}</span>
             </div>
           ))}

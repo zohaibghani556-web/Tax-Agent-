@@ -63,7 +63,7 @@ const FAQS = [
 ];
 
 function FeatureCell({ value }: { value: boolean | string }) {
-  if (value === true) return <Check className="mx-auto h-4 w-4 text-[#10B981]" />;
+  if (value === true) return <Check className="mx-auto h-4 w-4 text-[var(--emerald)]" />;
   if (value === false) return <X className="mx-auto h-4 w-4 text-white/20" />;
   return <span className="text-sm text-white/60">{value}</span>;
 }
@@ -101,7 +101,7 @@ export default function PricingPage() {
           <motion.p
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-xs font-semibold uppercase tracking-widest text-[#10B981] mb-3"
+            className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3"
           >
             Pricing
           </motion.p>
@@ -141,7 +141,7 @@ export default function PricingPage() {
               className={`px-5 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${annual ? 'bg-white/15 text-white' : 'text-white/50 hover:text-white'}`}
             >
               Annual
-              <span className="text-xs bg-[#10B981] text-white px-1.5 py-0.5 rounded-full">Save 20%</span>
+              <span className="text-xs bg-[var(--emerald)] text-white px-1.5 py-0.5 rounded-full">Save 20%</span>
             </button>
           </motion.div>
         </div>
@@ -162,13 +162,13 @@ export default function PricingPage() {
               className="rounded-2xl p-8 flex flex-col"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
             >
-              <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-2">Free</p>
-              <p className="text-4xl font-bold text-white">$0</p>
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-[0.15em] mb-2">Free</p>
+              <p className="text-4xl font-bold text-white tabular-nums">$0</p>
               <p className="text-sm text-white/50 mt-1 mb-6">For simple T4 returns</p>
               <ul className="space-y-2.5 flex-1 mb-8">
                 {['AI chat assessment', 'T4 OCR upload', 'Federal + Ontario calc', 'Filing guide PDF', 'Canadian data storage'].map((f) => (
                   <li key={f} className="flex items-center gap-2.5 text-sm text-white/60">
-                    <Check className="h-4 w-4 text-[#10B981] flex-shrink-0" /> {f}
+                    <Check className="h-4 w-4 text-[var(--emerald)] flex-shrink-0" /> {f}
                   </li>
                 ))}
               </ul>
@@ -191,13 +191,13 @@ export default function PricingPage() {
               }}
             >
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="inline-flex items-center rounded-full bg-[#10B981] px-3 py-1 text-xs font-semibold text-white">
+                <span className="inline-flex items-center rounded-full bg-[var(--emerald)] px-3 py-1 text-xs font-semibold text-white">
                   Most Popular
                 </span>
               </div>
-              <p className="text-xs font-semibold text-[#10B981] uppercase tracking-widest mb-2">Pro</p>
+              <p className="text-xs font-semibold text-[var(--emerald)] uppercase tracking-[0.15em] mb-2">Pro</p>
               <div className="flex items-baseline gap-2">
-                <p className="text-4xl font-bold text-white">{annual ? '$29' : '$39'}</p>
+                <p className="text-4xl font-bold text-white tabular-nums">{annual ? '$29' : '$39'}</p>
                 <p className="text-white/40 text-sm">{annual ? '/yr' : '/mo'}</p>
               </div>
               <p className="text-sm text-white/50 mt-1 mb-6">For complex returns</p>
@@ -215,13 +215,13 @@ export default function PricingPage() {
                   '5-year return history',
                 ].map((f) => (
                   <li key={f} className="flex items-center gap-2.5 text-sm text-white/70">
-                    <Check className="h-4 w-4 text-[#10B981] flex-shrink-0" /> {f}
+                    <Check className="h-4 w-4 text-[var(--emerald)] flex-shrink-0" /> {f}
                   </li>
                 ))}
               </ul>
               <Link
                 href="/signup"
-                className="block text-center rounded-full bg-[#10B981] text-white px-4 py-3 text-sm font-semibold hover:bg-[#059669] transition-colors"
+                className="block text-center rounded-full bg-[var(--emerald)] text-white px-4 py-3 text-sm font-semibold hover:bg-[var(--emerald-dark)] transition-colors"
               >
                 Start free trial →
               </Link>
@@ -233,7 +233,7 @@ export default function PricingPage() {
               className="rounded-2xl p-8 flex flex-col"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
             >
-              <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-2">CPA Portal</p>
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-[0.15em] mb-2">CPA Portal</p>
               <p className="text-4xl font-bold text-white">Custom</p>
               <p className="text-sm text-white/50 mt-1 mb-6">For firms and professionals</p>
               <ul className="space-y-2.5 flex-1 mb-8">
@@ -247,7 +247,7 @@ export default function PricingPage() {
                   'Dedicated account manager',
                 ].map((f) => (
                   <li key={f} className="flex items-center gap-2.5 text-sm text-white/60">
-                    <Check className="h-4 w-4 text-[#10B981] flex-shrink-0" /> {f}
+                    <Check className="h-4 w-4 text-[var(--emerald)] flex-shrink-0" /> {f}
                   </li>
                 ))}
               </ul>
@@ -272,7 +272,7 @@ export default function PricingPage() {
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
                   <th className="py-4 px-6 text-left font-semibold text-white/60">Feature</th>
                   <th className="py-4 px-4 text-center font-semibold text-white/60">Free</th>
-                  <th className="py-4 px-4 text-center font-semibold text-[#10B981]">Pro</th>
+                  <th className="py-4 px-4 text-center font-semibold text-[var(--emerald)]">Pro</th>
                   <th className="py-4 px-4 text-center font-semibold text-white/60">CPA</th>
                 </tr>
               </thead>
@@ -315,7 +315,7 @@ export default function PricingPage() {
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="inline-block">
             <Link
               href="/signup"
-              className="inline-flex items-center rounded-full bg-[#10B981] px-8 py-4 text-base font-semibold text-white hover:bg-[#059669] transition-colors shadow-lg"
+              className="inline-flex items-center rounded-full bg-[var(--emerald)] px-8 py-4 text-base font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors shadow-lg"
               style={{ boxShadow: '0 0 30px rgba(16,185,129,0.3)' }}
             >
               Start my free assessment →

@@ -186,7 +186,7 @@ export default function SlipsPage() {
           </div>
           <Link
             href="/onboarding"
-            className="flex-shrink-0 flex items-center gap-1.5 rounded-full bg-[#10B981] px-4 py-2 text-xs font-semibold text-white hover:bg-[#059669] transition-colors"
+            className="flex-shrink-0 flex items-center gap-1.5 rounded-full bg-[var(--emerald)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors"
           >
             Start assessment
             <ChevronRight className="h-3.5 w-3.5" />
@@ -213,11 +213,11 @@ export default function SlipsPage() {
                     border: `1px solid ${done ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.06)'}`,
                   }}
                 >
-                  <div className={`h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0 ${done ? 'bg-[#10B981]' : 'bg-white/10'}`}>
+                  <div className={`h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0 ${done ? 'bg-[var(--emerald)]' : 'bg-white/10'}`}>
                     {done ? <Check className="h-3.5 w-3.5 text-white" /> : <FileText className="h-3.5 w-3.5 text-white/40" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-semibold ${done ? 'text-[#10B981]' : 'text-white/70'}`}>{rec.type}</p>
+                    <p className={`text-sm font-semibold ${done ? 'text-[var(--emerald)]' : 'text-white/70'}`}>{rec.type}</p>
                     <p className="text-xs text-white/40 truncate">{rec.description}</p>
                   </div>
                   {!done && (
@@ -277,12 +277,12 @@ export default function SlipsPage() {
                   className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: 'rgba(16,185,129,0.1)' }}
                 >
-                  <FileText className="h-5 w-5 text-[#10B981]" />
+                  <FileText className="h-5 w-5 text-[var(--emerald)]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span
-                      className="text-xs font-bold px-2 py-0.5 rounded-full text-[#10B981]"
+                      className="text-xs font-bold px-2 py-0.5 rounded-full text-[var(--emerald)]"
                       style={{ background: 'rgba(16,185,129,0.12)' }}
                     >
                       {slip.type}
@@ -292,7 +292,7 @@ export default function SlipsPage() {
                     </span>
                   </div>
                   {primaryAmount(slip) && (
-                    <p className="text-xs text-white/40 mt-0.5">{primaryAmount(slip)}</p>
+                    <p className="text-xs text-white/40 tabular-nums mt-0.5">{primaryAmount(slip)}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
@@ -321,12 +321,11 @@ export default function SlipsPage() {
       {slips.length > 0 && (
         <button
           onClick={() => router.push('/calculator')}
-          className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-semibold text-white transition-colors"
-          style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)' }}
+          className="w-full flex items-center justify-center gap-2 rounded-full py-4 text-sm font-semibold text-white bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-colors"
         >
-          <Check className="h-4 w-4 text-[#10B981]" />
+          <Check className="h-4 w-4 text-[var(--emerald)]" />
           Calculate my taxes
-          <ArrowRight className="h-4 w-4 text-[#10B981]" />
+          <ArrowRight className="h-4 w-4 text-[var(--emerald)]" />
         </button>
       )}
 

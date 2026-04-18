@@ -419,7 +419,7 @@ function EstimatorInner() {
           <button
             onClick={() => setStep(1)}
             className="inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold
-              text-lg px-8 py-4 rounded-2xl transition-colors duration-200 shadow-lg shadow-emerald-500/20"
+              text-lg px-8 py-4 rounded-full transition-colors duration-200 shadow-[0_10px_30px_rgba(16,185,129,0.3)]"
           >
             Calculate my refund
             <ArrowRight className="w-5 h-5" />
@@ -465,7 +465,7 @@ function EstimatorInner() {
               {withheldEstimated && ' (withholding estimated)'}
             </p>
 
-            <div className={`text-6xl sm:text-7xl font-bold mb-2 ${isRefund ? 'text-emerald-400' : 'text-amber-400'}`}>
+            <div className={`text-6xl sm:text-7xl font-bold tabular-nums mb-2 ${isRefund ? 'text-emerald-400' : 'text-amber-400'}`}>
               {isRefund ? '+' : '-'}{formatCad(refund)}
             </div>
 
@@ -801,8 +801,8 @@ function EstimatorInner() {
             <button
               onClick={goToResults}
               className="mt-8 w-full inline-flex items-center justify-center gap-3 bg-emerald-500 hover:bg-emerald-400
-                text-black font-semibold text-lg px-8 py-4 rounded-2xl transition-colors duration-200
-                shadow-lg shadow-emerald-500/20"
+                text-black font-semibold text-lg px-8 py-4 rounded-full transition-colors duration-200
+                shadow-[0_10px_30px_rgba(16,185,129,0.3)]"
             >
               Calculate my refund
               <ArrowRight className="w-5 h-5" />

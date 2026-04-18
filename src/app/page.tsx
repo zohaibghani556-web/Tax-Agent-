@@ -89,7 +89,7 @@ function AnimatedHeadline() {
           </motion.span>
         ))}
       </span>
-      <span className="block text-[#10B981]">
+      <span className="block text-[var(--emerald)]">
         {line2.map((word, i) => (
           <motion.span
             key={word + i}
@@ -138,7 +138,7 @@ function FeatureCard({ icon, title, body, delay = 0 }: FeatureCardProps) {
       <motion.div
         whileHover={{ rotate: 8, scale: 1.08 }}
         transition={{ duration: 0.2 }}
-        className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#10B981]/15 ring-1 ring-[#10B981]/20"
+        className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/20"
       >
         {icon}
       </motion.div>
@@ -198,7 +198,7 @@ function PricingCard({
   }
 
   const ctaBg = {
-    primary: 'bg-[#10B981] hover:bg-[#059669] text-white shadow-lg shadow-emerald-500/25',
+    primary: 'bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] text-white shadow-lg shadow-emerald-500/25',
     secondary: 'bg-white/8 hover:bg-white/12 text-white border border-white/10',
     outline: 'bg-[#1A2744] hover:bg-[#243358] text-white',
   }[ctaVariant];
@@ -222,7 +222,7 @@ function PricingCard({
       {/* Popular badge */}
       {isPopular && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#10B981] px-3 py-1 text-xs font-semibold text-white">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--emerald)] px-3 py-1 text-xs font-semibold text-white">
             <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
             Most Popular
           </span>
@@ -252,8 +252,8 @@ function PricingCard({
           />
         )}
 
-        <p className="text-sm font-semibold uppercase tracking-widest mb-3"
-          style={{ color: isPopular ? '#10B981' : 'rgba(255,255,255,0.5)' }}>
+        <p className="text-sm font-semibold uppercase tracking-[0.15em] mb-3"
+          style={{ color: isPopular ? 'var(--emerald)' : 'rgba(255,255,255,0.5)' }}>
           {planName}
         </p>
         <div className="flex items-end gap-1 mb-1">
@@ -269,8 +269,8 @@ function PricingCard({
         <ul className="space-y-2.5 flex-1 mb-8">
           {features.map((f) => (
             <li key={f} className="flex items-center gap-2.5 text-sm text-white/70">
-              <span className="flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center bg-[#10B981]/15">
-                <Check className="h-3 w-3 text-[#10B981]" />
+              <span className="flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center bg-emerald-500/15">
+                <Check className="h-3 w-3 text-[var(--emerald)]" />
               </span>
               {f}
             </li>
@@ -306,7 +306,7 @@ function AnimatedProgressBar({ label, pct }: { label: string; pct: number }) {
       </div>
       <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
         <motion.div
-          className="h-full rounded-full bg-[#10B981]"
+          className="h-full rounded-full bg-[var(--emerald)]"
           initial={{ width: 0 }}
           animate={{ width: isInView ? `${pct}%` : 0 }}
           transition={{ duration: 1.2, delay: 0.2, ease: easeOut }}
@@ -393,7 +393,7 @@ function InstantEstimator() {
           viewport={{ once: true, margin: '-60px' }}
           variants={stagger}
         >
-          <motion.p variants={fadeUp} className="text-center text-xs font-semibold uppercase tracking-widest text-[#10B981] mb-3">
+          <motion.p variants={fadeUp} className="text-center text-xs font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3">
             Free Estimate
           </motion.p>
           <motion.h2 variants={fadeUp} className="text-center text-2xl sm:text-3xl font-bold text-white mb-2">
@@ -446,7 +446,7 @@ function InstantEstimator() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 rounded-full bg-[#10B981] py-3.5 text-sm font-semibold text-white hover:bg-[#059669] transition-colors disabled:opacity-60 relative overflow-hidden"
+                className="w-full flex items-center justify-center gap-2 rounded-full bg-[var(--emerald)] py-3.5 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors disabled:opacity-60 relative overflow-hidden"
               >
                 {loading ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Calculating…</>
@@ -468,10 +468,10 @@ function InstantEstimator() {
                   className="rounded-xl p-5 text-center"
                   style={{ background: result.isRefund ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${result.isRefund ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}` }}
                 >
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: result.isRefund ? '#10B981' : '#F59E0B' }}>
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: result.isRefund ? 'var(--emerald)' : 'var(--warning)' }}>
                     {result.isRefund ? 'Estimated Refund' : 'Balance Owing'}
                   </p>
-                  <p className="text-4xl font-black tabular-nums" style={{ color: result.isRefund ? '#10B981' : '#F59E0B' }}>
+                  <p className="text-4xl font-black tabular-nums" style={{ color: result.isRefund ? 'var(--emerald)' : 'var(--warning)' }}>
                     {formatCad(result.isRefund ? result.estimatedRefund : result.estimatedOwing)}
                   </p>
                   <p className="text-xs text-white/50 mt-2">
@@ -486,7 +486,7 @@ function InstantEstimator() {
 
                 <Link
                   href="/signup"
-                  className="block text-center rounded-full bg-[#10B981] py-3 text-sm font-semibold text-white hover:bg-[#059669] transition-colors"
+                  className="block text-center rounded-full bg-[var(--emerald)] py-3 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors"
                 >
                   Get my precise calculation → Create free account
                 </Link>
@@ -519,16 +519,16 @@ export default function HomePage() {
             className="mb-8 inline-block"
           >
             <span
-              className="inline-flex items-center gap-2 rounded-full border border-[#10B981]/30 bg-[#10B981]/10 px-4 py-1.5 text-sm font-medium text-[#10B981]"
+              className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 text-sm font-medium text-[var(--emerald)]"
               style={{ boxShadow: '0 0 20px rgba(16,185,129,0.15)' }}
             >
               <span className="relative flex h-2 w-2">
                 <motion.span
-                  className="absolute inline-flex h-full w-full rounded-full bg-[#10B981]"
+                  className="absolute inline-flex h-full w-full rounded-full bg-[var(--emerald)]"
                   animate={{ scale: [1, 1.8, 1], opacity: [0.8, 0, 0.8] }}
                   transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
                 />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#10B981]" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--emerald)]" />
               </span>
               2025 Tax Season — Now Open
             </span>
@@ -557,7 +557,7 @@ export default function HomePage() {
             <MagneticButton radius={120} strength={0.35}>
               <Link
                 href="/onboarding"
-                className="inline-flex items-center justify-center rounded-full bg-[#10B981] px-8 py-4 text-base font-semibold text-white shadow-xl shadow-[#10B981]/30 hover:bg-[#059669] transition-colors"
+                className="inline-flex items-center justify-center rounded-full bg-[var(--emerald)] px-8 py-4 text-base font-semibold text-white shadow-xl shadow-emerald-500/30 hover:bg-[var(--emerald-dark)] transition-colors"
               >
                 Start my free assessment →
               </Link>
@@ -601,13 +601,13 @@ export default function HomePage() {
                 }}
               />
 
-              <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-4">2025 Tax Return</p>
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-[0.15em] mb-4">2025 Tax Return</p>
               <p className="text-sm text-white/60 mb-1">Estimated Refund</p>
-              <p className="text-4xl font-bold text-[#10B981]">
+              <p className="text-4xl font-bold text-[var(--emerald)]">
                 $<CountUp end={3247} duration={2} decimals={2} suffix="" immediate />
               </p>
               <p className="mt-2 text-xs text-white/40">Based on your T4 + RRSP contribution</p>
-              <div className="mt-4 flex items-center gap-2 text-xs text-[#10B981]">
+              <div className="mt-4 flex items-center gap-2 text-xs text-[var(--emerald)]">
                 <CheckCircle2 className="h-4 w-4" />
                 CRA-accurate calculation
               </div>
@@ -657,7 +657,7 @@ export default function HomePage() {
             variants={stagger}
             className="text-center mb-16"
           >
-            <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-widest text-[#10B981] mb-3">
+            <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3">
               Features
             </motion.p>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-bold text-white">
@@ -677,19 +677,19 @@ export default function HomePage() {
           >
             {[
               {
-                icon: <Bot className="h-6 w-6 text-[#10B981]" />,
+                icon: <Bot className="h-6 w-6 text-[var(--emerald)]" />,
                 title: 'AI Assessment',
                 body: 'Chat naturally about your income. The AI figures out your situation — employment, investments, RRSP, everything.',
                 delay: 0,
               },
               {
-                icon: <ScanLine className="h-6 w-6 text-[#10B981]" />,
+                icon: <ScanLine className="h-6 w-6 text-[var(--emerald)]" />,
                 title: 'OCR Slip Reading',
                 body: 'Photograph your T4, T5, or any CRA slip. Every box extracted automatically. You just confirm.',
                 delay: 0.1,
               },
               {
-                icon: <FileCheck2 className="h-6 w-6 text-[#10B981]" />,
+                icon: <FileCheck2 className="h-6 w-6 text-[var(--emerald)]" />,
                 title: 'Personalized Filing Guide',
                 body: 'A step-by-step guide with your exact line numbers, amounts, and deadlines. Know exactly what to enter.',
                 delay: 0.2,
@@ -722,7 +722,7 @@ export default function HomePage() {
             variants={stagger}
             className="text-center mb-16"
           >
-            <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-widest text-[#10B981] mb-3">
+            <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3">
               How It Works
             </motion.p>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-bold text-white">
@@ -779,7 +779,7 @@ export default function HomePage() {
                   transition={{ type: 'spring', stiffness: 400 }}
                   className="inline-flex h-11 w-11 items-center justify-center rounded-full font-bold text-sm text-white"
                   style={{
-                    background: 'linear-gradient(135deg, #10B981, #059669)',
+                    background: 'linear-gradient(135deg, var(--emerald), var(--emerald-dark))',
                     boxShadow: '0 0 20px rgba(16,185,129,0.4)',
                   }}
                 >
@@ -806,7 +806,7 @@ export default function HomePage() {
             variants={stagger}
             className="text-center mb-14"
           >
-            <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-widest text-[#10B981] mb-3">
+            <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3">
               Coverage
             </motion.p>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-bold text-white">
@@ -850,8 +850,8 @@ export default function HomePage() {
                     variants={listItem}
                     className="flex items-center gap-3 py-3 border-b border-white/5"
                   >
-                    <span className="flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center bg-[#10B981]/15">
-                      <Check className="h-3 w-3 text-[#10B981]" />
+                    <span className="flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center bg-emerald-500/15">
+                      <Check className="h-3 w-3 text-[var(--emerald)]" />
                     </span>
                     <span className="text-sm text-white/70">{text}</span>
                   </motion.li>
@@ -876,7 +876,7 @@ export default function HomePage() {
             variants={stagger}
             className="text-center mb-16"
           >
-            <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-widest text-[#10B981] mb-3">
+            <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3">
               Pricing
             </motion.p>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-bold text-white">
@@ -966,7 +966,7 @@ export default function HomePage() {
               viewport={{ once: true, margin: '-80px' }}
               variants={stagger}
             >
-              <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-widest text-[#10B981] mb-3">
+              <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3">
                 For CPAs
               </motion.p>
               <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-bold text-white">
@@ -982,8 +982,8 @@ export default function HomePage() {
                   'White-label available',
                 ].map((item) => (
                   <li key={item} className="flex items-center gap-3 text-white/70 text-sm">
-                    <span className="flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center bg-[#10B981]/15">
-                      <Check className="h-3 w-3 text-[#10B981]" />
+                    <span className="flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center bg-emerald-500/15">
+                      <Check className="h-3 w-3 text-[var(--emerald)]" />
                     </span>
                     {item}
                   </li>
@@ -992,7 +992,7 @@ export default function HomePage() {
               <motion.div variants={fadeUp} className="mt-8">
                 <Link
                   href="/for-cpas"
-                  className="text-[#10B981] font-semibold hover:underline text-sm"
+                  className="text-[var(--emerald)] font-semibold hover:underline text-sm"
                 >
                   Learn more about the CPA portal →
                 </Link>
@@ -1015,7 +1015,7 @@ export default function HomePage() {
                   boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
                 }}
               >
-                <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-5">CPA Dashboard</p>
+                <p className="text-xs font-semibold text-white/40 uppercase tracking-[0.15em] mb-5">CPA Dashboard</p>
                 <div className="flex items-baseline gap-2 mb-1">
                   <p className="text-3xl font-bold text-white">
                     <CountUp end={32} duration={1.5} />
@@ -1050,7 +1050,7 @@ export default function HomePage() {
             viewport={{ once: true, margin: '-80px' }}
             variants={stagger}
           >
-            <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-widest text-[#10B981] mb-3">
+            <motion.p variants={fadeUp} className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3">
               Security
             </motion.p>
             <motion.h2 variants={fadeUp} className="text-3xl sm:text-4xl font-bold text-white">
@@ -1084,7 +1084,7 @@ export default function HomePage() {
                     backdropFilter: 'blur(8px)',
                   }}
                 >
-                  <span className="text-[#10B981]">{icon}</span>
+                  <span className="text-[var(--emerald)]">{icon}</span>
                   <span>{label}</span>
                 </motion.div>
               ))}
@@ -1100,7 +1100,7 @@ export default function HomePage() {
             {/* Brand */}
             <div className="sm:col-span-2">
               <p className="text-xl font-semibold">
-                TaxAgent<span className="text-[#10B981]">.ai</span>
+                TaxAgent<span className="text-[var(--emerald)]">.ai</span>
               </p>
               <p className="mt-2 text-sm text-white/40">Canada&apos;s AI tax agent</p>
               <p className="mt-4 text-xs text-white/25 max-w-xs leading-relaxed">
@@ -1110,7 +1110,7 @@ export default function HomePage() {
 
             {/* Product */}
             <div>
-              <p className="text-xs font-semibold text-white/30 uppercase tracking-widest mb-4">Product</p>
+              <p className="text-xs font-semibold text-white/30 uppercase tracking-[0.15em] mb-4">Product</p>
               <ul className="space-y-2">
                 {[
                   { label: 'Features', href: '/#features' },
@@ -1129,7 +1129,7 @@ export default function HomePage() {
 
             {/* For CPAs */}
             <div>
-              <p className="text-xs font-semibold text-white/30 uppercase tracking-widest mb-4">For CPAs</p>
+              <p className="text-xs font-semibold text-white/30 uppercase tracking-[0.15em] mb-4">For CPAs</p>
               <ul className="space-y-2">
                 {['CPA Portal', 'Book a Demo', 'Pricing', 'Integrations'].map((l) => (
                   <li key={l}>
@@ -1143,7 +1143,7 @@ export default function HomePage() {
 
             {/* Legal */}
             <div>
-              <p className="text-xs font-semibold text-white/30 uppercase tracking-widest mb-4">Legal</p>
+              <p className="text-xs font-semibold text-white/30 uppercase tracking-[0.15em] mb-4">Legal</p>
               <ul className="space-y-2">
                 {[
                   { label: 'Privacy Policy', href: '/privacy' },
