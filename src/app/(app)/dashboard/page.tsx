@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  AlertTriangle,
   BookOpen,
   Calculator,
   Check,
@@ -21,7 +20,9 @@ import { toast } from 'sonner';
 import { TaxCalendarCard } from '@/components/dashboard/TaxCalendarCard';
 import { CompletionRing } from '@/components/dashboard/CompletionRing';
 
-function formatCad(n: number): string {
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function fmtCAD(n: number): string {
   return new Intl.NumberFormat('en-CA', {
     style: 'currency',
     currency: 'CAD',
@@ -29,182 +30,150 @@ function formatCad(n: number): string {
   }).format(n);
 }
 
-function greeting(): string {
+function timeGreeting(): string {
   const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 18) return 'Good afternoon';
-  return 'Good evening';
+  if (h < 12) return 'morning';
+  if (h < 18) return 'afternoon';
+  return 'evening';
 }
 
-/** Glass card used throughout the dark-themed app UI */
-function GlassCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div
-      className={`rounded-2xl ${className}`}
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-    >
-      {children}
-    </div>
-  );
+function todayLabel(): string {
+  return new Date().toLocaleDateString('en-CA', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
 }
+
+function daysUntilDeadline(): number {
+  const deadline = new Date('2026-04-30T23:59:59');
+  return Math.max(0, Math.ceil((deadline.getTime() - Date.now()) / 86_400_000));
+}
+
+function countCredits(r: TaxCalculationResult): number {
+  // Count non-zero refundable credits + 2 baseline (BPA + ON-BPA always apply)
+  const refundable = [
+    r.canadaWorkersCredit,
+    r.canadaTrainingCredit,
+    r.refundableMedicalSupplement,
+    r.ontarioSeniorsHomeCredit,
+    r.cppEiOverdeductionRefund,
+    r.estimatedOTB,
+    r.estimatedGSTCredit,
+  ].filter((v) => v > 0).length;
+  return Math.max(2, refundable + 3); // +3 for BPA, ON-BPA, CPP/EI credit (almost always non-zero)
+}
+
+// ─── MetricCard ───────────────────────────────────────────────────────────────
+
+type MetricTone = 'emerald' | 'amber' | 'white';
+
+const TONE_CLASS: Record<MetricTone, string> = {
+  emerald: 'text-emerald-400',
+  amber:   'text-amber-400',
+  white:   'text-white',
+};
 
 function MetricCard({
   label,
   value,
-  sub,
-  highlight,
+  delta,
+  tone = 'white',
   loading,
 }: {
   label: string;
   value: string;
-  sub?: string;
-  highlight?: 'emerald' | 'red';
+  delta?: string;
+  tone?: MetricTone;
   loading?: boolean;
 }) {
   return (
-    <GlassCard className="p-6">
-      <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-3">{label}</p>
+    <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-5 backdrop-blur-xl">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/40 mb-2">
+        {label}
+      </p>
       {loading ? (
-        <div className="h-8 w-32 rounded-lg mb-1" style={{ background: 'rgba(255,255,255,0.06)', animation: 'pulse 2s infinite' }} />
+        <div
+          className="h-8 w-24 rounded-lg mb-1"
+          style={{ background: 'rgba(255,255,255,0.06)', animation: 'pulse 2s infinite' }}
+        />
       ) : (
-        <p className={`text-2xl font-bold tabular-nums ${
-          highlight === 'emerald' ? 'text-[var(--emerald)]'
-          : highlight === 'red' ? 'text-red-400'
-          : 'text-white'
-        }`}>
+        <p
+          className={`text-[28px] font-bold tabular-nums leading-none ${TONE_CLASS[tone]}`}
+          style={{ letterSpacing: '-0.02em' }}
+        >
           {value}
         </p>
       )}
-      {sub && <p className="text-xs text-white/40 mt-1">{sub}</p>}
-    </GlassCard>
-  );
-}
-
-type StepStatus = 'done' | 'active' | 'locked';
-
-function ChecklistStep({
-  step,
-  title,
-  subtitle,
-  status,
-  href,
-}: {
-  step: number;
-  title: string;
-  subtitle: string;
-  status: StepStatus;
-  href: string;
-}) {
-  return (
-    <Link href={href} className="flex items-center gap-4 py-4 group">
-      <div className={`h-9 w-9 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold transition-colors ${
-        status === 'done' ? 'bg-[var(--emerald)] text-white'
-        : status === 'active' ? 'bg-white/15 text-white border border-white/20'
-        : 'bg-white/5 text-white/25'
-      }`}>
-        {status === 'done' ? <Check className="h-4 w-4" /> : step}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm font-semibold ${status === 'locked' ? 'text-white/30' : 'text-white/80'}`}>{title}</p>
-        <p className="text-xs text-white/40 mt-0.5">{subtitle}</p>
-      </div>
-      <ChevronRight className={`h-4 w-4 flex-shrink-0 transition-colors ${
-        status === 'locked' ? 'text-white/10' : 'text-white/30 group-hover:text-white/60'
-      }`} />
-    </Link>
-  );
-}
-
-function OnboardingBanner({
-  assessmentDone,
-  hasSlips,
-  hasCalculation,
-  onDismiss,
-}: {
-  assessmentDone: boolean;
-  hasSlips: boolean;
-  hasCalculation: boolean;
-  onDismiss: () => void;
-}) {
-  const steps = [
-    {
-      icon: <MessageSquare className="h-5 w-5" />,
-      title: 'Start your assessment',
-      desc: 'Chat with your AI CPA',
-      href: '/onboarding',
-      done: assessmentDone,
-    },
-    {
-      icon: <FileText className="h-5 w-5" />,
-      title: 'Upload your slips',
-      desc: 'Add T4, T5 and other CRA slips',
-      href: '/slips',
-      done: hasSlips,
-    },
-    {
-      icon: <Calculator className="h-5 w-5" />,
-      title: 'See your tax summary',
-      desc: 'Review refund or balance owing',
-      href: '/calculator',
-      done: hasCalculation,
-    },
-  ];
-
-  return (
-    <div
-      className="rounded-2xl p-5"
-      style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)' }}
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <p className="text-sm font-semibold text-emerald-400">Get started in 3 steps</p>
-          <p className="text-xs text-white/40 mt-0.5">Complete each step to file your 2025 return.</p>
-        </div>
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="text-white/25 hover:text-white/60 transition-colors text-xs leading-none ml-4 mt-0.5"
-          aria-label="Dismiss getting started banner"
-        >
-          ✕
-        </button>
-      </div>
-      <div className="flex flex-col sm:flex-row gap-3">
-        {steps.map((s, i) => (
-          <Link
-            key={i}
-            href={s.href}
-            className="flex-1 flex items-start gap-3 rounded-xl p-3 transition-colors group"
-            style={{
-              background: s.done ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)',
-              border: s.done ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)',
-            }}
-          >
-            <div className={`mt-0.5 flex-shrink-0 ${s.done ? 'text-emerald-400' : 'text-white/30 group-hover:text-white/60 transition-colors'}`}>
-              {s.done ? <Check className="h-5 w-5" /> : s.icon}
-            </div>
-            <div className="min-w-0">
-              <p className={`text-xs font-semibold ${s.done ? 'text-emerald-400' : 'text-white/70'}`}>
-                {s.done ? '✓ ' : ''}{s.title}
-              </p>
-              <p className="text-[11px] text-white/35 mt-0.5">{s.desc}</p>
-            </div>
-          </Link>
-        ))}
-      </div>
+      {delta && <p className="text-[12px] text-white/45 mt-1.5">{delta}</p>}
     </div>
   );
 }
 
+// ─── ChecklistItem ────────────────────────────────────────────────────────────
+
+function ChecklistItem({
+  done,
+  title,
+  sub,
+  href,
+  action,
+}: {
+  done: boolean;
+  title: string;
+  sub: string;
+  href: string;
+  action?: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors">
+      {/* Done indicator */}
+      <div
+        className={`w-5 h-5 rounded-full mt-0.5 flex items-center justify-center flex-shrink-0 ${
+          done
+            ? 'bg-emerald-500/20 border border-emerald-500/40'
+            : 'border border-white/15'
+        }`}
+      >
+        {done && <Check className="w-3 h-3 text-emerald-400" />}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <p
+          className={`text-[14px] font-medium ${
+            done ? 'text-white/50 line-through' : 'text-white'
+          }`}
+        >
+          {title}
+        </p>
+        <p className="text-[12px] text-white/45 mt-0.5">{sub}</p>
+      </div>
+
+      {!done && action && (
+        <Link
+          href={href}
+          className="text-[12px] font-semibold text-emerald-400 hover:text-emerald-300 whitespace-nowrap transition-colors"
+        >
+          {action} →
+        </Link>
+      )}
+    </div>
+  );
+}
+
+// ─── Page ────────────────────────────────────────────────────────────────────
+
 export default function DashboardPage() {
-  const [firstName, setFirstName] = useState('');
-  const [userLoading, setUserLoading] = useState(true);
-  const [assessmentDone, setAssessmentDone] = useState(false);
-  const [hasSlips, setHasSlips] = useState(false);
-  const [calcResult, setCalcResult] = useState<TaxCalculationResult | null>(null);
-  const [onboardingDismissed, setOnboardingDismissed] = useState(true); // default true to avoid flash
-  const [hasFilingGuide, setHasFilingGuide] = useState(false);
-  const [historyEntries, setHistoryEntries] = useState<Array<{ id: string; createdAt: string; result: TaxCalculationResult }>>([]);
+  const [firstName, setFirstName]             = useState('');
+  const [userLoading, setUserLoading]         = useState(true);
+  const [assessmentDone, setAssessmentDone]   = useState(false);
+  const [hasSlips, setHasSlips]               = useState(false);
+  const [slipCount, setSlipCount]             = useState(0);
+  const [calcResult, setCalcResult]           = useState<TaxCalculationResult | null>(null);
+  const [hasFilingGuide, setHasFilingGuide]   = useState(false);
+  const [historyEntries, setHistoryEntries]   = useState<
+    Array<{ id: string; createdAt: string; result: TaxCalculationResult }>
+  >([]);
 
   useEffect(() => { document.title = 'Dashboard — TaxAgent.ai'; }, []);
 
@@ -221,9 +190,7 @@ export default function DashboardPage() {
       }
       setUserLoading(false);
 
-      // Read local state first
       setAssessmentDone(!!localStorage.getItem('taxagent_assessment_done'));
-      setOnboardingDismissed(!!localStorage.getItem('taxagent_onboarding_dismissed'));
       setHasFilingGuide(!!localStorage.getItem('taxagent_filing_guide_generated'));
 
       const localSlipsRaw = localStorage.getItem('taxagent_slips');
@@ -232,20 +199,20 @@ export default function DashboardPage() {
         if (localSlipsRaw) {
           const parsed = JSON.parse(localSlipsRaw) as unknown[];
           localSlipCount = Array.isArray(parsed) ? parsed.length : 0;
+          setSlipCount(localSlipCount);
           setHasSlips(localSlipCount > 0);
         }
       } catch { /* ignore */ }
 
       let localCalc: TaxCalculationResult | null = null;
       try {
-        const calc = localStorage.getItem('taxagent_calc_result');
-        if (calc) {
-          localCalc = JSON.parse(calc) as TaxCalculationResult;
+        const raw = localStorage.getItem('taxagent_calc_result');
+        if (raw) {
+          localCalc = JSON.parse(raw) as TaxCalculationResult;
           setCalcResult(localCalc);
         }
       } catch { /* ignore */ }
 
-      // Then sync from Supabase for multi-device support
       if (uid) {
         const [dbCalc, dbSlips] = await Promise.all([
           getLatestCalculation(uid, 2025),
@@ -253,6 +220,7 @@ export default function DashboardPage() {
         ]);
 
         if (dbSlips.length > localSlipCount) {
+          setSlipCount(dbSlips.length);
           setHasSlips(true);
           localStorage.setItem('taxagent_slips', JSON.stringify(dbSlips));
           toast('Your slips from another device have been loaded.', { icon: '🔄', duration: 3000 });
@@ -264,7 +232,6 @@ export default function DashboardPage() {
           toast('Your latest calculation has been synced.', { icon: '🔄', duration: 3000 });
         }
 
-        // Load recent history (up to 3 entries for preview)
         const history = await getCalculationHistory(uid, 2025);
         setHistoryEntries(history.slice(0, 3));
       }
@@ -272,126 +239,196 @@ export default function DashboardPage() {
     init().catch(() => { setUserLoading(false); });
   }, []);
 
-  const hasCalculation = calcResult !== null;
+  // ── Derived values ────────────────────────────────────────────────────────
 
-  function dismissOnboarding() {
-    localStorage.setItem('taxagent_onboarding_dismissed', '1');
-    setOnboardingDismissed(true);
+  const hasCalculation = calcResult !== null;
+  const progressSteps  = [assessmentDone, hasSlips, hasCalculation, hasFilingGuide].filter(Boolean).length;
+  const progressPct    = Math.round((progressSteps / 4) * 100);
+  const daysLeft       = daysUntilDeadline();
+
+  // Refund metric
+  let refundValue: string;
+  let refundDelta: string;
+  let refundTone: MetricTone;
+  if (hasCalculation && calcResult) {
+    const isRefund = calcResult.balanceOwing <= 0;
+    refundValue = (isRefund ? '+' : '-') + fmtCAD(Math.abs(calcResult.balanceOwing));
+    refundDelta = isRefund
+      ? `Avg rate ${(calcResult.averageTaxRate * 100).toFixed(1)}%`
+      : `Avg rate ${(calcResult.averageTaxRate * 100).toFixed(1)}%`;
+    refundTone = isRefund ? 'emerald' : 'amber';
+  } else {
+    refundValue = '—';
+    refundDelta = 'Complete assessment to estimate';
+    refundTone = 'white';
   }
 
-  const showOnboarding = !onboardingDismissed && !hasSlips && !hasCalculation;
+  const creditsCount = hasCalculation && calcResult ? countCredits(calcResult) : undefined;
 
-  const progressSteps = [assessmentDone, hasSlips, hasCalculation].filter(Boolean).length;
-  const progressPct = Math.round((progressSteps / 3) * 100);
+  // Checklist items (ordered)
+  const checklistItems = [
+    {
+      done: true,
+      title: 'Account created',
+      sub: 'Ontario · 2025 tax return',
+      href: '/settings',
+    },
+    {
+      done: assessmentDone,
+      title: 'AI assessment',
+      sub: assessmentDone
+        ? 'Complete — your situation has been reviewed'
+        : 'Chat with your AI CPA to understand your tax situation',
+      href: '/onboarding',
+      action: assessmentDone ? undefined : (assessmentDone ? 'Resume' : 'Start'),
+    },
+    {
+      done: hasSlips,
+      title: 'Upload your tax slips',
+      sub: hasSlips
+        ? `${slipCount} slip${slipCount !== 1 ? 's' : ''} uploaded · add more any time`
+        : 'T4, T5, T2202 · photograph or drag in PDF',
+      href: '/slips',
+      action: hasSlips ? undefined : 'Upload',
+    },
+    {
+      done: hasCalculation,
+      title: 'Review your tax summary',
+      sub: hasCalculation && calcResult
+        ? `${calcResult.balanceOwing <= 0 ? fmtCAD(Math.abs(calcResult.balanceOwing)) + ' refund' : fmtCAD(calcResult.balanceOwing) + ' owing'} estimated`
+        : 'See your estimated refund or balance owing',
+      href: '/calculator',
+      action: hasCalculation ? undefined : 'Calculate',
+    },
+    {
+      done: hasFilingGuide,
+      title: 'Get your filing guide',
+      sub: hasFilingGuide
+        ? 'Personalized step-by-step filing instructions ready'
+        : 'AI-generated line-by-line guide for your CRA return',
+      href: '/filing-guide',
+      action: hasFilingGuide ? undefined : (hasCalculation ? 'Generate' : undefined),
+    },
+    {
+      done: false,
+      title: 'File with CRA',
+      sub: 'NETFILE submission · deadline April 30, 2026',
+      href: '#',
+    },
+  ];
+  const doneCount = checklistItems.filter((c) => c.done).length;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 md:py-10">
 
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <div>
-        <p className="text-sm text-white/40 mb-1">{greeting()},</p>
-        <h1 className="text-2xl font-bold text-white">
-          {userLoading
-            ? <span className="inline-block w-32 h-7 rounded-lg align-middle" style={{ background: 'rgba(255,255,255,0.06)', animation: 'pulse 2s infinite' }} />
-            : firstName}
-        </h1>
-        <p className="text-sm text-white/50 mt-1">
-          Your 2025 tax return is{' '}
-          <span className="font-semibold text-white">{progressPct}% complete</span>
-        </p>
-        <div className="mt-3 flex items-center gap-3">
-          <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-            <div
-              className="h-full rounded-full bg-[var(--emerald)] transition-all duration-500"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
-          <span className="text-xs text-white/40 tabular-nums w-10 text-right">{progressPct}%</span>
+      {/* ── Greeting row ─────────────────────────────────────────── */}
+      <p className="text-[12px] text-white/40 font-mono mb-1">
+        {todayLabel()} · 2025 Tax Return
+      </p>
+      <h1
+        className="text-white font-bold text-[30px] md:text-[32px] mb-1"
+        style={{ letterSpacing: '-0.02em' }}
+      >
+        Good {timeGreeting()},{' '}
+        {userLoading ? (
+          <span
+            className="inline-block w-28 h-8 rounded-lg align-middle"
+            style={{ background: 'rgba(255,255,255,0.06)', animation: 'pulse 2s infinite' }}
+          />
+        ) : (
+          firstName
+        )}
+        .
+      </h1>
+      <p className="text-white/55 text-[15px] mb-8">
+        Your return is{' '}
+        <span className="text-emerald-400 font-semibold">{progressPct}% complete</span>.{' '}
+        {progressPct < 100
+          ? 'Keep going — deadline is April 30.'
+          : 'Your return is ready to file.'}
+      </p>
+
+      {/* ── 3-col grid ───────────────────────────────────────────── */}
+      <div className="grid lg:grid-cols-3 gap-5 mb-8">
+        {/* Col 1 — ring + CTA */}
+        <div className="lg:col-span-1 rounded-2xl bg-white/[0.04] border border-white/10 p-6 backdrop-blur-xl flex flex-col items-center justify-center gap-5">
+          <CompletionRing
+            assessmentDone={assessmentDone}
+            hasSlips={hasSlips}
+            hasCalculation={hasCalculation}
+            hasFilingGuide={hasFilingGuide}
+            ringOnly
+          />
+          <Link
+            href="/onboarding"
+            className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-[13px] px-5 py-2.5 rounded-full transition-colors shadow-[0_10px_30px_rgba(16,185,129,0.3)]"
+          >
+            {assessmentDone ? 'Continue →' : 'Start assessment →'}
+          </Link>
         </div>
-        <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-white/40">
-          <TrendingUp className="h-3.5 w-3.5 text-amber-400" />
-          Filing deadline:{' '}
-          <span className="font-semibold text-white/60">April 30, 2026</span>
+
+        {/* Cols 2-3 — 2×2 metric grid */}
+        <div className="lg:col-span-2 grid grid-cols-2 gap-5">
+          <MetricCard
+            label="Estimated refund"
+            value={refundValue}
+            delta={refundDelta}
+            tone={refundTone}
+            loading={userLoading && !hasCalculation}
+          />
+          <MetricCard
+            label="Slips uploaded"
+            value={hasSlips ? String(slipCount) : '0'}
+            delta={hasSlips ? `${slipCount} slip${slipCount !== 1 ? 's' : ''} on file` : 'None yet · add your T4 first'}
+            tone="white"
+          />
+          <MetricCard
+            label="Credits found"
+            value={creditsCount != null ? String(creditsCount) : '—'}
+            delta={creditsCount != null ? 'GST/HST, OTB, BPA + more' : 'Complete your return to see'}
+            tone="white"
+          />
+          <MetricCard
+            label="Days to deadline"
+            value={String(daysLeft)}
+            delta="Filing closes Apr 30"
+            tone={daysLeft <= 14 ? 'amber' : 'white'}
+          />
         </div>
       </div>
 
-      {/* ── Getting started banner (first-run, dismissible) ────────── */}
-      {showOnboarding && (
-        <OnboardingBanner
-          assessmentDone={assessmentDone}
-          hasSlips={hasSlips}
-          hasCalculation={hasCalculation}
-          onDismiss={dismissOnboarding}
-        />
-      )}
-
-      {/* ── Warning for new users ──────────────────────────────────── */}
-      {!assessmentDone && (
-        <div
-          className="flex items-start gap-3 rounded-xl px-4 py-3"
-          style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)' }}
-        >
-          <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-amber-300/80">
-            Start your AI assessment to see your estimated refund and filing checklist.
-          </p>
-        </div>
-      )}
-
-      {/* ── Metric cards or empty state ────────────────────────────── */}
-      {hasCalculation && calcResult ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <MetricCard
-            label="Total Income"
-            value={formatCad(calcResult.totalIncome)}
-            sub="2025 total income"
-          />
-          <MetricCard
-            label="Total Tax Payable"
-            value={formatCad(calcResult.totalTaxPayable)}
-            sub={`Avg rate: ${(calcResult.averageTaxRate * 100).toFixed(1)}%`}
-          />
-          <MetricCard
-            label={calcResult.balanceOwing < 0 ? 'Estimated Refund' : 'Balance Owing'}
-            value={formatCad(Math.abs(calcResult.balanceOwing))}
-            sub="Due April 30, 2026"
-            highlight={calcResult.balanceOwing < 0 ? 'emerald' : 'red'}
-          />
-        </div>
-      ) : (
-        <GlassCard className="px-6 py-10 text-center">
-          <Calculator className="mx-auto h-10 w-10 text-white/20 mb-3" />
-          <p className="font-semibold text-white/70">No tax calculation yet</p>
-          <p className="text-sm text-white/40 mt-1 max-w-xs mx-auto">
-            Complete your assessment and upload your slips to see your estimated refund or balance owing.
-          </p>
-          <Link
-            href="/onboarding"
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[var(--emerald)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors"
+      {/* ── Filing checklist ─────────────────────────────────────── */}
+      <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-6 backdrop-blur-xl mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2
+            className="text-white font-bold text-[18px]"
+            style={{ letterSpacing: '-0.01em' }}
           >
-            <MessageSquare className="h-4 w-4" />
-            Start assessment
-          </Link>
-        </GlassCard>
-      )}
+            Filing checklist
+          </h2>
+          <span className="text-[12px] text-white/40">
+            {doneCount} of {checklistItems.length} complete
+          </span>
+        </div>
+        <div className="space-y-2">
+          {checklistItems.map((item, i) => (
+            <ChecklistItem key={i} {...item} />
+          ))}
+        </div>
+      </div>
 
-      {/* ── Completion ring + filing checklist ────────────────────── */}
-      <CompletionRing
-        assessmentDone={assessmentDone}
-        hasSlips={hasSlips}
-        hasCalculation={hasCalculation}
-        hasFilingGuide={hasFilingGuide}
-      />
-
-      {/* ── Recent calculations preview ───────────────────────────── */}
+      {/* ── Recent calculations ───────────────────────────────────── */}
       {historyEntries.length > 0 && (
-        <GlassCard className="p-6">
+        <div
+          className="rounded-2xl p-6 mb-6"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+        >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-white/40" />
               <h2 className="text-base font-semibold text-white">Recent calculations</h2>
             </div>
-            <Link href="/history" className="text-xs text-[var(--emerald)] hover:underline flex items-center gap-1">
+            <Link href="/history" className="text-xs text-emerald-400 hover:underline flex items-center gap-1">
               View all
               <ChevronRight className="h-3 w-3" />
             </Link>
@@ -399,8 +436,8 @@ export default function DashboardPage() {
           <div className="space-y-2">
             {historyEntries.map((entry, i) => {
               const isRefund = entry.result.balanceOwing < 0;
-              const amount = Math.abs(entry.result.balanceOwing);
-              const date = new Date(entry.createdAt);
+              const amount   = Math.abs(entry.result.balanceOwing);
+              const date     = new Date(entry.createdAt);
               return (
                 <Link
                   key={entry.id}
@@ -409,17 +446,29 @@ export default function DashboardPage() {
                   style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${isRefund ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
+                    <div
+                      className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${
+                        isRefund ? 'bg-emerald-500/20' : 'bg-amber-500/20'
+                      }`}
+                    >
                       {isRefund
                         ? <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
                         : <TrendingDown className="h-3.5 w-3.5 text-amber-400" />
                       }
                     </div>
                     <div>
-                      <span className={`text-sm font-bold tabular-nums ${isRefund ? 'text-emerald-400' : 'text-amber-400'}`}>
-                        {isRefund ? '+' : '-'}{formatCad(amount)}
+                      <span
+                        className={`text-sm font-bold tabular-nums ${
+                          isRefund ? 'text-emerald-400' : 'text-amber-400'
+                        }`}
+                      >
+                        {isRefund ? '+' : '-'}{fmtCAD(amount)}
                       </span>
-                      {i === 0 && <span className="ml-2 text-[10px] font-semibold text-[var(--emerald)] bg-emerald-500/10 rounded-full px-1.5 py-0.5">Latest</span>}
+                      {i === 0 && (
+                        <span className="ml-2 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 rounded-full px-1.5 py-0.5">
+                          Latest
+                        </span>
+                      )}
                     </div>
                   </div>
                   <span className="text-xs text-white/30 tabular-nums">
@@ -429,19 +478,23 @@ export default function DashboardPage() {
               );
             })}
           </div>
-        </GlassCard>
+        </div>
       )}
 
-      {/* ── Tax calendar ──────────────────────────────────────────── */}
-      <TaxCalendarCard />
+      {/* ── Tax calendar ─────────────────────────────────────────── */}
+      <div className="mb-6">
+        <TaxCalendarCard />
+      </div>
 
       {/* ── Quick actions ─────────────────────────────────────────── */}
       <div>
-        <p className="text-xs font-semibold text-white/30 uppercase tracking-[0.15em] mb-3">Quick actions</p>
+        <p className="text-xs font-semibold text-white/30 uppercase tracking-[0.15em] mb-3">
+          Quick actions
+        </p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Link
             href="/onboarding"
-            className="flex items-center justify-center gap-2 rounded-full bg-[var(--emerald)] px-4 py-3 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-colors"
+            className="flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-600 shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-colors"
           >
             <MessageSquare className="h-4 w-4" />
             {assessmentDone ? 'Continue' : 'Start assessment'}
@@ -465,9 +518,7 @@ export default function DashboardPage() {
           <Link
             href="/filing-guide"
             className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
-              hasCalculation
-                ? 'text-white/70 hover:text-white'
-                : 'text-white/25 pointer-events-none'
+              hasCalculation ? 'text-white/70 hover:text-white' : 'text-white/25 pointer-events-none'
             }`}
             style={{
               background: hasCalculation ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)',

@@ -12,6 +12,8 @@ interface Props {
   hasSlips: boolean;
   hasCalculation: boolean;
   hasFilingGuide: boolean;
+  /** Render only the SVG ring + centre %, no card wrapper and no step list */
+  ringOnly?: boolean;
 }
 
 const CX = 90;
@@ -20,11 +22,10 @@ const R = 72;
 const STROKE = 10;
 const CIRCUMFERENCE = 2 * Math.PI * R;
 
-// Color thresholds
+// Color thresholds — emerald ≥50%, indigo <50%
 function ringColor(pct: number): string {
-  if (pct >= 100) return '#10B981'; // emerald
-  if (pct >= 51) return '#6366F1';  // indigo
-  return '#F59E0B';                  // amber
+  if (pct >= 50) return '#10B981'; // emerald
+  return '#6366F1';                // indigo
 }
 
 // Count-up hook
@@ -53,7 +54,7 @@ function useCountUp(target: number, duration: number, enabled: boolean) {
   return value;
 }
 
-export function CompletionRing({ assessmentDone, hasSlips, hasCalculation, hasFilingGuide }: Props) {
+export function CompletionRing({ assessmentDone, hasSlips, hasCalculation, hasFilingGuide, ringOnly = false }: Props) {
   // Detect reduced motion via media query (not a hook from framer-motion — keeps this dep-free)
   const [prefersReduced, setPrefersReduced] = useState(false);
   useEffect(() => {
@@ -103,6 +104,50 @@ export function CompletionRing({ assessmentDone, hasSlips, hasCalculation, hasFi
       return () => clearTimeout(t);
     }
   }, [pct, prefersReduced]);
+
+  // Compact mode: just the ring + centre % for embedding in a col-1 glass card
+  if (ringOnly) {
+    return (
+      <div className="relative flex-shrink-0">
+        {pct === 100 && (
+          <div
+            className="absolute inset-0 rounded-full pointer-events-none"
+            style={{
+              boxShadow: `0 0 32px 8px ${color}50`,
+              opacity: 0.4,
+            }}
+          />
+        )}
+        <svg
+          viewBox="0 0 180 180"
+          className="w-[160px] h-[160px]"
+          role="img"
+          aria-label={`Filing completion: ${pct}%`}
+        >
+          <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={STROKE} />
+          <circle
+            ref={ringRef}
+            cx={CX} cy={CY} r={R}
+            fill="none"
+            stroke={color}
+            strokeWidth={STROKE}
+            strokeLinecap="round"
+            strokeDasharray={`${CIRCUMFERENCE} ${CIRCUMFERENCE}`}
+            strokeDashoffset={CIRCUMFERENCE}
+            transform={`rotate(-90 ${CX} ${CY})`}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <span className="text-3xl font-black tabular-nums leading-none" style={{ color }}>
+            {displayPct}%
+          </span>
+          <span className="text-[11px] text-white/40 font-semibold uppercase tracking-wide mt-1">
+            Complete
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
