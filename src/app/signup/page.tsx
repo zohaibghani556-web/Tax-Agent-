@@ -18,6 +18,7 @@ const labelCls =
 const cardStyle = {
   background: 'rgba(255,255,255,0.04)',
   border: '1px solid rgba(255,255,255,0.10)',
+  backdropFilter: 'blur(12px)',
   boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
 };
 
@@ -119,7 +120,7 @@ function SignupForm() {
 
   if (done) {
     return (
-      <main className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-12" style={{ background: '#0a1020' }}>
+      <main className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: '#0a1020' }}>
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -142,7 +143,7 @@ function SignupForm() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-12" style={{ background: '#0a1020' }}>
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12" style={{ background: '#0a1020' }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -264,6 +265,15 @@ function SignupForm() {
           </Link>
         </p>
       </motion.div>
+
+      {/* Trust strip */}
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-white/35">
+        <span>🔒 Data stored in Canada</span>
+        <span className="text-white/15">·</span>
+        <span>PIPEDA compliant</span>
+        <span className="text-white/15">·</span>
+        <span>Free for simple returns</span>
+      </div>
     </main>
   );
 }

@@ -27,7 +27,12 @@ function GlassCard({ children, className = '' }: { children: React.ReactNode; cl
   return (
     <div
       className={`rounded-2xl ${className}`}
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+      style={{
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        backdropFilter: 'blur(12px)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+      }}
     >
       {children}
     </div>
@@ -91,14 +96,17 @@ function SpouseForm({
   return (
     <GlassCard className="p-6 flex flex-col gap-5">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 pb-4 border-b border-white/[0.06]">
         <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm"
-          style={{ background: color }}
+          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+          style={{ background: color, boxShadow: `0 0 16px ${color}40` }}
         >
           {label.slice(-1)}
         </div>
-        <h3 className="text-white font-semibold text-base">{label}</h3>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/40">{label.includes('A') ? 'Person A' : 'Person B'}</p>
+          <h3 className="text-white font-semibold text-base leading-tight">{label}</h3>
+        </div>
       </div>
 
       {/* Income */}
@@ -453,31 +461,34 @@ export default function FamilyPage() {
   const displayResult = liveResult ?? result;
 
   return (
-    <div
-      className="min-h-screen text-white"
-      style={{
-        background: 'linear-gradient(135deg, #0f0f1a 0%, #0a0a14 50%, #0f0f1a 100%)',
-      }}
-    >
+    <div className="min-h-screen text-white bg-[#0a1020]">
       <div className="max-w-6xl mx-auto px-4 py-10">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-3">
+          {/* Eyebrow */}
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-400 mb-3">
+            Joint optimizer
+          </p>
+
+          <div className="flex items-start gap-4 mb-5">
             <div
-              className="w-10 h-10 rounded-2xl flex items-center justify-center bg-[var(--emerald-tint)] ring-1 ring-[rgba(16,185,129,0.2)]"
+              className="w-10 h-10 rounded-2xl flex-shrink-0 flex items-center justify-center"
+              style={{ background: 'rgba(16,185,129,0.12)', boxShadow: '0 0 0 1px rgba(16,185,129,0.2)' }}
             >
-              <Users className="w-5 h-5 text-white" />
+              <Users className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Family Tax Optimizer</h1>
-              <p className="text-white/50 text-sm">
-                Find the optimal allocation of deductions between spouses to minimise combined household tax
+              <h1 className="text-2xl font-bold text-white" style={{ letterSpacing: '-0.015em' }}>
+                Family Tax Optimizer
+              </h1>
+              <p className="text-white/50 text-sm mt-1">
+                Find the optimal allocation of deductions between spouses to minimise combined household tax.
               </p>
             </div>
           </div>
 
-          {/* Feature pills */}
-          <div className="flex flex-wrap gap-2 mt-4">
+          {/* Feature chips */}
+          <div className="flex flex-wrap gap-2">
             {[
               'Childcare allocation (ITA s.63)',
               'Pension splitting (ITA s.60.03)',
@@ -486,8 +497,8 @@ export default function FamilyPage() {
             ].map(tag => (
               <span
                 key={tag}
-                className="text-xs px-3 py-1 rounded-full font-medium"
-                style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}
+                className="text-xs px-3 py-1.5 rounded-full font-medium"
+                style={{ background: 'rgba(16,185,129,0.08)', color: 'rgba(16,185,129,0.8)', border: '1px solid rgba(16,185,129,0.2)' }}
               >
                 {tag}
               </span>

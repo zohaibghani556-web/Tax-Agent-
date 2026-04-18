@@ -48,13 +48,13 @@ function LoginForm() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-12" style={{ background: '#0a1020' }}>
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12" style={{ background: '#0a1020' }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
         className="w-full max-w-sm rounded-2xl p-8"
-        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', boxShadow: '0 8px 40px rgba(0,0,0,0.5)' }}
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', backdropFilter: 'blur(12px)', boxShadow: '0 8px 40px rgba(0,0,0,0.5)' }}
       >
         <div className="text-center mb-8">
           <Link href="/" className="inline-block text-xl font-semibold text-white">
@@ -132,6 +132,15 @@ function LoginForm() {
           </Link>
         </p>
       </motion.div>
+
+      {/* Trust strip */}
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-white/35">
+        <span>🔒 Data stored in Canada</span>
+        <span className="text-white/15">·</span>
+        <span>PIPEDA compliant</span>
+        <span className="text-white/15">·</span>
+        <span>Not affiliated with CRA</span>
+      </div>
     </main>
   );
 }

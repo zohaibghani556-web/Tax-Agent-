@@ -400,29 +400,35 @@ function EstimatorInner() {
   // Intro
   if (step === 0) {
     return (
-      <div className="min-h-screen bg-[#0a0f0a] flex flex-col items-center justify-center px-4 py-16">
-        <div className="max-w-lg w-full text-center">
-          <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-4 py-1.5 mb-8 text-sm text-emerald-400">
+      <div className="relative min-h-screen bg-[#0a1020] flex flex-col items-center justify-center px-4 py-16 overflow-hidden">
+        {/* Ambient blobs — same grammar as the marketing hero */}
+        <div className="absolute inset-0 pointer-events-none" aria-hidden>
+          <div className="absolute rounded-full" style={{ width: '55vw', height: '55vw', left: '-10vw', top: '-15vw', background: 'radial-gradient(circle, rgba(16,185,129,0.18), transparent 70%)', filter: 'blur(70px)' }} />
+          <div className="absolute rounded-full" style={{ width: '45vw', height: '45vw', right: '-8vw', top: '-10vw', background: 'radial-gradient(circle, rgba(20,184,166,0.12), transparent 70%)', filter: 'blur(70px)' }} />
+          <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(10,22,40,0.80) 100%)' }} />
+        </div>
+
+        <div className="relative max-w-lg w-full text-center">
+          <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 rounded-full px-4 py-1.5 mb-8 text-sm text-emerald-400 font-semibold tracking-wide">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             No account required · Takes 60 seconds
           </div>
 
-          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight">
+          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 leading-tight" style={{ letterSpacing: '-0.025em' }}>
             How much are you<br />
             <span className="text-emerald-400">getting back</span> this year?
           </h1>
-          <p className="text-white/50 text-lg mb-10">
+          <p className="text-white/50 text-lg mb-10 leading-relaxed">
             Answer 5 questions. Get your estimated 2025 refund instantly —
             calculated against real CRA rates, client-side.
           </p>
 
           <button
             onClick={() => setStep(1)}
-            className="inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold
+            className="inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold
               text-lg px-8 py-4 rounded-full transition-colors duration-200 shadow-[0_10px_30px_rgba(16,185,129,0.3)]"
           >
-            Calculate my refund
-            <ArrowRight className="w-5 h-5" />
+            Calculate my refund →
           </button>
 
           <p className="mt-6 text-white/30 text-sm">
@@ -442,7 +448,7 @@ function EstimatorInner() {
     const withheldEstimated = answers.taxWithheld === null;
 
     return (
-      <div className="min-h-screen bg-[#0a0f0a] px-4 py-16">
+      <div className="min-h-screen bg-[#0a1020] px-4 py-16">
         <div className="max-w-2xl mx-auto">
           {/* Restart */}
           <button
@@ -538,11 +544,10 @@ function EstimatorInner() {
             </p>
             <Link
               href="/onboarding"
-              className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black
-                font-semibold px-6 py-3 rounded-xl transition-colors duration-200 text-sm"
+              className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white
+                font-semibold px-6 py-3.5 rounded-full transition-colors duration-200 text-sm shadow-[0_8px_24px_rgba(16,185,129,0.3)]"
             >
-              File for free
-              <ArrowRight className="w-4 h-4" />
+              File for free →
             </Link>
           </div>
 
@@ -576,7 +581,7 @@ function EstimatorInner() {
 
   // Questions 1–5
   return (
-    <div className="min-h-screen bg-[#0a0f0a] flex flex-col items-center justify-center px-4 py-16">
+    <div className="min-h-screen bg-[#0a1020] flex flex-col items-center justify-center px-4 py-16">
       <div className="max-w-lg w-full">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
@@ -800,8 +805,8 @@ function EstimatorInner() {
 
             <button
               onClick={goToResults}
-              className="mt-8 w-full inline-flex items-center justify-center gap-3 bg-emerald-500 hover:bg-emerald-400
-                text-black font-semibold text-lg px-8 py-4 rounded-full transition-colors duration-200
+              className="mt-8 w-full inline-flex items-center justify-center gap-3 bg-emerald-500 hover:bg-emerald-600
+                text-white font-semibold text-lg px-8 py-4 rounded-full transition-colors duration-200
                 shadow-[0_10px_30px_rgba(16,185,129,0.3)]"
             >
               Calculate my refund
@@ -826,8 +831,16 @@ function QuestionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 leading-snug">{title}</h2>
+    <div
+      className="rounded-2xl p-8"
+      style={{
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        backdropFilter: 'blur(12px)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+      }}
+    >
+      <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 leading-snug" style={{ letterSpacing: '-0.015em' }}>{title}</h2>
       <p className="text-white/40 text-sm mb-8">{hint}</p>
       {children}
     </div>
@@ -838,8 +851,8 @@ function NextButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="mt-8 w-full inline-flex items-center justify-center gap-3 bg-white/8 hover:bg-white/12
-        border border-white/15 hover:border-white/30 text-white font-semibold text-base px-8 py-4 rounded-2xl
+      className="mt-8 w-full inline-flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10
+        border border-white/15 hover:border-white/25 text-white font-semibold text-base px-8 py-4 rounded-full
         transition-all duration-200"
     >
       Continue
@@ -854,7 +867,7 @@ export default function EstimatePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#0a0f0a] flex items-center justify-center">
+        <div className="min-h-screen bg-[#0a1020] flex items-center justify-center">
           <div className="text-white/40 text-sm">Loading...</div>
         </div>
       }

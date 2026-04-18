@@ -61,7 +61,12 @@ function GlassCard({ children, className = '' }: { children: React.ReactNode; cl
   return (
     <div
       className={`rounded-2xl ${className}`}
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+      style={{
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        backdropFilter: 'blur(12px)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+      }}
     >
       {children}
     </div>
@@ -273,16 +278,22 @@ export default function RecoveryPage() {
     const planningOps = opportunities.filter((o) => !o.t1AdjRequired);
 
     return (
+      <div className="min-h-screen bg-[#0a1020]">
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">Recovery Results</h1>
-            <p className="text-white/40 mt-1 text-sm">{noa.taxYear} tax year · {noa.taxpayerName || 'Your return'}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-400 mb-2">
+              Recovery results
+            </p>
+            <h1 className="text-2xl font-bold text-white" style={{ letterSpacing: '-0.015em' }}>
+              {noa.taxYear} tax return scan
+            </h1>
+            <p className="text-white/40 mt-1 text-sm">{noa.taxpayerName || 'Your return'}</p>
           </div>
           <button
             onClick={reset}
-            className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors mt-1"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             Scan another
@@ -350,7 +361,7 @@ export default function RecoveryPage() {
             onClick={() => downloadGuide(data)}
             className="w-full flex items-center justify-center gap-2 rounded-full py-4 text-sm font-semibold text-white bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-colors"
           >
-            <Download className="h-4 w-4 text-[var(--emerald)]" />
+            <Download className="h-4 w-4 text-white" />
             Download T1-ADJ Recovery Guide
           </button>
         )}
@@ -363,18 +374,25 @@ export default function RecoveryPage() {
           </p>
         )}
       </div>
+      </div>
     );
   }
 
   // ── Upload / idle / scanning / error views ────────────────────────────────
 
   return (
+    <div className="min-h-screen bg-[#0a1020]">
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Recover money from past returns</h1>
-        <p className="text-white/40 mt-1 text-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-400 mb-3">
+          Retroactive scanner
+        </p>
+        <h1 className="text-2xl font-bold text-white mb-2" style={{ letterSpacing: '-0.015em' }}>
+          Recover money from past returns
+        </h1>
+        <p className="text-white/50 text-sm leading-relaxed">
           CRA allows amendments going back 10 years. Upload your old Notice of Assessment
           and we&apos;ll check for missed credits automatically.
         </p>
@@ -556,6 +574,7 @@ export default function RecoveryPage() {
           ))}
         </div>
       </GlassCard>
+    </div>
     </div>
   );
 }

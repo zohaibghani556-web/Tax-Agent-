@@ -10,9 +10,13 @@ const CONTACT_EMAIL = 'legal@taxagent.ai';
 
 export default function TermsPage() {
   return (
-    <main className="mx-auto max-w-3xl px-6 pt-28 pb-16">
-      <p className="text-sm text-white/40 mb-2">Last updated: {LAST_UPDATED}</p>
-      <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+    <main className="min-h-screen bg-[#0a1020] px-6 pt-28 pb-16">
+      <div className="mx-auto max-w-3xl">
+      <p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-400 mb-4">
+        Legal
+      </p>
+      <p className="text-sm text-white/30 mb-2">Last updated: {LAST_UPDATED}</p>
+      <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4" style={{ letterSpacing: '-0.02em' }}>
         Terms of Service
       </h1>
       <p className="text-white/60 mb-10 leading-relaxed">
@@ -30,7 +34,7 @@ export default function TermsPage() {
           legal advisor, and nothing on this platform constitutes professional
           tax or legal advice.
         </p>
-        <p className="mt-3 font-medium text-slate-700">
+        <p className="mt-3 font-medium text-white/70">
           TaxAgent.ai is not affiliated with, endorsed by, or connected to the
           Canada Revenue Agency (CRA).
         </p>
@@ -167,6 +171,7 @@ export default function TermsPage() {
           </Link>
         </p>
       </div>
+      </div>
     </main>
   );
 }
@@ -178,9 +183,11 @@ function Section({
   title: string;
   children: React.ReactNode;
 }) {
+  const eyebrow = title.replace(/^\d+\.\s*/, '').toUpperCase();
   return (
     <section className="mb-10">
-      <h2 className="text-xl font-semibold text-white mb-3">{title}</h2>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-400 mb-1">{eyebrow}</p>
+      <h2 className="text-lg font-semibold text-white mb-3">{title}</h2>
       <div className="text-white/60 leading-relaxed">{children}</div>
     </section>
   );
