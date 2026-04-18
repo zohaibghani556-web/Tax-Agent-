@@ -117,19 +117,19 @@ export function CTAButton({
 
   const variantStyles: Record<string, React.CSSProperties> = {
     emerald: {
-      background: 'linear-gradient(135deg, #10b981 0%, #059669 60%, #047857 100%)',
-      color: '#fff',
+      background: 'linear-gradient(135deg, var(--emerald) 0%, var(--emerald-dark) 60%, #047857 100%)',
+      color: 'var(--white)',
       boxShadow: '0 4px 24px rgba(16, 185, 129, 0.4), 0 1px 0 rgba(255,255,255,0.1) inset',
     },
     outline: {
       background: 'transparent',
-      color: '#10b981',
-      border: '1.5px solid #10b981',
+      color: 'var(--emerald)',
+      border: '1.5px solid var(--emerald)',
       boxShadow: '0 0 0 0 transparent',
     },
     ghost: {
       background: 'rgba(16, 185, 129, 0.08)',
-      color: '#10b981',
+      color: 'var(--emerald)',
     },
   };
 

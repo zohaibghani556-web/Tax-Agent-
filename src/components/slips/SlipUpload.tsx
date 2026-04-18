@@ -300,7 +300,7 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
             <X className="h-4 w-4" />
           </button>
         </div>
-        <Button onClick={runOcr} className="w-full bg-[#10B981] hover:bg-[#059669] gap-2">
+        <Button onClick={runOcr} className="w-full bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] gap-2">
           <Shield className="h-4 w-4" />
           Read this slip with AI
         </Button>
@@ -315,7 +315,7 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
   if (uploadState.status === 'processing') {
     return (
       <div className="rounded-xl p-12 flex flex-col items-center gap-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-        <Loader2 className="h-8 w-8 animate-spin text-[#10B981]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--emerald)]" />
         <div className="text-center">
           <p className="text-sm font-semibold text-white/80">Reading your slip…</p>
           <p className="text-xs text-white/40 mt-1">Identifying all boxes and amounts</p>
@@ -391,7 +391,7 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
                 : isLowConfidence
                 ? 'rgba(245,158,11,0.15)'
                 : 'rgba(255,255,255,0.08)',
-              color: isHighConfidence ? '#10B981' : isLowConfidence ? '#F59E0B' : 'rgba(255,255,255,0.6)',
+              color: isHighConfidence ? 'var(--emerald)' : isLowConfidence ? 'var(--warning)' : 'rgba(255,255,255,0.6)',
             }}
           >
             {isHighConfidence ? '✓ Clear read' : isLowConfidence ? '⚠ Needs review' : `${Math.round(confidence * 100)}%`}
@@ -515,7 +515,7 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
       <div className="flex gap-3 pt-1">
         <Button
           onClick={handleSave}
-          className="flex-1 bg-[#10B981] hover:bg-[#059669] gap-2"
+          className="flex-1 bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] gap-2"
         >
           <CheckCircle className="h-4 w-4" />
           {isHighConfidence ? 'Save this slip' : 'Confirm & save'}

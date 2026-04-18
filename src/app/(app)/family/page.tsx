@@ -199,7 +199,7 @@ function ResultsPanel({ result, ccExpenses }: { result: FamilyOptimization; ccEx
             <p className="text-white/50 text-sm mb-1">Household tax savings</p>
             <p
               className="text-4xl font-bold"
-              style={{ color: hasSavings ? 'var(--emerald)' : '#ffffff' }}
+              style={{ color: hasSavings ? 'var(--emerald)' : 'var(--text-primary)' }}
             >
               {fmt(result.savingsFromOptimization)}
             </p>
@@ -461,7 +461,7 @@ export default function FamilyPage() {
   const displayResult = liveResult ?? result;
 
   return (
-    <div className="min-h-screen text-white bg-[#0a1020]">
+    <div className="min-h-screen text-white bg-[var(--background)]">
       <div className="max-w-6xl mx-auto px-4 py-10">
         {/* Header */}
         <div className="mb-8">

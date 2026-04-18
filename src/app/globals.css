@@ -15,8 +15,8 @@ html {
 body {
   margin: 0;
   padding: 0;
-  background: #0a1020;
-  color: #f0f9f6;
+  background: var(--background);
+  color: var(--text-primary);
 }
 
 /* ─── Custom scrollbar ──────────────────────────────────────────────────── */

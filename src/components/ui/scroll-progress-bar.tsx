@@ -61,7 +61,7 @@ export function ScrollProgressBar() {
           className="h-full origin-left"
           style={{
             scaleX: smoothProgress,
-            background: 'linear-gradient(90deg, #10b981 0%, #0d9488 60%, #0891b2 100%)',
+            background: 'linear-gradient(90deg, var(--emerald) 0%, #0d9488 60%, #0891b2 100%)',
             boxShadow: `0 0 12px rgba(16, 185, 129, 0.7), 0 0 4px rgba(16, 185, 129, 0.5)`,
           }}
         />
@@ -74,7 +74,7 @@ export function ScrollProgressBar() {
             width: 20,
             height: BAR_HEIGHT,
             background:
-              'linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.8), #10b981)',
+              'linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.8), var(--emerald))',
             filter: 'blur(3px)',
           }}
         />
@@ -103,7 +103,7 @@ export function ScrollProgressBar() {
             height: 32,
             background: 'rgba(10, 22, 40, 0.85)',
             border: '1.5px solid rgba(16, 185, 129, 0.4)',
-            color: '#10b981',
+            color: 'var(--emerald)',
             backdropFilter: 'blur(8px)',
             boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
           }}

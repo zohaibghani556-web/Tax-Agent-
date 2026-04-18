@@ -11,7 +11,7 @@ const CONTACT_EMAIL = 'privacy@taxagent.ai';
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-[#0a1020] px-6 pt-28 pb-16">
+    <main className="min-h-screen bg-[var(--background)] px-6 pt-28 pb-16">
       <div className="mx-auto max-w-3xl">
       <p className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-400 mb-4">
         Legal

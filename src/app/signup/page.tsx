@@ -120,7 +120,7 @@ function SignupForm() {
 
   if (done) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: '#0a1020' }}>
+      <main className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: 'var(--background)' }}>
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -143,7 +143,7 @@ function SignupForm() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12" style={{ background: '#0a1020' }}>
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12" style={{ background: 'var(--background)' }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

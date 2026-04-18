@@ -400,7 +400,7 @@ function EstimatorInner() {
   // Intro
   if (step === 0) {
     return (
-      <div className="relative min-h-screen bg-[#0a1020] flex flex-col items-center justify-center px-4 py-16 overflow-hidden">
+      <div className="relative min-h-screen bg-[var(--background)] flex flex-col items-center justify-center px-4 py-16 overflow-hidden">
         {/* Ambient blobs — same grammar as the marketing hero */}
         <div className="absolute inset-0 pointer-events-none" aria-hidden>
           <div className="absolute rounded-full" style={{ width: '55vw', height: '55vw', left: '-10vw', top: '-15vw', background: 'radial-gradient(circle, rgba(16,185,129,0.18), transparent 70%)', filter: 'blur(70px)' }} />
@@ -448,7 +448,7 @@ function EstimatorInner() {
     const withheldEstimated = answers.taxWithheld === null;
 
     return (
-      <div className="min-h-screen bg-[#0a1020] px-4 py-16">
+      <div className="min-h-screen bg-[var(--background)] px-4 py-16">
         <div className="max-w-2xl mx-auto">
           {/* Restart */}
           <button
@@ -581,7 +581,7 @@ function EstimatorInner() {
 
   // Questions 1–5
   return (
-    <div className="min-h-screen bg-[#0a1020] flex flex-col items-center justify-center px-4 py-16">
+    <div className="min-h-screen bg-[var(--background)] flex flex-col items-center justify-center px-4 py-16">
       <div className="max-w-lg w-full">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
@@ -867,7 +867,7 @@ export default function EstimatePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#0a1020] flex items-center justify-center">
+        <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
           <div className="text-white/40 text-sm">Loading...</div>
         </div>
       }

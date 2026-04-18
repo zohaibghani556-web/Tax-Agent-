@@ -87,7 +87,7 @@ export function CookieBanner() {
           </button>
           <button
             onClick={accept}
-            className="text-sm font-semibold text-white px-4 py-1.5 rounded-lg bg-[#10b981] hover:bg-[#059669] transition-colors"
+            className="text-sm font-semibold text-white px-4 py-1.5 rounded-lg bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] transition-colors"
             aria-label="Accept cookies"
           >
             Accept

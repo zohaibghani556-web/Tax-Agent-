@@ -13,7 +13,7 @@ export function BorderBeam({
   className,
   size = 200,
   duration = 10,
-  colorFrom = '#10B981',
+  colorFrom = 'var(--emerald)',
   colorTo = '#1A2744',
   delay = 0,
 }: BorderBeamProps) {

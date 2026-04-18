@@ -120,7 +120,7 @@ function CPAContactForm() {
 
 export default function ForCPAsPage() {
   return (
-    <main className="flex flex-col min-h-screen" style={{ background: '#0a1020' }}>
+    <main className="flex flex-col min-h-screen" style={{ background: 'var(--background)' }}>
       {/* Hero — pt-24 accounts for fixed 64px NavBar */}
       <section className="bg-[var(--navy)] pt-32 pb-24 text-white">
         <div className="mx-auto max-w-4xl px-6 text-center">
@@ -147,7 +147,7 @@ export default function ForCPAsPage() {
             </motion.p>
             <motion.div variants={fadeUp} className="mt-10 flex flex-wrap gap-4 justify-center">
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <a href="#contact" className="inline-flex items-center rounded-full bg-[var(--emerald)] px-8 py-4 text-base font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors shadow-lg shadow-emerald-500/25">
+                <a href="#contact" className="inline-flex items-center rounded-full bg-[var(--emerald)] px-8 py-4 text-base font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors shadow-[0_10px_30px_rgba(16,185,129,0.3)]">
                   Book a demo →
                 </a>
               </motion.div>
@@ -162,7 +162,7 @@ export default function ForCPAsPage() {
       </section>
 
       {/* Pain points */}
-      <section className="py-20" style={{ background: '#0d1828' }}>
+      <section className="py-20" style={{ background: 'var(--surface)' }}>
         <div className="mx-auto max-w-5xl px-6">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="text-center mb-14">
             <motion.h2 variants={fadeUp} className="text-3xl font-bold text-white">
@@ -211,7 +211,7 @@ export default function ForCPAsPage() {
       </section>
 
       {/* Solution */}
-      <section className="py-20" style={{ background: '#0a1020' }}>
+      <section className="py-20" style={{ background: 'var(--background)' }}>
         <div className="mx-auto max-w-5xl px-6">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="text-center mb-14">
             <motion.h2 variants={fadeUp} className="text-3xl font-bold text-white">
@@ -266,7 +266,7 @@ export default function ForCPAsPage() {
       </section>
 
       {/* Features */}
-      <section className="py-20" style={{ background: '#0d1828' }}>
+      <section className="py-20" style={{ background: 'var(--surface)' }}>
         <div className="mx-auto max-w-5xl px-6">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="text-center mb-14">
             <motion.h2 variants={fadeUp} className="text-3xl font-bold text-white">

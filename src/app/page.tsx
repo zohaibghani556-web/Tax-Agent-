@@ -128,7 +128,7 @@ function LiveEstimatorCard() {
         }}
       >
         <div className="flex items-center justify-between mb-5">
-          <span className="text-[11px] font-semibold tracking-[0.15em] uppercase text-emerald-400">
+          <span className="text-[12px] font-semibold tracking-[0.15em] uppercase text-emerald-400">
             Instant estimator
           </span>
           <span className="text-[11px] text-white/40 font-mono">2025 · ON</span>
@@ -174,7 +174,7 @@ function LiveEstimatorCard() {
         </div>
 
         <div className="mt-6 pt-5 border-t border-white/5">
-          <div className="text-[11px] font-semibold tracking-[0.15em] uppercase text-white/40 mb-1">
+          <div className="text-[12px] font-semibold tracking-[0.15em] uppercase text-white/40 mb-1">
             Estimated refund
           </div>
           <div
@@ -528,7 +528,7 @@ export default function HomePage() {
           >
             <motion.p
               variants={fadeUp}
-              className="text-[11px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-3"
+              className="text-[12px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-3"
             >
               How it works
             </motion.p>
@@ -613,7 +613,7 @@ export default function HomePage() {
           >
             <motion.p
               variants={fadeUp}
-              className="text-[11px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-3"
+              className="text-[12px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-3"
             >
               Features
             </motion.p>
@@ -701,7 +701,7 @@ export default function HomePage() {
           >
             <motion.p
               variants={fadeUp}
-              className="text-[11px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-3"
+              className="text-[12px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-3"
             >
               Pricing
             </motion.p>
@@ -826,7 +826,7 @@ export default function HomePage() {
 
             {/* Product */}
             <div>
-              <div className="text-[11px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-4">
+              <div className="text-[12px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-4">
                 Product
               </div>
               <ul className="space-y-2.5">
@@ -851,7 +851,7 @@ export default function HomePage() {
 
             {/* Support */}
             <div>
-              <div className="text-[11px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-4">
+              <div className="text-[12px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-4">
                 Support
               </div>
               <ul className="space-y-2.5">
@@ -875,7 +875,7 @@ export default function HomePage() {
 
             {/* Legal */}
             <div>
-              <div className="text-[11px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-4">
+              <div className="text-[12px] font-semibold tracking-[0.15em] uppercase text-[var(--emerald)] mb-4">
                 Legal
               </div>
               <ul className="space-y-2.5">

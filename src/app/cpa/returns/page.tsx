@@ -125,7 +125,7 @@ function ExpandedDetail({ c }: { c: ClientReturn }) {
       <div className="grid md:grid-cols-4 gap-5">
         {/* Income summary */}
         <div>
-          <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-semibold mb-2">
+          <p className="text-[12px] uppercase tracking-[0.15em] text-white/40 font-semibold mb-2">
             Income summary
           </p>
           <div className="space-y-1.5 text-[13px]">
@@ -150,7 +150,7 @@ function ExpandedDetail({ c }: { c: ClientReturn }) {
 
         {/* Slips */}
         <div>
-          <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-semibold mb-2">
+          <p className="text-[12px] uppercase tracking-[0.15em] text-white/40 font-semibold mb-2">
             Slips
           </p>
           <div className="space-y-1.5 text-[13px]">
@@ -165,7 +165,7 @@ function ExpandedDetail({ c }: { c: ClientReturn }) {
 
         {/* Flagged items */}
         <div className="md:col-span-2">
-          <p className="text-[11px] uppercase tracking-[0.15em] text-amber-400 font-semibold mb-2">
+          <p className="text-[12px] uppercase tracking-[0.15em] text-amber-400 font-semibold mb-2">
             Flagged items
           </p>
           <div className="space-y-2">
@@ -393,7 +393,7 @@ function StatCard({ label, value, delta, icon, valueClass }: StatCardProps) {
   return (
     <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-5 backdrop-blur-xl">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/40">
+        <p className="text-[12px] font-semibold uppercase tracking-[0.15em] text-white/40">
           {label}
         </p>
         <span className="text-white/30">{icon}</span>
@@ -442,7 +442,7 @@ export default function CPAReturnsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
       {/* ── Page header ───────────────────────────────────────── */}
-      <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-1">
+      <p className="text-[12px] font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-1">
         REVIEW QUEUE
       </p>
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">

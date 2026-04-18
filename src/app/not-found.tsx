@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <main className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] px-6 text-center" style={{ background: '#0a1020' }}>
+    <main className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] px-6 text-center" style={{ background: 'var(--background)' }}>
       <p className="text-8xl font-black mb-6" style={{ color: 'rgba(255,255,255,0.08)' }}>404</p>
       <h1 className="text-2xl font-bold text-white mb-3">Page not found</h1>
       <p className="text-white/50 max-w-sm mb-8">
@@ -16,7 +16,7 @@ export default function NotFound() {
       <div className="flex gap-3">
         <Link
           href="/"
-          className="rounded-full bg-[var(--emerald)] px-6 py-3 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors"
+          className="rounded-full bg-[var(--emerald)] px-6 py-3 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors shadow-[0_10px_30px_rgba(16,185,129,0.3)]"
         >
           Go home
         </Link>

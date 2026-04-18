@@ -278,7 +278,7 @@ export default function RecoveryPage() {
     const planningOps = opportunities.filter((o) => !o.t1AdjRequired);
 
     return (
-      <div className="min-h-screen bg-[#0a1020]">
+      <div className="min-h-screen bg-[var(--background)]">
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between">
@@ -381,7 +381,7 @@ export default function RecoveryPage() {
   // ── Upload / idle / scanning / error views ────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#0a1020]">
+    <div className="min-h-screen bg-[var(--background)]">
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}

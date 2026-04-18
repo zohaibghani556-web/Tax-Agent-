@@ -95,7 +95,7 @@ export function PricingCard3D({
         className="relative rounded-2xl overflow-hidden p-px"
         style={{
           background: isPopular
-            ? 'linear-gradient(135deg, #10b981 0%, #0d9488 50%, #0a1628 100%)'
+            ? 'linear-gradient(135deg, var(--emerald) 0%, #0d9488 50%, var(--navy) 100%)'
             : 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)',
           boxShadow: isPopular
             ? '0 0 40px rgba(16, 185, 129, 0.35), 0 20px 60px rgba(0, 0, 0, 0.5)'
@@ -111,8 +111,8 @@ export function PricingCard3D({
             <motion.div
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mb-4"
               style={{
-                background: 'linear-gradient(90deg, #10b981, #0d9488)',
-                color: '#fff',
+                background: 'linear-gradient(90deg, var(--emerald), #0d9488)',
+                color: 'var(--white)',
                 translateZ: '20px',
               }}
             >
@@ -125,7 +125,7 @@ export function PricingCard3D({
           <motion.p
             className="text-sm font-medium uppercase tracking-widest mb-2"
             style={{
-              color: isPopular ? '#10b981' : 'rgba(255,255,255,0.5)',
+              color: isPopular ? 'var(--emerald)' : 'rgba(255,255,255,0.5)',
               translateZ: '10px',
             }}
           >
@@ -157,7 +157,7 @@ export function PricingCard3D({
             className="h-px mb-6"
             style={{
               background: isPopular
-                ? 'linear-gradient(90deg, #10b981 0%, transparent 100%)'
+                ? 'linear-gradient(90deg, var(--emerald) 0%, transparent 100%)'
                 : 'rgba(255,255,255,0.07)',
               translateZ: '5px',
             }}
@@ -176,7 +176,7 @@ export function PricingCard3D({
                 >
                   <svg
                     className="w-3 h-3"
-                    style={{ color: '#10b981' }}
+                    style={{ color: 'var(--emerald)' }}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -198,7 +198,7 @@ export function PricingCard3D({
             className="w-full py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d1f3c]"
             style={{
               background: isPopular
-                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                ? 'linear-gradient(135deg, var(--emerald) 0%, var(--emerald-dark) 100%)'
                 : 'rgba(255,255,255,0.06)',
               color: isPopular ? '#fff' : 'rgba(255,255,255,0.7)',
               border: isPopular ? 'none' : '1px solid rgba(255,255,255,0.1)',
@@ -207,7 +207,7 @@ export function PricingCard3D({
             }}
             whileHover={{
               background: isPopular
-                ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                ? 'linear-gradient(135deg, var(--emerald-dark) 0%, #047857 100%)'
                 : 'rgba(255,255,255,0.1)',
             }}
             whileTap={{ scale: 0.97 }}

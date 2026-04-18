@@ -71,7 +71,7 @@ function formatLastSaved(date: Date | null): string {
 type SlipCardStatus = 'done' | 'review' | 'pending';
 
 const TONE: Record<SlipCardStatus, { bg: string; border: string; text: string; label: string }> = {
-  done:    { bg: 'rgba(16,185,129,0.10)',  border: 'rgba(16,185,129,0.30)',  text: '#10B981', label: 'Extracted' },
+  done:    { bg: 'rgba(16,185,129,0.10)',  border: 'rgba(16,185,129,0.30)',  text: 'var(--emerald)', label: 'Extracted' },
   review:  { bg: 'rgba(245,158,11,0.10)',  border: 'rgba(245,158,11,0.30)',  text: '#F59E0B', label: 'Review needed' },
   pending: { bg: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.10)', text: 'rgba(255,255,255,0.5)', label: 'Not uploaded' },
 };
@@ -251,7 +251,7 @@ export default function SlipsPage() {
       <div>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.15em] font-semibold mb-2" style={{ color: '#10B981' }}>
+            <p className="text-[12px] uppercase tracking-[0.15em] font-semibold mb-2" style={{ color: 'var(--emerald)' }}>
               STEP 2 OF 4
             </p>
             <h1 className="text-white font-bold text-[28px] md:text-[30px] mb-2" style={{ letterSpacing: '-0.02em' }}>
@@ -286,7 +286,7 @@ export default function SlipsPage() {
           <Link
             href="/onboarding"
             className="flex-shrink-0 flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-white transition-colors"
-            style={{ background: '#10B981' }}
+            style={{ background: 'var(--emerald)' }}
           >
             Start assessment
             <ChevronRight className="h-3.5 w-3.5" />
@@ -318,12 +318,12 @@ export default function SlipsPage() {
                 >
                   <div
                     className="h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: done ? '#10B981' : 'rgba(255,255,255,0.10)' }}
+                    style={{ background: done ? 'var(--emerald)' : 'rgba(255,255,255,0.10)' }}
                   >
                     {done ? <Check className="h-3.5 w-3.5 text-white" /> : <FileText className="h-3.5 w-3.5" style={{ color: 'rgba(255,255,255,0.40)' }} />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold" style={{ color: done ? '#10B981' : 'rgba(255,255,255,0.70)' }}>{rec.type}</p>
+                    <p className="text-sm font-semibold" style={{ color: done ? 'var(--emerald)' : 'rgba(255,255,255,0.70)' }}>{rec.type}</p>
                     <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.40)' }}>{rec.description}</p>
                   </div>
                   {!done && (
@@ -353,7 +353,7 @@ export default function SlipsPage() {
             className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3"
             style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.25)' }}
           >
-            <Upload className="w-5 h-5" style={{ color: '#10B981' }} />
+            <Upload className="w-5 h-5" style={{ color: 'var(--emerald)' }} />
           </div>
           <p className="text-white font-semibold text-[15px] mb-1">Drag any slip here, or click to browse</p>
           <p className="text-[12px]" style={{ color: 'rgba(255,255,255,0.40)' }}>JPG, PNG, or PDF · up to 10MB · auto-detected</p>
@@ -418,13 +418,13 @@ export default function SlipsPage() {
                   className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: 'rgba(16,185,129,0.10)' }}
                 >
-                  <FileText className="h-5 w-5" style={{ color: '#10B981' }} />
+                  <FileText className="h-5 w-5" style={{ color: 'var(--emerald)' }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span
                       className="text-xs font-bold px-2 py-0.5 rounded-full"
-                      style={{ color: '#10B981', background: 'rgba(16,185,129,0.12)' }}
+                      style={{ color: 'var(--emerald)', background: 'var(--emerald-tint)' }}
                     >
                       {slip.type}
                     </span>
@@ -466,7 +466,7 @@ export default function SlipsPage() {
           onClick={() => router.push('/calculator')}
           className="w-full flex items-center justify-center gap-2 rounded-full py-4 text-sm font-semibold text-white transition-colors"
           style={{
-            background: '#10B981',
+            background: 'var(--emerald)',
             boxShadow: '0 10px 30px rgba(16,185,129,0.3)',
           }}
         >
@@ -478,7 +478,7 @@ export default function SlipsPage() {
 
       {/* ── Edit dialog ─────────────────────────────────────────── */}
       <Dialog open={editTarget !== null} onOpenChange={(open) => { if (!open) setEditTarget(null); }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#0d1828] border-white/10">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[var(--surface)] border-white/10">
           <DialogHeader>
             <DialogTitle className="text-white">Edit {editTarget?.type} Slip</DialogTitle>
           </DialogHeader>

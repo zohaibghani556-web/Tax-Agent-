@@ -227,7 +227,7 @@ function TierCard({
         <CardContent className="flex flex-col flex-1 p-8 gap-0">
           {/* Plan name */}
           <p
-            className="text-[11px] font-semibold uppercase tracking-[0.15em] mb-3"
+            className="text-[12px] font-semibold uppercase tracking-[0.15em] mb-3"
             style={{ color: isPopular ? 'var(--emerald)' : 'rgba(255,255,255,0.5)' }}
           >
             {planName}
@@ -306,7 +306,7 @@ export default function PricingPage() {
           <motion.p
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3"
+            className="text-[12px] font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] mb-3"
           >
             Pricing
           </motion.p>
@@ -404,7 +404,7 @@ export default function PricingPage() {
           >
             <motion.p
               variants={fadeUp}
-              className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] text-center mb-3"
+              className="text-[12px] font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] text-center mb-3"
             >
               Compare
             </motion.p>
@@ -486,7 +486,7 @@ export default function PricingPage() {
           >
             <motion.p
               variants={fadeUp}
-              className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] text-center mb-3"
+              className="text-[12px] font-semibold uppercase tracking-[0.15em] text-[var(--emerald)] text-center mb-3"
             >
               FAQ
             </motion.p>

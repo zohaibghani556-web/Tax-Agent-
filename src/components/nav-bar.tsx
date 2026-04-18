@@ -129,7 +129,7 @@ export function NavBar() {
         {/* Logo */}
         <Link href="/" className="flex items-center group" aria-label="TaxAgent.ai home">
           <span className="text-xl font-semibold tracking-tight text-white">
-            TaxAgent<span className="text-[#10B981]">.ai</span>
+            TaxAgent<span className="text-[var(--emerald)]">.ai</span>
           </span>
         </Link>
 
@@ -170,7 +170,7 @@ export function NavBar() {
                   className="flex items-center gap-2 rounded-full bg-white/10 hover:bg-white/15 transition-colors px-3 py-1.5 text-sm text-white font-medium"
                   aria-label="Account menu"
                 >
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#10B981] text-[10px] font-bold text-white">
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--emerald)] text-[10px] font-bold text-white">
                     {initials(user.name)}
                   </span>
                   <span className="max-w-[120px] truncate">{user.name.split(' ')[0]}</span>
@@ -208,7 +208,7 @@ export function NavBar() {
               </Link>
               <Link
                 href="/signup"
-                className="inline-flex items-center rounded-full bg-[#10B981] px-4 py-2 text-sm font-semibold text-white hover:bg-[#059669] transition-colors duration-200 shadow-lg shadow-emerald-500/20"
+                className="inline-flex items-center rounded-full bg-[var(--emerald)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors duration-200 shadow-[0_10px_30px_rgba(16,185,129,0.3)]"
               >
                 Start free →
               </Link>
@@ -228,12 +228,12 @@ export function NavBar() {
           </SheetTrigger>
           <SheetContent
             side="right"
-            className="w-full max-w-xs p-0 bg-[#0a1628] border-white/10"
+            className="w-full max-w-xs p-0 bg-[var(--navy)] border-white/10"
           >
             <div className="flex flex-col h-full">
               <div className="flex items-center justify-between px-6 h-16 border-b border-white/10">
                 <Link href="/" onClick={() => setOpen(false)} className="text-xl font-semibold text-white">
-                  TaxAgent<span className="text-[#10B981]">.ai</span>
+                  TaxAgent<span className="text-[var(--emerald)]">.ai</span>
                 </Link>
               </div>
               <nav className="flex flex-col px-4 py-6 gap-1 flex-1">
@@ -261,7 +261,7 @@ export function NavBar() {
                 {user ? (
                   <>
                     <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/5">
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#10B981] text-xs font-bold text-white">
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--emerald)] text-xs font-bold text-white">
                         {initials(user.name)}
                       </span>
                       <div className="flex-1 min-w-0">
@@ -289,7 +289,7 @@ export function NavBar() {
                     <Link
                       href="/signup"
                       onClick={() => setOpen(false)}
-                      className="flex items-center justify-center px-4 py-3 rounded-full bg-[#10B981] text-white font-semibold hover:bg-[#059669] transition-colors"
+                      className="flex items-center justify-center px-4 py-3 rounded-full bg-[var(--emerald)] text-white font-semibold hover:bg-[var(--emerald-dark)] transition-colors"
                     >
                       Start free →
                     </Link>

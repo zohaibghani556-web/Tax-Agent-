@@ -86,7 +86,7 @@ export function CreditFinder({ result, deductions }: Props) {
   if (suggestions.length === 0) {
     return (
       <div className="rounded-2xl px-5 py-4 flex items-center gap-2.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-        <CheckCircle2 className="h-5 w-5 shrink-0 text-[#10B981]" />
+        <CheckCircle2 className="h-5 w-5 shrink-0 text-[var(--emerald)]" />
         <p className="text-sm font-medium text-white/70">
           No missed credits detected — your return looks thorough!
         </p>
@@ -121,7 +121,7 @@ export function CreditFinder({ result, deductions }: Props) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-medium text-white">{s.title}</span>
                   {s.estimate && (
-                    <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: 'rgba(16,185,129,0.12)', color: '#10B981' }}>
+                    <span className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: 'rgba(16,185,129,0.12)', color: 'var(--emerald)' }}>
                       {s.estimate}
                     </span>
                   )}

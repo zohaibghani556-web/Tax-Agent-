@@ -151,7 +151,7 @@ export function TaxBreakdownChart({ result }: Props) {
     { label: 'Federal Tax', amount: result.netFederalTax, color: '#6366F1' },
     { label: 'Ontario Tax', amount: result.netOntarioTax, color: '#8B5CF6' },
     { label: 'CPP / EI', amount: cpp, color: '#F59E0B' },
-    { label: 'Net Take-Home', amount: takeHome, color: '#10B981' },
+    { label: 'Net Take-Home', amount: takeHome, color: 'var(--emerald)' },
   ].filter((s) => s.amount > 0);
 
   // Build angle ranges (with 1.5° gaps between segments)

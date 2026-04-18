@@ -78,14 +78,20 @@ export default function HistoryPage() {
           className="flex flex-col items-center gap-4 rounded-xl px-6 py-12 text-center"
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(255,255,255,0.1)' }}
         >
-          <Clock className="h-10 w-10 text-white/20" />
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center"
+            style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)' }}
+          >
+            <Clock className="h-6 w-6 text-[var(--emerald)]" />
+          </div>
           <div className="space-y-1">
-            <p className="font-semibold text-white/70">No calculations yet</p>
-            <p className="text-sm text-white/30">Run the calculator to create your first snapshot.</p>
+            <p className="font-semibold text-white">No calculations yet</p>
+            <p className="text-sm text-white/40">Run the calculator to create your first snapshot.</p>
           </div>
           <a
             href="/calculator"
             className="inline-flex items-center gap-2 rounded-full bg-[var(--emerald)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors"
+            style={{ boxShadow: '0 10px 30px rgba(16,185,129,0.3)' }}
           >
             Open calculator
             <ChevronRight className="h-4 w-4" />

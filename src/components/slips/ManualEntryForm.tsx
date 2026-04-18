@@ -151,7 +151,7 @@ export function ManualEntryForm({ onAdd, defaultType = 'T4' }: ManualEntryFormPr
 
                 <Button
                   onClick={() => handleSubmit(slipType)}
-                  className="w-full bg-[#10B981] hover:bg-[#059669]"
+                  className="w-full bg-[var(--emerald)] hover:bg-[var(--emerald-dark)]"
                 >
                   {submitted === slipType ? (
                     'Slip Added!'

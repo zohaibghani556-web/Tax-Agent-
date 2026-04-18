@@ -45,7 +45,7 @@ const PARTICLES = Array.from({ length: 40 }, (_, i) => {
 function Particle({ x, y, size, delay }: { x: number; y: number; size: number; delay: number }) {
   return (
     <motion.div
-      className="absolute rounded-full bg-[#10B981] pointer-events-none"
+      className="absolute rounded-full bg-[var(--emerald)] pointer-events-none"
       style={{ width: size, height: size, top: '50%', left: '50%', marginLeft: -size / 2, marginTop: -size / 2 }}
       initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
       animate={{ x, y, opacity: 0, scale: 0.3 }}
@@ -151,7 +151,7 @@ export function RefundReveal({ result, onDismiss }: Props) {
             {/* Verdict label */}
             <motion.p
               className="text-xs font-bold uppercase tracking-widest mb-3"
-              style={{ color: isRefund ? '#10B981' : '#EF4444' }}
+              style={{ color: isRefund ? 'var(--emerald)' : 'var(--error)' }}
               initial={prefersReduced ? {} : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15, duration: 0.3 }}
@@ -172,7 +172,7 @@ export function RefundReveal({ result, onDismiss }: Props) {
 
               <motion.p
                 className="text-6xl sm:text-7xl font-black tabular-nums leading-none"
-                style={{ color: isRefund ? '#10B981' : '#EF4444' }}
+                style={{ color: isRefund ? 'var(--emerald)' : 'var(--error)' }}
                 initial={prefersReduced ? {} : { scale: 0.85, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.2, duration: 0.4, ease: [0.2, 0, 0, 1.2] }}
@@ -218,7 +218,7 @@ export function RefundReveal({ result, onDismiss }: Props) {
                 }, 100);
               }}
               className="w-full rounded-full py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-              style={{ background: isRefund ? '#10B981' : '#EF4444' }}
+              style={{ background: isRefund ? 'var(--emerald)' : 'var(--error)' }}
               initial={prefersReduced ? {} : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.75, duration: 0.3 }}

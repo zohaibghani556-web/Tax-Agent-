@@ -181,7 +181,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               href={href}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 text-xs font-medium transition-colors',
-                active ? 'text-[#10B981]' : 'text-white/40 hover:text-white/70',
+                active ? 'text-[var(--emerald)]' : 'text-white/40 hover:text-white/70',
               )}
             >
               <Icon className="h-5 w-5" />

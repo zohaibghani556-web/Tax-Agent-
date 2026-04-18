@@ -95,7 +95,7 @@ export function TaxOptimizer({ result, currentRrspContributions, currentRrspRoom
               value={rrspSliderValue}
               onChange={(e) => setRrspSliderValue(Number(e.target.value))}
               className="w-full accent-emerald-400 h-1.5 rounded-full appearance-none cursor-pointer"
-              style={{ background: `linear-gradient(to right, #10B981 ${(rrspSliderValue / additionalRrspRoom) * 100}%, rgba(255,255,255,0.1) 0%)` }}
+              style={{ background: `linear-gradient(to right, var(--emerald) ${(rrspSliderValue / additionalRrspRoom) * 100}%, rgba(255,255,255,0.1) 0%)` }}
             />
           </div>
 

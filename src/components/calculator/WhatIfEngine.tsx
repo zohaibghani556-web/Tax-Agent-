@@ -68,7 +68,7 @@ export function WhatIfEngine({ result, deductions }: Props) {
     <div className="rounded-2xl p-5 space-y-5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
       <div>
         <h3 className="text-base font-semibold text-white flex items-center gap-2">
-          <TrendingDown className="h-4 w-4 text-[#10B981]" />
+          <TrendingDown className="h-4 w-4 text-[var(--emerald)]" />
           What-If Engine
         </h3>
         <p className="text-xs text-white/45 mt-1">
@@ -95,7 +95,7 @@ export function WhatIfEngine({ result, deductions }: Props) {
           value={rrspDelta}
           disabled={maxAdditionalRrsp === 0}
           onChange={(e) => setRrspDelta(Number(e.target.value))}
-          className="w-full h-2 accent-[#10B981] disabled:opacity-40"
+          className="w-full h-2 accent-[var(--emerald)] disabled:opacity-40"
         />
 
         <div className="flex justify-between text-xs text-white/35">
@@ -108,7 +108,7 @@ export function WhatIfEngine({ result, deductions }: Props) {
         </div>
 
         {rrspDelta > 0 && (
-          <p className="text-sm text-[#10B981] font-medium">
+          <p className="text-sm text-[var(--emerald)] font-medium">
             → Saves{' '}
             <span className="font-bold">{formatCad(rrspSavings)}</span> in taxes
             <span className="text-xs text-white/35 font-normal ml-1">
@@ -138,7 +138,7 @@ export function WhatIfEngine({ result, deductions }: Props) {
           step={50}
           value={donationDelta}
           onChange={(e) => setDonationDelta(Number(e.target.value))}
-          className="w-full h-2 accent-[#10B981]"
+          className="w-full h-2 accent-[var(--emerald)]"
         />
 
         <div className="flex justify-between text-xs text-white/35">
@@ -147,7 +147,7 @@ export function WhatIfEngine({ result, deductions }: Props) {
         </div>
 
         {donationDelta > 0 && (
-          <p className="text-sm text-[#10B981] font-medium">
+          <p className="text-sm text-[var(--emerald)] font-medium">
             → Generates{' '}
             <span className="font-bold">{formatCad(donationSavings)}</span> in credits
             <span className="text-xs text-white/35 font-normal ml-1">
@@ -160,7 +160,7 @@ export function WhatIfEngine({ result, deductions }: Props) {
       {/* ── Summary ────────────────────────────────────────────────── */}
       {isActive && (
         <div className="rounded-xl p-4 space-y-1.5" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
-          <p className="text-sm font-semibold text-[#10B981]">
+          <p className="text-sm font-semibold text-[var(--emerald)]">
             Total estimated savings:{' '}
             <span className="tabular-nums">{formatCad(totalSavings)}</span>
           </p>
@@ -168,7 +168,7 @@ export function WhatIfEngine({ result, deductions }: Props) {
             New outcome:{' '}
             <span
               className={`font-bold tabular-nums ${
-                newBalance < 0 ? 'text-[#10B981]' : 'text-red-400'
+                newBalance < 0 ? 'text-[var(--emerald)]' : 'text-red-400'
               }`}
             >
               {newBalance < 0

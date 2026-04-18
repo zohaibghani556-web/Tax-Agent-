@@ -89,7 +89,7 @@ function MetricCard({
 }) {
   return (
     <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-5 backdrop-blur-xl">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/40 mb-2">
+      <p className="text-[12px] font-semibold uppercase tracking-[0.15em] text-white/40 mb-2">
         {label}
       </p>
       {loading ? (

@@ -69,7 +69,7 @@ function MessageBubble({ message }: { message: Message }) {
         )}
         style={
           isUser
-            ? { background: '#10B981' }
+            ? { background: 'var(--emerald)' }
             : {
                 background: 'rgba(255,255,255,0.05)',
                 borderColor: 'rgba(255,255,255,0.10)',
@@ -255,7 +255,7 @@ export function ChatInterface({
           style={{
             background: 'rgba(16,185,129,0.15)',
             border: '1px solid rgba(16,185,129,0.25)',
-            color: '#10B981',
+            color: 'var(--emerald)',
           }}
         >
           <MessageSquare className="w-4 h-4" />
@@ -268,7 +268,7 @@ export function ChatInterface({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 text-[11px]" style={{ color: '#10B981' }}>
+        <div className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--emerald)' }}>
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           Live
         </div>
@@ -366,9 +366,9 @@ export function ChatInterface({
               disabled={!input.trim() || isLoading}
               aria-label="Send message"
               className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors disabled:opacity-40"
-              style={{ background: '#10B981' }}
-              onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = '#059669'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#10B981'; }}
+              style={{ background: 'var(--emerald)' }}
+              onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--emerald-dark)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--emerald)'; }}
             >
               <ArrowUp className="w-4 h-4 text-white" />
             </button>

@@ -23,7 +23,7 @@ export default function GlobalError({
 
   return (
     <html lang="en-CA">
-      <body style={{ margin: 0, background: '#0a1020', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+      <body style={{ margin: 0, background: '#0a1020', color: '#f0f9f6', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
         <div style={{
           minHeight: '100vh',
           display: 'flex',
@@ -54,7 +54,7 @@ export default function GlobalError({
             }}>
               ⚠
             </div>
-            <h1 style={{ margin: '0 0 10px', fontSize: '20px', fontWeight: 700, color: '#ffffff' }}>
+            <h1 style={{ margin: '0 0 10px', fontSize: '20px', fontWeight: 700, color: '#f0f9f6' }}>
               Something went wrong
             </h1>
             <p style={{ margin: '0 0 28px', fontSize: '14px', color: 'rgba(255,255,255,0.50)', lineHeight: 1.6 }}>

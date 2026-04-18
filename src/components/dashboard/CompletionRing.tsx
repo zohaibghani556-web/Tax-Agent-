@@ -24,7 +24,7 @@ const CIRCUMFERENCE = 2 * Math.PI * R;
 
 // Color thresholds — emerald ≥50%, indigo <50%
 function ringColor(pct: number): string {
-  if (pct >= 50) return '#10B981'; // emerald
+  if (pct >= 50) return 'var(--emerald)'; // emerald
   return '#6366F1';                // indigo
 }
 
@@ -141,7 +141,7 @@ export function CompletionRing({ assessmentDone, hasSlips, hasCalculation, hasFi
           <span className="text-3xl font-black tabular-nums leading-none" style={{ color }}>
             {displayPct}%
           </span>
-          <span className="text-[11px] text-white/40 font-semibold uppercase tracking-wide mt-1">
+          <span className="text-[12px] text-white/40 font-semibold uppercase tracking-wide mt-1">
             Complete
           </span>
         </div>
@@ -208,7 +208,7 @@ export function CompletionRing({ assessmentDone, hasSlips, hasCalculation, hasFi
             >
               {displayPct}%
             </span>
-            <span className="text-[11px] text-white/40 font-semibold uppercase tracking-wide mt-1">
+            <span className="text-[12px] text-white/40 font-semibold uppercase tracking-wide mt-1">
               Complete
             </span>
           </div>
