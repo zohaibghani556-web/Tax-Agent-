@@ -39,6 +39,13 @@ CREATE INDEX IF NOT EXISTS tax_knowledge_embedding_idx
   USING ivfflat (embedding vector_cosine_ops)
   WITH (lists = 100);
 
+-- Unique constraint required by scripts/seed-knowledge-base.ts.
+-- The seed script upserts on onConflict: 'source,category' to allow
+-- safe re-runs without duplicating entries.
+ALTER TABLE public.tax_knowledge
+  ADD CONSTRAINT IF NOT EXISTS tax_knowledge_source_category_unique
+  UNIQUE (source, category);
+
 -- ── RLS ──────────────────────────────────────────────────────
 
 ALTER TABLE public.tax_knowledge ENABLE ROW LEVEL SECURITY;
