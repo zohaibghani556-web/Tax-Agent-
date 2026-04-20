@@ -108,7 +108,13 @@ function isResidencyStatus(v: unknown): v is ResidencyStatus {
 
 function isValidDate(s: string): boolean {
   // Expect ISO format YYYY-MM-DD
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  // Force UTC parse so timezone offsets don't shift the day.
+  // Then round-trip: if Feb 30 normalises to Mar 1, the parts won't match.
+  const d = new Date(s + 'T00:00:00Z');
+  if (isNaN(d.getTime())) return false;
+  const [y, m, day] = s.split('-').map(Number);
+  return d.getUTCFullYear() === y && d.getUTCMonth() + 1 === m && d.getUTCDate() === day;
 }
 
 function isDependantLike(v: unknown): v is Record<string, unknown> {
