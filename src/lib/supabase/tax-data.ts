@@ -55,9 +55,14 @@ export interface UserDeductions {
   trainingFeesForCTC: number;
 }
 
-// Slip types that satisfy the DB CHECK constraint on tax_slips.slip_type
-const SUPPORTED_SLIP_TYPES = new Set([
+// Slip types that satisfy the DB CHECK constraint on tax_slips.slip_type.
+// Must stay in sync with: (1) SLIP_FIELDS in slip-fields.ts, (2) the CHECK
+// constraint in migration 20260420000001_slip_types_expand.sql, and (3)
+// TaxSlip['type'] in tax-engine/types.ts.
+// The parity test in tax-data.test.ts fails CI if any type is missing here.
+export const SUPPORTED_SLIP_TYPES = new Set([
   'T4', 'T5', 'T5008', 'T3', 'T4A', 'T2202', 'T4E', 'T5007',
+  'T4AP', 'T4AOAS', 'T4RSP', 'T4RIF', 'RRSP-Receipt', 'T4FHSA',
 ]);
 
 // ─── Internal helper: get or create the tax_profiles row ────────────────────
