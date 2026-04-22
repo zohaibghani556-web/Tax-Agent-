@@ -117,10 +117,8 @@ function LiveEstimatorCard() {
           background: 'radial-gradient(ellipse at center, var(--emerald-glow) 0%, transparent 70%)',
         }}
       />
-      <motion.div
-        animate={{ y: [0, -10, 0] }}
-        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-        className="relative rounded-2xl p-6 backdrop-blur-xl"
+      <div
+        className="animate-float-card relative rounded-2xl p-6 backdrop-blur-xl"
         style={{
           background: 'var(--surface-overlay)',
           border: '1px solid var(--border)',
@@ -195,7 +193,7 @@ function LiveEstimatorCard() {
         >
           Start my free assessment →
         </Link>
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -340,10 +338,8 @@ function PricingCard({
       >
         {/* Pulse glow for popular card */}
         {isPopular && (
-          <motion.div
-            className="absolute inset-0 rounded-2xl pointer-events-none"
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          <div
+            className="animate-glow-fade-pulse absolute inset-0 rounded-2xl pointer-events-none"
             style={{ boxShadow: '0 0 60px rgba(16,185,129,0.15)', borderRadius: 16 }}
           />
         )}
@@ -417,11 +413,7 @@ export default function HomePage() {
                 style={{ boxShadow: '0 0 20px rgba(16,185,129,0.15)' }}
               >
                 <span className="relative flex h-1.5 w-1.5">
-                  <motion.span
-                    className="absolute inline-flex h-full w-full rounded-full bg-emerald-400"
-                    animate={{ scale: [1, 1.8, 1], opacity: [0.8, 0, 0.8] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                  />
+                  <span className="animate-indicator-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 </span>
                 2025 Tax Season · Ontario, Canada

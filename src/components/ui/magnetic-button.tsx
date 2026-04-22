@@ -11,7 +11,7 @@
  * Attaches a single window mousemove listener to avoid re-renders.
  */
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { motion, useMotionValue, useSpring } from 'framer-motion';
 
 export interface MagneticButtonProps {
@@ -30,7 +30,6 @@ export function MagneticButton({
   className = '',
 }: MagneticButtonProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [isActive, setIsActive] = useState(false);
 
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -56,11 +55,9 @@ export function MagneticButton({
         const proximity = 1 - distance / radius;
         x.set(deltaX * proximity * strength);
         y.set(deltaY * proximity * strength);
-        setIsActive(true);
       } else {
         x.set(0);
         y.set(0);
-        setIsActive(false);
       }
     }
 
@@ -73,7 +70,6 @@ export function MagneticButton({
       ref={ref}
       className={`inline-block ${className}`}
       style={{ x: springX, y: springY }}
-      data-magnetic-active={isActive}
     >
       {children}
     </motion.div>
@@ -154,18 +150,11 @@ export function CTAButton({
           aria-hidden="true"
           className="absolute inset-0 rounded-full overflow-hidden pointer-events-none"
         >
-          <motion.span
-            className="absolute inset-0 rounded-full"
+          <span
+            className="animate-cta-shimmer absolute inset-0 rounded-full"
             style={{
               background:
                 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%)',
-            }}
-            animate={{ x: ['-100%', '200%'] }}
-            transition={{
-              duration: 2.5,
-              ease: 'easeInOut',
-              repeat: Infinity,
-              repeatDelay: 3,
             }}
           />
         </span>
@@ -174,11 +163,7 @@ export function CTAButton({
       <span className="relative z-10">{label}</span>
 
       {/* Arrow icon */}
-      <motion.span
-        className="relative z-10"
-        animate={{ x: [0, 3, 0] }}
-        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-      >
+      <span className="animate-cta-arrow relative z-10">
         <svg
           className="w-4 h-4"
           fill="none"
@@ -188,7 +173,7 @@ export function CTAButton({
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
         </svg>
-      </motion.span>
+      </span>
     </motion.button>
   );
 
