@@ -115,6 +115,7 @@ Ontario Taxation Act credits differ from federal. Before adding any credit to `c
 - [ ] Every new state-mutating API route calls `validateCsrfToken(req)` and returns 403 on failure
 - [ ] Rate limiting applied to every API route — use `checkRateLimit()` from `@/lib/rate-limit`
 - [ ] No personal email addresses or secrets in source code — use env vars
+  - `SUPPORT_EMAIL` — destination for contact form emails (POST /api/contact). Falls back to `support@taxagent.ai`.
 
 ## Key File Structure
 ```

@@ -93,10 +93,12 @@ export async function POST(req: NextRequest) {
 
   const resend = new Resend(apiKey);
 
+  const supportEmail = process.env.SUPPORT_EMAIL ?? 'support@taxagent.ai';
+
   const { error } = await resend.emails.send({
     // Use Resend's shared domain for testing; swap to noreply@taxagent.ai once domain is verified
     from: 'TaxAgent.ai <onboarding@resend.dev>',
-    to: 'zohaibghani556@gmail.com',
+    to: supportEmail,
     replyTo: email,
     subject: `[TaxAgent] ${type} inquiry from ${name}`,
     html: `
