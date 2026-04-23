@@ -4,37 +4,76 @@
  * PIPEDA cookie consent banner.
  *
  * PIPEDA requires meaningful consent before collecting personal information.
- * This banner appears on first visit, records the user's choice in localStorage,
- * and never re-appears once a decision is made.
+ * This banner appears on first visit, records the user's choice in:
+ *   1. localStorage — fast, same-device signal read by ConditionalAnalytics
+ *   2. Supabase user_metadata — persists across devices for logged-in users
  *
- * We don't use tracking cookies — Vercel Speed Insights is the only
- * third-party script and it's privacy-first (no fingerprinting).
- * This banner covers the legal consent requirement regardless.
+ * On accept: fires 'taxagent:consent-accepted' so analytics activate
+ * immediately without a page reload (handled by ConditionalAnalytics).
  */
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { X } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 const CONSENT_KEY = 'taxagent_cookie_consent';
+
+async function persistConsentToSupabase(value: 'accepted' | 'declined') {
+  try {
+    const supabase = createClient();
+    const { data } = await supabase.auth.getUser();
+    if (data.user) {
+      await supabase.auth.updateUser({
+        data: {
+          cookie_consent: value,
+          cookie_consent_at: new Date().toISOString(),
+        },
+      });
+    }
+  } catch {
+    // Non-critical — localStorage is the primary signal
+  }
+}
 
 export function CookieBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // Only show if the user hasn't made a choice yet
-    try {
-      const existing = localStorage.getItem(CONSENT_KEY);
-      if (!existing) setVisible(true);
-    } catch {
-      // localStorage unavailable (private browsing edge case) — don't show banner
+    // Only show if the user hasn't made a choice yet (check localStorage first,
+    // then fall back to checking Supabase user_metadata for returning users on
+    // a new device).
+    async function checkConsent() {
+      try {
+        const existing = localStorage.getItem(CONSENT_KEY);
+        if (existing) return; // already decided on this device
+
+        // Check Supabase for cross-device preference
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        if (data.user?.user_metadata?.cookie_consent) {
+          // Sync the stored preference to this device silently
+          localStorage.setItem(CONSENT_KEY, data.user.user_metadata.cookie_consent as string);
+          if (data.user.user_metadata.cookie_consent === 'accepted') {
+            window.dispatchEvent(new Event('taxagent:consent-accepted'));
+          }
+          return;
+        }
+
+        setVisible(true);
+      } catch {
+        setVisible(true);
+      }
     }
+    checkConsent();
   }, []);
 
   function accept() {
     try {
       localStorage.setItem(CONSENT_KEY, 'accepted');
+      window.dispatchEvent(new Event('taxagent:consent-accepted'));
     } catch { /* ignore */ }
+    persistConsentToSupabase('accepted');
     setVisible(false);
   }
 
@@ -42,6 +81,7 @@ export function CookieBanner() {
     try {
       localStorage.setItem(CONSENT_KEY, 'declined');
     } catch { /* ignore */ }
+    persistConsentToSupabase('declined');
     setVisible(false);
   }
 

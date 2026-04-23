@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist } from 'next/font/google';
-import { SpeedInsights } from '@vercel/speed-insights/next';
 import { ConditionalLayout } from '@/components/layout/ConditionalLayout';
+import { ConditionalAnalytics } from '@/components/analytics/ConditionalAnalytics';
 import { CookieBanner } from '@/components/ui/cookie-banner';
 import './globals.css';
 
@@ -205,7 +205,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
         <CookieBanner />
-        <SpeedInsights />
+        <ConditionalAnalytics />
       </body>
     </html>
   );
