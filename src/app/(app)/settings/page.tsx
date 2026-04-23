@@ -119,6 +119,10 @@ export default function SettingsPage() {
   const [deleteError, setDeleteError] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
   const [notifications, setNotifications] = useState({
     filingDeadline: true,
     rrspDeadline: true,
@@ -142,6 +146,53 @@ export default function SettingsPage() {
       setDeleteError('Network error. Please try again.');
     } finally {
       setDeleteLoading(false);
+    }
+  }
+
+  async function handlePasswordChange() {
+    setPasswordError('');
+
+    if (!currentPassword) {
+      setPasswordError('Please enter your current password.');
+      return;
+    }
+    if (newPassword.length < 12) {
+      setPasswordError('New password must be at least 12 characters.');
+      return;
+    }
+    if (!/\d/.test(newPassword)) {
+      setPasswordError('New password must contain at least one number.');
+      return;
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+      setPasswordError('New password must contain at least one uppercase letter.');
+      return;
+    }
+
+    setPasswordSaving(true);
+    try {
+      const supabase = createClient();
+      // Re-authenticate with the current password first to verify identity
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: currentPassword,
+      });
+      if (signInError) {
+        setPasswordError('Current password is incorrect.');
+        return;
+      }
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        setPasswordError(error.message ?? 'Failed to update password. Please try again.');
+      } else {
+        setCurrentPassword('');
+        setNewPassword('');
+        toast.success('Password updated successfully.', { duration: 3000 });
+      }
+    } catch {
+      setPasswordError('Network error. Please try again.');
+    } finally {
+      setPasswordSaving(false);
     }
   }
 
@@ -202,7 +253,13 @@ export default function SettingsPage() {
       <SectionCard title="Security">
         <Field label="Current password">
           <div className="relative">
-            <Input type={showPassword ? 'text' : 'password'} placeholder="Enter current password" />
+            <Input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Enter current password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
+            />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
@@ -213,9 +270,25 @@ export default function SettingsPage() {
           </div>
         </Field>
         <Field label="New password">
-          <Input type="password" placeholder="Choose a new password" />
+          <Input
+            type="password"
+            placeholder="Min 12 chars, 1 number, 1 uppercase"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            autoComplete="new-password"
+          />
         </Field>
-        <SaveButton />
+        {passwordError && (
+          <p className="text-xs text-red-400 -mt-1">{passwordError}</p>
+        )}
+        <button
+          onClick={handlePasswordChange}
+          disabled={passwordSaving}
+          className="flex items-center gap-2 rounded-full bg-[var(--emerald)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Save className="h-4 w-4" />
+          {passwordSaving ? 'Saving…' : 'Save changes'}
+        </button>
 
         <div className="pt-4 mt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
           <div className="flex items-center justify-between">
