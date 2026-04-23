@@ -5,6 +5,15 @@ const PROTECTED = ['/dashboard', '/calculator', '/slips', '/onboarding', '/filin
 const AUTH_ONLY = ['/login', '/signup'];
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // CPA portal is dead code until Week 21. Block in production; allow in dev for local preview.
+  if (pathname === '/cpa' || pathname.startsWith('/cpa/')) {
+    if (process.env.NODE_ENV === 'production') {
+      return new NextResponse(null, { status: 404 });
+    }
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -28,8 +37,6 @@ export async function middleware(request: NextRequest) {
 
   // Refresh session — do NOT remove this
   const { data: { user } } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
 
   const isProtected = PROTECTED.some((p) => pathname === p || pathname.startsWith(p + '/'));
   const isAuthOnly = AUTH_ONLY.some((p) => pathname === p || pathname.startsWith(p + '/'));
