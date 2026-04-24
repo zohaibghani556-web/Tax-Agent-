@@ -31,10 +31,16 @@ Canadians filing their own T1 return (not accountants, not businesses). Ontario 
 - Single source of truth: `src/lib/tax-engine/constants.ts` — never hardcode values in business logic
 - Dual-engine parity: `engine.ts` (slip-based) and `taxEngine.ts` (flat-input) must always agree on every tax rule
 
+## Data Residency (verified April 22, 2026)
+- Supabase project is hosted in **ca-central-1 (Montreal, Canada)** — confirmed in Supabase dashboard.
+- All user PII and tax data at rest stays in Canada. PostgreSQL, Auth, Storage, and Vault are all in this region.
+- **Cross-border data flow**: When a user uploads a slip or sends a chat message, the extracted text (not raw images for chat) is sent to the **Anthropic API (US servers)** for OCR extraction and conversational processing. This is the only cross-border transfer. It is disclosed in the privacy policy.
+- Do NOT suggest switching to a Canadian-hosted LLM as a requirement — the Anthropic API cross-border flow is a deliberate product decision and acceptable under PIPEDA for transient processing. Revisit only if a regulator specifically requires it.
+
 ## PIPEDA Constraints
 - SIN: NOT collected in the consumer T1 flow by design. If a future feature requires SIN, it must be encrypted via Supabase Vault before persistence, never stored plaintext, displayed masked (***-***-XXX) only.
 - No PII in URLs, logs, or error messages — logger (`src/lib/logger.ts`) enforces a prohibited key list
-- Canadian data residency: Supabase ca-central-1
+- Canadian data residency: Supabase ca-central-1 (verified — see Data Residency section above)
 - Cookie consent required before Sentry and Vercel Analytics fire (not yet implemented — top priority)
 - User can delete all their data via `/api/account/delete` (implemented and tested)
 - CRA record-keeping rule: retain data 6 years per ITA s.230(4) — we keep 7 (see `src/lib/data-retention.ts`)
