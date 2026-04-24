@@ -131,6 +131,21 @@ The `tax_knowledge` table currently has `USING (true)` for public read access �
 ### Supabase tier & backups
 **Current**: Free tier (no automated backups). Manual backup script at `scripts/backup-supabase.sh` is the only protection. **Must upgrade to Supabase Pro ($25/month) before Week 9 alpha launch** to enable daily automated backups with 7-day retention. See `docs/infrastructure.md` for upgrade instructions and backup strategy.
 
+## CRA XSD-Derived Slip Types
+
+Generated from CRA v1.26.3 XML schemas. **Never hand-edit** anything under `src/types/slips/cra/`.
+
+- **Regenerate**: `npm run gen:slip-types` (runs `scripts/generate-slip-types.ts`)
+- **Annual update**: drop new CRA XSDs in `scripts/cra-xsds/`, re-run the script
+- **Two-layer architecture**:
+  - `src/types/slips/cra/` — XSD-faithful `CraXsd_*` interfaces + Zod schemas (generated)
+  - `src/lib/tax-engine/types.ts` — app-layer types with box numbers (`box14`, `box16`, etc.) — drives the engine, **do not auto-generate**
+  - `src/types/slips/cra/box-mappings.ts` — `XSD_BOX_MAP[slipType][xsdField]` → app box key (used by OCR route to translate CRA XML → app types)
+- **Supported v1 slip types** (T4, T4A, T5, T5008, T3, T2202)
+- **Critical**: `brsy_amt → box105` in `XSD_BOX_MAP_T4A` — used by Session 12 for ITA s.56(3) scholarship exemption
+- **Sanity-check tests**: `scripts/generate-slip-types.test.ts` (44 tests) — run after any regeneration
+- `zod` is a production dependency (generated files import it). `fast-xml-parser` and `tsx` are devDependencies (generator only).
+
 ## Key File Structure
 ```
 src/lib/tax-engine/constants.ts        — ALL 2025 rates/thresholds (single source of truth)
@@ -144,6 +159,11 @@ src/lib/tax-engine/constants-by-year.ts — Historical constants 2022–2024 (fo
 src/lib/taxEngine.ts                   — Flat-input engine (TaxInput → TaxBreakdown)
 src/lib/slips/slip-router.ts           — Slip type detection from OCR text
 src/lib/slips/slip-fields.ts           — Slip field labels and primary box lookups
+src/types/slips/cra/                   — CRA XSD-faithful types (auto-generated, never hand-edit)
+src/types/slips/cra/box-mappings.ts    — XSD field → app box key maps (XSD_BOX_MAP)
+scripts/generate-slip-types.ts         — XSD → TypeScript/Zod generator
+scripts/generate-slip-types.test.ts    — Sanity-check tests for generated types (44 tests)
+scripts/cra-xsds/                      — Source CRA XSD files (v1.26.3)
 src/lib/ai/system-prompt.ts            — Claude system prompt for assessment interview
 src/lib/ai/canadian-tax-knowledge.ts   — Structured knowledge for dynamic prompt injection
 src/lib/ai/assessment.ts              — TaxProfile update parser from Claude responses
