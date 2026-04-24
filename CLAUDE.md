@@ -123,6 +123,14 @@ Ontario Taxation Act credits differ from federal. Before adding any credit to `c
 - [ ] No personal email addresses or secrets in source code — use env vars
   - `SUPPORT_EMAIL` — destination for contact form emails (POST /api/contact). Falls back to `support@taxagent.ai`.
 
+## Watch Items (operational & product risks)
+
+### tax_knowledge table RLS
+The `tax_knowledge` table currently has `USING (true)` for public read access — correct as long as the table contains ONLY CRA reference content (tax rules, citations, folios, thresholds). If any future feature adds user-specific data to this table (custom rule notes, user feedback, saved research, personalized interpretations), the RLS policy MUST be revisited before that feature ships. See `docs/infrastructure.md` RLS audit for details.
+
+### Supabase tier & backups
+**Current**: Free tier (no automated backups). Manual backup script at `scripts/backup-supabase.sh` is the only protection. **Must upgrade to Supabase Pro ($25/month) before Week 9 alpha launch** to enable daily automated backups with 7-day retention. See `docs/infrastructure.md` for upgrade instructions and backup strategy.
+
 ## Key File Structure
 ```
 src/lib/tax-engine/constants.ts        — ALL 2025 rates/thresholds (single source of truth)
