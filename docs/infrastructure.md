@@ -32,17 +32,17 @@ This transfer is transient (no Anthropic retention beyond their standard API pol
 
 ## Backups
 
-### Supabase Tier — ACTION REQUIRED
-
-**You need to confirm whether the project is on the Free or Pro tier** and update this document.
+### Supabase Tier: **Free** (confirmed April 23, 2026)
 
 | Tier | Automated Backups | Point-in-Time Recovery |
 |------|------------------|----------------------|
-| **Free** | None | Not available |
+| **Free** ← current | **None** | Not available |
 | **Pro** ($25/month) | Daily, 7-day retention | Available as add-on |
 | **Pro + PITR** | Daily, 7-day retention | 30-day recovery window |
 
-**Recommendation before onboarding real users**: Upgrade to Supabase Pro ($25/month) to enable daily automated backups. Add PITR if budget allows.
+**The Free tier has zero automated backups.** The manual backup script below is the only backup protection in place right now.
+
+**Action required before onboarding real users**: Upgrade to Supabase Pro ($25/month). This enables daily automated backups with 7-day retention. Until then, run `scripts/backup-supabase.sh` manually at least weekly and copy archives to off-site storage.
 
 ### Manual Backup Script (belt-and-suspenders)
 
