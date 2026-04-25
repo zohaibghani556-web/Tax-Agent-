@@ -206,8 +206,48 @@ tests/                                 — Integration + scenario tests (flat en
 
 ## Testing
 - Use Vitest. Test file next to source: `brackets.ts` → `brackets.test.ts`.
-- Current status: **519 tests, 26 files, all passing** (`npm run test:run`).
+- Current status: **779 tests, 36 files, all passing** (`npm run test:run`).
 - Minimum test scenarios per calculation module: simple income, edge of bracket, multi-bracket, zero income.
 - Cross-validate against CRA's own examples where available.
 - Integration tests for consumer scenarios live in `tests/tax-engine/scenarios.test.ts` (59 tests, 10 profiles).
 - DO NOT add tests to `tests/` for new modules — put them next to the source file.
+
+## Team Workflow — 3-Agent Setup
+
+**Roles:**
+- **DeepSeek-V4** (via chat) — strategic direction, Aider commands, tax-rule reasoning.
+- **Aider** (DeepSeek-V3-0324, branch `ai-worker`) — heavy, cheap code writer. Never commits to `main` directly.
+- **Claude Code** (you, on `main`) — reviewer, tester, QA gate, merger, pusher.
+
+**Branch rule:** Aider writes on `ai-worker`. Claude Code reviews, runs all checks, then merges + pushes to `main`. Claude Code NEVER writes code on `ai-worker`. Claude Code NEVER merges without completing every step of the pre-merge checklist below.
+
+## Pre-Merge Checklist (run every time before merging ai-worker → main)
+
+Run each step and report the result. If ANY step fails, stop and report — do NOT merge.
+
+1. **`npx tsc --noEmit`** — zero type errors.
+2. **`npm run test:run`** — all 779+ tests pass, including `parity.test.ts` and `constants-integrity.test.ts`.
+3. **`npm run lint`** — no new warnings or errors.
+4. **Full diff review:**
+   - No hardcoded tax constants (all dollar amounts and rates imported from `constants.ts`).
+   - No silent slip field drops in `savedToTaxSlip` (`src/app/(app)/calculator/page.tsx:~85`) or extraction handoffs.
+   - No swallowed or misleading errors.
+5. **Engine test coverage:** If any file under `src/lib/tax-engine/` or `src/lib/taxEngine.ts` was modified, a corresponding `.test.ts` must have been changed or created in the same PR. If not, do NOT merge — ask Aider to add tests first.
+6. **Parity test:** `parity.test.ts` must show `engine.ts == taxEngine.ts` for all 5 scenarios. Any new tax rule added to one engine must be in both.
+7. **Constants integrity:** `constants-integrity.test.ts` must assert (do not accept any change to these values without a CRA source citation):
+   - `FEDERAL_BPA.max === 16129`
+   - `ONTARIO_BPA === 12747`
+   - `RRSP.maxContribution === 32490`
+   - `CPP.maxEmployeeContribution === 4034.10`
+   - `EI.maxPremium === 1077.48`
+8. **Dual-engine parity rule:** Any tax rule, credit, deduction, or clawback added to one engine MUST be added to the other before merging. Check both `engine.ts` and `taxEngine.ts` explicitly.
+
+## Critical File Paths (quick reference after /clear)
+- Slip-based engine entry: `src/lib/tax-engine/engine.ts` → `calculateTaxReturn()`
+- Flat-input engine: `src/lib/taxEngine.ts` → `calculateTaxes()`
+- All CRA constants: `src/lib/tax-engine/constants.ts`
+- Slip handoff (unvalidated cast): `src/app/(app)/calculator/page.tsx` (~line 85, `savedToTaxSlip`)
+- Slip extraction pipeline: `src/lib/extraction/`
+- Key parity test: `src/lib/tax-engine/__tests__/parity.test.ts`
+- Key constants test: `src/lib/tax-engine/__tests__/constants-integrity.test.ts`
+- Test runner: `npm run test:run` (Vitest)
