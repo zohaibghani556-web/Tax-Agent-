@@ -21,24 +21,24 @@ function input(overrides: Partial<TaxInput>): TaxInput {
 // ── SCENARIO 1: $90,000 Ontario employee — SHOWCASE TEST ─────────────────────
 //
 // Single, age 35, no deductions, no withholding.
+// 2025 constants | Sources verified: 2026-04-24
 //
 // Manual T1 calculation:
-//   Federal gross tax : $57,375 × 14.5% + $32,625 × 20.5% = $15,007.51
+//   Federal gross tax : $57,375 × 14.5% + $32,625 × 20.5% ≈ $15,007.51
 //   Federal NRC amounts: BPA $16,129 + CPP $4,034.10 + CPP2 $396
-//                        + EI $1,077.48 + Employment $1,433 = $23,069.58
-//   Federal NRC credit : $23,069.58 × 15% = $3,460.44
-//   Top-up credit      : $23,069.58 × 0.5% = $115.35
-//   Total federal NRC  : $3,575.79
-//   Net federal tax    : $15,007.51 − $3,575.79 = $11,431.72
+//                        + EI $1,077.48 + CEA $1,471 = $23,107.58
+//   Federal NRC credit : $23,107.58 × 14.5% ≈ $3,350.60
+//   Top-up credit      : $0 (FEDERAL_CREDIT_RATE == FEDERAL_LOWEST_RATE == 14.5%)
+//   Net federal tax    : $15,007.51 − $3,350.60 ≈ $11,656.91
 //
-//   Ontario gross tax  : $51,446 × 5.05% + $38,554 × 9.15% = $6,125.71
-//   Ontario NRC        : (BPA $11,865 + CPP $4,034.10 + EI $1,077.48) × 5.05% = $857.31
-//   Basic Ontario tax  : $6,125.71 − $857.31 = $5,268.40
-//   Surtax             : $0 (< $5,818 threshold)
-//   OHP                : $900 (income $72,001–$200,000 flat max)
-//   Ontario payable    : $6,168.40
+//   Ontario gross tax  : $52,886 × 5.05% + $37,114 × 9.15% ≈ $6,067.67
+//   Ontario NRC        : (ON-BPA $12,747 + CPP $4,034.10 + EI $1,077.48) × 5.05% ≈ $901.86
+//   Basic Ontario tax  : $6,067.67 − $901.86 ≈ $5,165.81
+//   Surtax             : $0 (< $5,710 threshold; Source: CRA T4032ON Jul 2025)
+//   OHP                : $750 (income $90,000 in $72,001–$200,000 tier 4 flat band)
+//   Ontario payable    : $5,915.81
 //
-//   TOTAL TAX PAYABLE  : ~$17,600
+//   TOTAL TAX PAYABLE  : ~$17,573
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Scenario 1 — $90,000 Ontario employee (no deductions)', () => {
@@ -66,9 +66,11 @@ describe('Scenario 1 — $90,000 Ontario employee (no deductions)', () => {
     expect(result.federal.grossTax).toBeCloseTo(15007.51, 1);
   });
 
-  it('net federal tax is in $11,200–$11,600 range', () => {
-    expect(result.federal.netFederalTax).toBeGreaterThanOrEqual(11200);
-    expect(result.federal.netFederalTax).toBeLessThanOrEqual(11600);
+  it('net federal tax is in $11,550–$11,750 range', () => {
+    // New range: FEDERAL_CREDIT_RATE changed to 14.5% (from 15%+top-up),
+    // and CEA changed to $1,471 (from $1,433). Net federal tax ≈ $11,656.91.
+    expect(result.federal.netFederalTax).toBeGreaterThanOrEqual(11550);
+    expect(result.federal.netFederalTax).toBeLessThanOrEqual(11750);
   });
 
   it('Ontario gross tax ≈ $6,125.71', () => {
@@ -76,12 +78,17 @@ describe('Scenario 1 — $90,000 Ontario employee (no deductions)', () => {
     expect(result.ontario.basicOntarioTax).toBeLessThanOrEqual(5400);
   });
 
-  it('Ontario surtax = $0 (basic tax < $5,818 threshold)', () => {
+  it('Ontario surtax = $0 (basic tax < $5,710 threshold)', () => {
+    // Basic Ontario tax ~$5,165.81 < $5,710 (2025 surtax threshold 1)
+    // Source: CRA T4032ON Jul 2025 | Verified: 2026-04-24
     expect(result.ontario.surtax).toBe(0);
   });
 
-  it('Ontario Health Premium = $900 (income in $72,001+ band)', () => {
-    expect(result.ontario.ontarioHealthPremium).toBe(900);
+  it('Ontario Health Premium = $750 (income $90,000 in $72,001–$200,000 tier 4 band)', () => {
+    // Tier 4 ($72,001–$200,000): $600 + min($150, 25% × (90,000−72,000)) = $600 + $150 = $750
+    // Tier 4 caps at $750. The final $150 increment (to $900) only applies above $200,000.
+    // Source: CRA T4032ON Jul 2025 | Verified: 2026-04-24
+    expect(result.ontario.ontarioHealthPremium).toBe(750);
   });
 
   it('total tax payable is within $1 of manual calculation (~$17,600)', () => {

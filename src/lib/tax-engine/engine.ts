@@ -909,6 +909,7 @@ export function calculateTaxReturn(
       t3Slips.reduce((sum, s) => sum + s.box49, 0)
     ),
     [CRA_LINES.taxableCapitalGains]: cgLineResult.taxableGain,
+    [CRA_LINES.tuitionAmount]:       tuitionCurrentYear,
     [CRA_LINES.totalIncome]:         totalIncome,
     [CRA_LINES.rrspDeduction]:       rrspDeductionLine,
     [CRA_LINES.netIncome]:           netIncome,

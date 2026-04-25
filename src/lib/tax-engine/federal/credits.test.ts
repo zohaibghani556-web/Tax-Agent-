@@ -99,12 +99,13 @@ describe('calculateEICredit', () => {
 });
 
 // ============================================================
-// Canada Employment Credit — 2025 amount is $1,433
+// Canada Employment Credit — 2025 amount is $1,471
+// Source: CRA T1 2025 (5006-r-25e.txt) | Verified: 2026-04-24
 // ============================================================
 
 describe('calculateCanadaEmploymentCredit', () => {
-  it('returns $1,433 when employed', () => {
-    expect(calculateCanadaEmploymentCredit(true)).toBe(1_433);
+  it('returns $1,471 when employed', () => {
+    expect(calculateCanadaEmploymentCredit(true)).toBe(1_471);
   });
 
   it('returns 0 when not employed', () => {
@@ -277,20 +278,22 @@ describe('calculateTotalFederalCredits', () => {
     expect(result.creditAmounts.cppAmount).toBe(3_354);
     expect(result.creditAmounts.eiAmount).toBe(1_077);
 
-    // Employment credit — 2025 amount is $1,433
-    expect(result.creditAmounts.employmentAmount).toBe(1_433);
+    // Employment credit — 2025 amount is $1,471
+    // Source: CRA T1 2025 (5006-r-25e.txt) | Verified: 2026-04-24
+    expect(result.creditAmounts.employmentAmount).toBe(1_471);
 
-    // Medical: threshold = min(2635, 65000×0.03=1950) = 1950; 800 < 1950 → 0
+    // Medical: threshold = min(2759, 65000×0.03=1950) = 1950; 800 < 1950 → 0
     expect(result.creditAmounts.medicalAmount).toBe(0);
 
-    // totalCreditAmount = 16129 + 0 + 3354 + 1077 + 1433 + 0 + 0 + 0 + 0 + 0 = 21993
-    expect(result.totalCreditAmount).toBe(21_993);
+    // totalCreditAmount = 16129 + 0 + 3354 + 1077 + 1471 + 0 + 0 + 0 + 0 + 0 = 22031
+    expect(result.totalCreditAmount).toBe(22_031);
 
     // Donation credit: (200×0.15) + (300×0.29) = 30 + 87 = 117
     expect(result.donationCreditValue).toBe(117);
 
-    // totalCreditValue = 21993 × 0.15 + 117 = 3298.95 + 117 = 3415.95
-    expect(result.totalCreditValue).toBe(3_415.95);
+    // totalCreditValue = 22031 × 0.145 + 117 = 3194.50 + 117 = 3311.50
+    // (FEDERAL_CREDIT_RATE is 14.5% for 2025 T1 returns per CRA 5006-r-25e.txt)
+    expect(result.totalCreditValue).toBe(3_311.50);
   });
 
   it('includes age credit and disability for a senior with disability', () => {

@@ -241,19 +241,21 @@ describe('calculateDTC — arithmetic spot-check', () => {
       childCareAttendantCare: 0,
       transferToSupporter: false,
     });
-    // Federal: 9872 × 15% = 1480.80
-    expect(r.federalCreditValue).toBeCloseTo(1480.80, 2);
+    // Federal: 9872 × 14.5% = 1431.44 (FEDERAL_CREDIT_RATE is 14.5% for 2025)
+    // Source: CRA T1 2025 (5006-r-25e.txt) | Verified: 2026-04-24
+    expect(r.federalCreditValue).toBeCloseTo(1431.44, 2);
     // Ontario: 9286 × 5.05% = 468.94
     expect(r.ontarioCreditValue).toBeCloseTo(468.94, 2);
   });
 
-  it('child under 18, no child care: federal credit value = (9872 + 5758) × 15%', () => {
+  it('child under 18, no child care: federal credit value = (9872 + 5758) × 14.5%', () => {
     const r = calculateDTC({
       hasDTC: true,
       ageOnDec31: 10,
       childCareAttendantCare: 0,
       transferToSupporter: false,
     });
-    expect(r.federalCreditValue).toBe(roundCRA((9872 + 5758) * 0.15));
+    // FEDERAL_CREDIT_RATE is 14.5% for 2025 (not 15%)
+    expect(r.federalCreditValue).toBe(roundCRA((9872 + 5758) * 0.145));
   });
 });

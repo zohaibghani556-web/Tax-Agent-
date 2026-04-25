@@ -84,8 +84,10 @@ describe('calculatePrincipalResidenceExemption', () => {
     expect(result.totalGain).toBe(-65000);
   });
 
-  it('large taxable gain triggers 66.67% inclusion on portion above $250k', () => {
-    // 5 years owned, 2 years designated, large gain
+  it('large taxable gain uses flat 50% inclusion rate for 2025', () => {
+    // CRA reverted to flat 50% for all 2025 T1 returns — two-tier (66.67%) deferred to 2026.
+    // Source: canada.ca/en/revenue-agency/.../update-cra-administration-proposed-capital-gains...
+    // Verified: 2026-04-24
     const result = calculatePrincipalResidenceExemption({
       proceeds: 2000000,
       acb: 300000,
@@ -96,11 +98,10 @@ describe('calculatePrincipalResidenceExemption', () => {
     // Gain = 1,650,000
     // Exempt = (3/10) × 1,650,000 = 495,000
     // Taxable = 1,155,000
-    // Inclusion: first 250k × 50% = 125,000; (1,155,000 - 250,000) × 66.67% = 603,377.85
+    // Inclusion: 1,155,000 × 50% = 577,500 (flat 50% for 2025 — no $250k split)
     expect(result.totalGain).toBe(1650000);
     expect(result.taxableGain).toBe(1155000);
-    const expected = Math.round((125000 + (1155000 - 250000) * 0.6667) * 100) / 100;
-    expect(result.taxableGainInclusion).toBeCloseTo(expected, 0);
+    expect(result.taxableGainInclusion).toBe(577500);
   });
 
   it('sellingCosts reduce gain correctly', () => {

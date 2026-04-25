@@ -3,15 +3,29 @@
  * SINGLE SOURCE OF TRUTH. To update for new tax year, modify ONLY this file.
  *
  * Sources verified against:
- *   CRA T4032 Payroll Deductions Tables (2025): canada.ca/en/revenue-agency/services/forms-publications/payroll/t4032-payroll-deductions-tables.html
- *   CRA Schedule 1 Federal Tax (2025): canada.ca/en/revenue-agency/services/forms-publications/tax-packages-years/general-income-tax-benefit-package/5000-s1.html
- *   CRA ON428 Ontario Tax (2025): canada.ca/en/revenue-agency/services/forms-publications/tax-packages-years/general-income-tax-benefit-package/ontario/5006-pc.html
- *   CRA ON-BEN (2025): ontario trillium benefit
- *   EY Ontario 2025 personal tax rates: ey.com/en_ca/tax/tax-calculators/personal-tax
- *   Finance Canada Bill C-4 (2025): blended lowest federal rate 14.5%
+ *   CRA T1 General 2025 (5006-r-25e): canada.ca/content/dam/cra-arc/formspubs/pbg/5006-r/5006-r-25e.txt
+ *   CRA T4032ON Payroll Tables Jul 2025: canada.ca/en/revenue-agency/services/forms-publications/payroll/t4032-payroll-deductions-tables/t4032on-july/t4032on-july-general-information.html
+ *   CRA Basic Personal Amount 2025: canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-30000-basic-personal-amount.html
+ *   CRA CPP rates 2025: canada.ca/en/revenue-agency/services/tax/businesses/topics/payroll/payroll-deductions-contributions/canada-pension-plan-cpp/cpp-contribution-rates-maximums-exemptions.html
+ *   CRA EI rates 2025: canada.ca/en/revenue-agency/services/tax/businesses/topics/payroll/payroll-deductions-contributions/employment-insurance-ei/ei-premium-rates-maximums.html
+ *   CRA RRSP limit 2025: canada.ca/en/revenue-agency/services/tax/registered-plans-administrators/pspa/mp-rrsp-dpsp-tfsa-limits-ympe.html
+ *   CRA TFSA 2025: canada.ca/en/revenue-agency/news/newsroom/tax-tips/tax-tips-2025/tax-free-savings-account-limit.html
+ *   CRA Capital gains 2025: canada.ca/en/revenue-agency/news/newsroom/tax-tips/tax-tips-2025/update-cra-administration-proposed-capital-gains-taxation-changes.html
+ * All values verified: 2026-04-24
  *
- * 2025 SPECIAL NOTE: Federal lowest rate is BLENDED 14.5%
- * (15% Jan 1–Jun 30, 14% Jul 1–Dec 31, per Bill C-4)
+ * 2025 NOTE — federal first-bracket rate for T1 returns:
+ *   Use 14.5% (blended: 15% Jan–Jun + 14% Jul–Dec per Bill C-4).
+ *   The July 2025 payroll withholding tables show 14% only because withholding was
+ *   prorated after the mid-year tax cut; the 2025 T1 annual return uses 14.5%.
+ *   The federal non-refundable credit rate is also 14.5% per the CRA T1 2025 form
+ *   (5006-r-25e), not the prior-year 15%.
+ *
+ * 2025 NOTE — capital gains inclusion rate:
+ *   CRA reverted to the currently enacted 50% flat rate for all 2025 T1 returns.
+ *   The proposed two-thirds (66.67%) rate above $250,000 was deferred to Jan 1, 2026
+ *   and does NOT affect 2025 returns.
+ *   Source: canada.ca/en/revenue-agency/news/newsroom/tax-tips/tax-tips-2025/
+ *           update-cra-administration-proposed-capital-gains-taxation-changes.html
  */
 
 export const TAX_YEAR = 2025;
@@ -35,11 +49,16 @@ export interface BenefitThreshold {
 
 // ============================================================
 // FEDERAL TAX BRACKETS — ITA s.117
-// Bill C-4 blends 15% (Jan-Jun) and 14% (Jul-Dec) to 14.5% effective
+// Source: CRA T1 General 2025 (5006-r-25e.txt)
+// Tax year: 2025 | Verified: 2026-04-24
+// Bill C-4 blends 15% (Jan-Jun) and 14% (Jul-Dec) to 14.5% effective for T1.
+// Base-tax constants from column thresholds on CRA T1 2025 form:
+//   $0: base $0; $57,375: base $8,319.38; $114,750: base $20,081.25;
+//   $177,882: base $36,495.57; $253,414: base $58,399.85
 // ============================================================
 
 export const FEDERAL_BRACKETS: TaxBracket[] = [
-  { min: 0,       max: 57375,    rate: 0.145  },  // 14.5% blended
+  { min: 0,       max: 57375,    rate: 0.145  },  // 14.5% blended (Bill C-4 2025)
   { min: 57375,   max: 114750,   rate: 0.205  },  // 20.5%
   { min: 114750,  max: 177882,   rate: 0.26   },  // 26%
   { min: 177882,  max: 253414,   rate: 0.29   },  // 29%
@@ -47,71 +66,101 @@ export const FEDERAL_BRACKETS: TaxBracket[] = [
 ];
 
 /**
- * Non-refundable credit rate stays at 15% (pre-Bill C-4 rate) per Top-Up Tax Credit.
- * This preserves the dollar value of personal credits in the transition year.
- * CRA Schedule 1 line 30000–33500 all use 15%.
+ * Federal non-refundable tax credit rate — 14.5% for 2025 T1 returns.
+ * Source: CRA T1 2025 (5006-r-25e.txt), Schedule 1 lines 30000–33500.
+ * Tax year: 2025 | Verified: 2026-04-24
+ *
+ * NOTE: The 2025 T1 form applies 14.5% (the blended bracket rate) to all NRC amounts.
+ * This replaces the prior 15% rate. The Top-Up Tax Credit mechanism (engine.ts) produces
+ * $0 for 2025 since FEDERAL_CREDIT_RATE === FEDERAL_LOWEST_RATE.
  */
-export const FEDERAL_CREDIT_RATE = 0.15;
+export const FEDERAL_CREDIT_RATE = 0.145;
 
 /**
- * Actual blended lowest bracket rate (14.5%).
- * Used to compute the Top-Up Tax Credit = credit amounts × (15% − 14.5%).
+ * Blended lowest bracket rate (14.5%) — same as FEDERAL_CREDIT_RATE for 2025.
+ * Source: CRA T1 2025 (5006-r-25e.txt) | Tax year: 2025 | Verified: 2026-04-24
  */
 export const FEDERAL_LOWEST_RATE = 0.145;
 
 // ============================================================
 // ONTARIO TAX BRACKETS — Ontario Taxation Act s.8
-// Source: CRA T4032ON, effective Jan 1 2025
+// Source: CRA T4032ON Jul 2025 — canada.ca/en/revenue-agency/services/forms-publications/
+//   payroll/t4032-payroll-deductions-tables/t4032on-july/t4032on-july-general-information.html
+// Tax year: 2025 | Verified: 2026-04-24
+// KP constants: $0 / $2,168 / $4,294 / $5,794 / $7,994
 // ============================================================
 
 export const ONTARIO_BRACKETS: TaxBracket[] = [
-  { min: 0,       max: 51446,    rate: 0.0505 },  // 5.05%
-  { min: 51446,   max: 102894,   rate: 0.0915 },  // 9.15%
-  { min: 102894,  max: 150000,   rate: 0.1116 },  // 11.16%
+  { min: 0,       max: 52886,    rate: 0.0505 },  // 5.05%
+  { min: 52886,   max: 105775,   rate: 0.0915 },  // 9.15%
+  { min: 105775,  max: 150000,   rate: 0.1116 },  // 11.16%
   { min: 150000,  max: 220000,   rate: 0.1216 },  // 12.16%
   { min: 220000,  max: Infinity, rate: 0.1316 },  // 13.16%
 ];
 
+/**
+ * Ontario non-refundable tax credit rate — 5.05%
+ * Source: CRA T4032ON Jul 2025 | Tax year: 2025 | Verified: 2026-04-24
+ */
 export const ONTARIO_CREDIT_RATE = 0.0505;
 
-// Ontario Surtax — Ontario Taxation Act s.48
-// Applied on basic Ontario tax (after NRCs/DTC/LITR), before OHP
-// Source: CRA T4032ON Jan 2025
+/**
+ * Ontario Surtax — Ontario Taxation Act s.48
+ * Applied on basic Ontario tax (after NRCs/DTC/LITR), before OHP.
+ * Source: CRA T4032ON Jul 2025 | Tax year: 2025 | Verified: 2026-04-24
+ */
 export const ONTARIO_SURTAX = {
-  threshold1: 5818,   // 20% surtax on basic Ontario tax above this
+  threshold1: 5710,   // 20% surtax on basic Ontario tax above this
   rate1: 0.20,
-  threshold2: 7446,   // additional 36% surtax on basic Ontario tax above this
+  threshold2: 7307,   // additional 36% surtax on basic Ontario tax above this
   rate2: 0.36,        // total 56% (20% + 36%) on amount above threshold2
 };
 
-// Ontario Health Premium — Ontario Taxation Act s.33.1
-// Uses graduated "lesser of" formula — do NOT use a simple bracket table.
-// Thresholds and max amounts by tier (see calculateOntarioHealthPremium function).
+/**
+ * Ontario Health Premium — Ontario Taxation Act s.33.1
+ * Based on taxable income (line 26000). Graduated "lesser of" tiers — do NOT use
+ * a simple bracket table. Each tier adds an amount capped by a per-tier maximum.
+ * Source: CRA T4032ON Jul 2025 | Tax year: 2025 | Verified: 2026-04-24
+ *
+ * Tier structure (cumulative):
+ *   Tier 1 ($20,001–$36,000):  min($300, 6% × (income − $20,000))          → max $300
+ *   Tier 2 ($36,001–$48,000):  $300 + min($150, 6% × (income − $36,000))   → max $450
+ *   Tier 3 ($48,001–$72,000):  $450 + min($150, 25% × (income − $48,000))  → max $600
+ *   Tier 4 ($72,001–$200,000): $600 + min($150, 25% × (income − $72,000))  → max $750
+ *   Tier 5 ($200,001+):        $750 + min($150, 25% × (income − $200,000)) → max $900
+ */
 export const ONTARIO_HEALTH_PREMIUM = {
   tier1Start:  20000,  // premium is $0 for income at or below this
-  tier1End:    36000,  // first partial premium tier ends here
+  tier1End:    36000,  // tier 1 ends here
   tier1Rate:   0.06,   // 6% of income above $20,000
-  tier1Max:    300,    // maximum premium added in tier 1
+  tier1Max:    300,    // max premium added in tier 1 ($0 → $300)
 
-  tier2End:    48000,  // second partial premium tier ends here
+  tier2End:    48000,  // tier 2 ends here
   tier2Rate:   0.06,   // 6% of income above $36,000
-  tier2Max:    150,    // maximum additional premium in tier 2 ($300 → $450)
+  tier2Max:    150,    // max additional premium in tier 2 ($300 → $450)
 
-  tier3End:    72000,  // third partial premium tier ends here
+  tier3End:    72000,  // tier 3 ends here
   tier3Rate:   0.25,   // 25% of income above $48,000
-  tier3Max:    150,    // maximum additional premium in tier 3 ($450 → $600)
+  tier3Max:    150,    // max additional premium in tier 3 ($450 → $600)
 
-  tier4End:    200000, // fourth partial premium tier ends here
+  tier4End:    200000, // tier 4 ends here
   tier4Rate:   0.25,   // 25% of income above $72,000
-  tier4Max:    300,    // maximum additional premium in tier 4 ($600 → $900)
+  tier4Max:    150,    // max additional premium in tier 4 ($600 → $750)
 
-  maxPremium:  900,    // absolute maximum premium ($200,001+)
+  tier5Rate:   0.25,   // 25% of income above $200,000
+  tier5Max:    150,    // max additional premium in tier 5 ($750 → $900)
+
+  maxPremium:  900,    // absolute maximum premium
 };
 
-// Ontario Low-Income Tax Reduction — Ontario Taxation Act s.8(3)
+/**
+ * Ontario Low-Income Tax Reduction — Ontario Taxation Act s.8(3)
+ * Source: CRA T4032ON Jul 2025 | Tax year: 2025 | Verified: 2026-04-24
+ * Basic amount for Ontario tax reduction: $294 per person.
+ */
 export const ONTARIO_LOW_INCOME_REDUCTION = {
-  baseReduction: 294,      // maximum reduction in Ontario tax
-  clawbackStart: 18569,    // reduction clawed back above this taxable income
+  baseReduction: 294,      // maximum reduction per personal amount ($294 × 2 = $588 for single)
+  clawbackStart: 18569,    // reduction starts phasing out above this taxable income
   clawbackRate:  0.0505,   // clawback at lowest Ontario rate
 };
 
@@ -119,54 +168,107 @@ export const ONTARIO_LOW_INCOME_REDUCTION = {
 // BASIC PERSONAL AMOUNTS
 // ============================================================
 
-/** Federal BPA — ITA s.118(1)(c). Full BPA at income ≤ $177,882; additional
- *  $1,591 clawed back linearly between $177,882 and $253,414. */
+/**
+ * Federal Basic Personal Amount — ITA s.118(1)(c)
+ * Source: CRA line 30000: canada.ca/en/revenue-agency/services/tax/individuals/topics/
+ *   about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/
+ *   line-30000-basic-personal-amount.html
+ * Tax year: 2025 | Verified: 2026-04-24
+ *
+ * Full BPA ($16,129) for net income ≤ $177,882.
+ * Minimum BPA ($14,538) for net income ≥ $253,414.
+ * Phase-out: federalBPA = 16129 − ((netIncome − 177882) × (1591 / 75532)); clamp to [14538, 16129].
+ */
 export const FEDERAL_BPA = {
-  base:          14538,   // Base BPA (everyone)
-  additional:    1591,    // Additional BPA clawed back above $177,882
-  max:           16129,   // Full BPA = base + additional
-  clawbackStart: 177882,  // Clawback of additional begins here
-  clawbackEnd:   253414,  // Additional fully eliminated at this net income
+  base:          14538,   // Minimum BPA (net income ≥ $253,414)
+  additional:    1591,    // Additional amount clawed back between $177,882 and $253,414
+  max:           16129,   // Full BPA (net income ≤ $177,882)
+  clawbackStart: 177882,  // Phase-out begins at start of 29% bracket
+  clawbackEnd:   253414,  // Additional fully eliminated at start of 33% bracket; range = $75,532
 };
 
-/** Ontario BPA — Ontario Taxation Act s.8(1). × 5.05% = $643.72 credit */
+/**
+ * Ontario Basic Personal Amount — Ontario Taxation Act s.8(1)
+ * Credit = $12,747 × 5.05% = $643.72
+ * Source: CRA T4032ON Jul 2025 | Tax year: 2025 | Verified: 2026-04-24
+ */
 export const ONTARIO_BPA = 12747;
 
 // ============================================================
-// CPP / CPP2 / EI 2025 — source: CRA T4032
+// CPP / CPP2 / EI 2025
+// Source: CRA T4032ON Jul 2025 + CRA CPP/EI rate pages | Verified: 2026-04-24
 // ============================================================
 
+/**
+ * Canada Pension Plan (CPP + first additional CPP) 2025
+ * Source: canada.ca/en/revenue-agency/services/tax/businesses/topics/payroll/
+ *   payroll-deductions-contributions/canada-pension-plan-cpp/cpp-contribution-rates-maximums-exemptions.html
+ * Tax year: 2025 | Verified: 2026-04-24
+ * YMPE $71,300 | Basic exemption $3,500 | Employee rate 5.95% (base 4.95% + first additional 1.00%)
+ */
 export const CPP = {
-  maxPensionableEarnings:     71300,
-  basicExemption:             3500,
-  employeeRate:               0.0595,
-  selfEmployedRate:           0.1190,    // pays both employee + employer
-  maxEmployeeContribution:    4034.10,   // (71300 - 3500) × 5.95%
-  maxSelfEmployedContribution: 8068.20,  // both halves
+  maxPensionableEarnings:      71300,   // YMPE 2025
+  basicExemption:              3500,    // unchanged
+  employeeRate:                0.0595,  // 5.95% combined (base 4.95% + first additional 1.00%)
+  selfEmployedRate:            0.1190,  // pays both employee + employer sides
+  maxEmployeeContribution:     4034.10, // (71300 − 3500) × 5.95%
+  maxSelfEmployedContribution: 8068.20, // both halves
 };
 
+/**
+ * Second Additional CPP (CPP2) 2025
+ * Source: canada.ca/en/revenue-agency/services/tax/businesses/topics/payroll/calculating-deductions/
+ *   making-deductions/second-additional-cpp-contribution-rates-maximums.html
+ * Tax year: 2025 | Verified: 2026-04-24
+ * YAMPE $81,200 | Employee rate 4.00% on earnings between YMPE and YAMPE
+ */
 export const CPP2 = {
-  secondCeiling:               81200,    // YAMPE
-  rate:                        0.04,
-  selfEmployedRate:            0.08,
-  maxEmployeeContribution:     396.00,   // (81200 - 71300) × 4%
+  secondCeiling:               81200,   // YAMPE 2025
+  rate:                        0.04,    // 4.00% employee/employer rate
+  selfEmployedRate:            0.08,    // both sides
+  maxEmployeeContribution:     396.00,  // (81200 − 71300) × 4.00%
   maxSelfEmployedContribution: 792.00,
 };
 
+/**
+ * Employment Insurance (EI) 2025 — Canada except Quebec
+ * Source: canada.ca/en/revenue-agency/services/tax/businesses/topics/payroll/
+ *   payroll-deductions-contributions/employment-insurance-ei/ei-premium-rates-maximums.html
+ * Tax year: 2025 | Verified: 2026-04-24
+ * Max insurable $65,700 | Employee rate 1.64% | Max employee premium $1,077.48
+ */
 export const EI = {
-  maxInsurableEarnings: 65700,
-  premiumRate:          0.0164,
-  maxPremium:           1077.48,         // 65700 × 1.64%
-  employerRateMultiple: 1.4,             // employer pays 1.4× employee rate
+  maxInsurableEarnings: 65700,   // maximum annual insurable earnings
+  premiumRate:          0.0164,  // 1.64% employee rate
+  maxPremium:           1077.48, // 65700 × 1.64%
+  employerRateMultiple: 1.4,     // employer pays 1.4× employee rate
 };
 
 // ============================================================
-// RRSP / FHSA 2025
+// RRSP / TFSA / FHSA 2025
 // ============================================================
 
+/**
+ * RRSP deduction limit 2025 — ITA s.146(5)
+ * Source: canada.ca/en/revenue-agency/services/tax/registered-plans-administrators/
+ *   pspa/mp-rrsp-dpsp-tfsa-limits-ympe.html
+ * Tax year: 2025 | Verified: 2026-04-24
+ * Dollar limit $32,490; actual room = lesser of this or 18% of prior-year earned income.
+ */
 export const RRSP = {
-  maxContribution:    32490,   // dollar limit; actual room also capped at 18% prior-year earned income
-  earnedIncomeRate:   0.18,
+  maxContribution:    32490,  // 2025 annual RRSP dollar limit
+  earnedIncomeRate:   0.18,   // 18% of prior-year earned income
+};
+
+/**
+ * TFSA annual contribution limit 2025
+ * Source: canada.ca/en/revenue-agency/news/newsroom/tax-tips/tax-tips-2025/
+ *   tax-free-savings-account-limit.html
+ * Tax year: 2025 | Verified: 2026-04-24
+ * 2024 limit: $7,000 | 2025 limit: $7,000 | 2026 limit: $7,000
+ */
+export const TFSA = {
+  annualLimit: 7000,  // 2025 annual TFSA dollar limit
 };
 
 export const FHSA = {
@@ -177,17 +279,21 @@ export const FHSA = {
 
 // ============================================================
 // CAPITAL GAINS (2025) — ITA s.38
-// Two-tier system per user specification:
-//   First $250,000 net gains: 50% inclusion
-//   Above $250,000: 66.67% inclusion (Budget 2024)
-// LCGE for qualifying small business shares: $1,250,000
+// Source: canada.ca/en/revenue-agency/news/newsroom/tax-tips/tax-tips-2025/
+//   update-cra-administration-proposed-capital-gains-taxation-changes.html
+// Tax year: 2025 | Verified: 2026-04-24
+//
+// CRA reverted to the currently enacted 50% flat inclusion rate for all 2025 T1 returns.
+// The proposed two-thirds (66.67%) rate above $250,000 was deferred to Jan 1, 2026.
+// Do NOT apply the $250,000 two-tier threshold for 2025 T1 calculations.
+// LCGE for qualifying small business shares / farm / fishing property: $1,250,000
 // ============================================================
 
 export const CAPITAL_GAINS = {
-  inclusionRateLow:  0.50,      // first $250,000 of net gains
-  inclusionRateHigh: 0.6667,    // net gains above $250,000
-  threshold:         250000,    // threshold between rates
-  lcge:              1250000,   // Lifetime Capital Gains Exemption (QSBC/farm/fishing)
+  inclusionRateLow:  0.50,   // 50% flat for ALL 2025 capital gains (no two-tier split)
+  inclusionRateHigh: 0.50,   // same as low — two-tier deferred to Jan 1, 2026
+  threshold:         250000, // threshold retained for reference; both rates are equal for 2025
+  lcge:              1250000, // Lifetime Capital Gains Exemption (QSBC/farm/fishing)
   principalResidenceExempt: true,
 };
 
@@ -210,13 +316,18 @@ export const DIVIDENDS = {
 
 // ============================================================
 // FEDERAL NON-REFUNDABLE CREDIT AMOUNTS — ITA s.118–118.62
-// All multiplied by FEDERAL_CREDIT_RATE (15%) to get credit value.
-// Exceptions: donations (tiered rates), top-up credit.
+// All multiplied by FEDERAL_CREDIT_RATE (14.5%) to get credit value.
+// Exceptions: donations (tiered rates), political contributions (direct credit).
+// Source: CRA T1 2025 (5006-r-25e.txt) | Tax year: 2025 | Verified: 2026-04-24
 // ============================================================
 
 export const FEDERAL_CREDITS = {
-  /** Canada Employment Amount — ITA s.118(10) */
-  canadaEmploymentAmount: 1433,
+  /**
+   * Canada Employment Amount — ITA s.118(10)
+   * Lesser of $1,471 or employment income (line 10100 + line 10400).
+   * Source: CRA T1 2025 (5006-r-25e.txt) | Tax year: 2025 | Verified: 2026-04-24
+   */
+  canadaEmploymentAmount: 1471,
 
   /** Pension Income Amount — ITA s.118(3) */
   pensionIncomeMax: 2000,

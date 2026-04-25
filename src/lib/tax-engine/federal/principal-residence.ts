@@ -38,18 +38,15 @@ export interface PrincipalResidenceResult {
 }
 
 /**
- * Applies the two-tier capital gains inclusion rate.
- * First $250,000 at 50%; above $250,000 at 66.67%.
- * ITA s.38 as amended by Budget 2024.
+ * Applies the 2025 capital gains inclusion rate — flat 50% on all gains.
+ * ITA s.38: CRA reverted to 50% for all 2025 T1 returns; the proposed two-thirds
+ * rate above $250,000 was deferred to Jan 1, 2026.
+ * Since CAPITAL_GAINS.inclusionRateLow === CAPITAL_GAINS.inclusionRateHigh === 0.50,
+ * this simply applies the flat rate. The threshold split is not needed for 2025.
  */
 function applyInclusionRate(netGain: number): number {
   if (netGain <= 0) return 0;
-  if (netGain <= CAPITAL_GAINS.threshold) {
-    return roundCRA(netGain * CAPITAL_GAINS.inclusionRateLow);
-  }
-  const lowPortion  = roundCRA(CAPITAL_GAINS.threshold * CAPITAL_GAINS.inclusionRateLow);
-  const highPortion = roundCRA((netGain - CAPITAL_GAINS.threshold) * CAPITAL_GAINS.inclusionRateHigh);
-  return roundCRA(lowPortion + highPortion);
+  return roundCRA(netGain * CAPITAL_GAINS.inclusionRateLow);
 }
 
 /**
