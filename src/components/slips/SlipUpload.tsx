@@ -13,6 +13,7 @@ import {
   SLIP_TYPE_LABELS,
   mergeOcrValues,
 } from '@/lib/slips/slip-fields';
+import { addCsrfHeader } from '@/lib/csrf-client';
 import type { OcrResult } from '@/app/api/ocr/route';
 
 interface SlipUploadProps {
@@ -188,7 +189,7 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
     fd.append('file', uploadState.file);
 
     try {
-      const res = await fetch('/api/ocr', { method: 'POST', body: fd });
+      const res = await fetch('/api/ocr', addCsrfHeader({ method: 'POST', body: fd }));
       if (!res.ok) {
         const { error } = (await res.json()) as { error: string };
         setUploadState({ status: 'error', message: error ?? 'Could not read this document.' });
