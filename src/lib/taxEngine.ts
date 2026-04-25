@@ -588,8 +588,13 @@ export function calculateTaxes(input: TaxInput): TaxBreakdown {
   const cpp2Credit = Math.min(input.cpp2ContributedEmployee, CPP2.maxEmployeeContribution);
   const eiCredit   = Math.min(input.eiContributedEmployee, EI.maxPremium);
 
-  const empAmt     = L10100 > 0 ? Math.min(FEDERAL_CREDITS.canadaEmploymentAmount, L10100) : 0;
-  const pensionAmt = Math.min(L11500, FEDERAL_CREDITS.pensionIncomeMax);
+  const empAmt = L10100 > 0 ? Math.min(FEDERAL_CREDITS.canadaEmploymentAmount, L10100) : 0;
+
+  // Pension income amount — ITA s.118(3).
+  // Eligible base: T4A pension (L11500) + CPP/QPP (L11400) + OAS (L11300).
+  // engine.ts includes all three without an age restriction; aligned to match.
+  const eligiblePensionBase = r(L11500 + L11400 + L11300);
+  const pensionAmt = Math.min(eligiblePensionBase, FEDERAL_CREDITS.pensionIncomeMax);
 
   // Disability credit — ITA s.118.3
   const disabilityAmt = input.hasDisability ? FEDERAL_CREDITS.disabilityAmount.base : 0;
@@ -682,7 +687,8 @@ export function calculateTaxes(input: TaxInput): TaxBreakdown {
   const ontarioSpouseCredit       = r(ontarioSpouseAmt * ONTARIO_CREDIT_RATE);
   const ontarioCPPCredit          = r(Math.min(cppCredit, CPP.maxEmployeeContribution) * ONTARIO_CREDIT_RATE);
   const ontarioEICredit           = r(eiCredit * ONTARIO_CREDIT_RATE);
-  const ontarioPensionCreditAmt   = Math.min(L11500, ONTARIO_CREDITS.pensionIncomeMax);
+  // Ontario pension income amount uses the same eligible base as federal — ITA s.118(3) / OTA s.8(1).
+  const ontarioPensionCreditAmt   = Math.min(eligiblePensionBase, ONTARIO_CREDITS.pensionIncomeMax);
   const ontarioPensionCredit      = r(ontarioPensionCreditAmt * ONTARIO_CREDIT_RATE);
   const ontarioDisabilityCredit   = r((input.hasDisability ? ONTARIO_CREDITS.disabilityAmount.base : 0) * ONTARIO_CREDIT_RATE);
   const ontarioDisabilitySuppl    = r(disabilitySuppl > 0 ? ONTARIO_CREDITS.disabilityAmount.supplementChild * ONTARIO_CREDIT_RATE : 0);
@@ -788,10 +794,12 @@ export function calculateTaxes(input: TaxInput): TaxBreakdown {
   // ── STEP 12: Refund or balance owing ─────────────────────────────────────
 
   const taxAlreadyPaid = r(input.taxWithheld + input.installmentsPaid);
-  const refundOrOwing  = r(taxAlreadyPaid - totalTaxPayable); // positive = refund
+  // CWB (line 45300) is a refundable credit that directly reduces balance owing — ITA s.122.7.
+  // Positive refundOrOwing = refund; negative = balance owing.
+  const refundOrOwing  = r(taxAlreadyPaid - totalTaxPayable + cwbBasic + cwbDisability);
 
   prov.record('total_tax_deducted', taxAlreadyPaid).input('taxWithheld').rule('Tax already paid (withheld + instalments)', 'ITA s.153', 'T1 line 43700').computation(`${input.taxWithheld} + ${input.installmentsPaid} = ${taxAlreadyPaid}`).emit();
-  prov.record('balance_owing', refundOrOwing).computed('total_tax_payable', 'total_tax_deducted').rule('Refund or balance owing', 'basic arithmetic', 'T1 line 48400/48500').computation(`${taxAlreadyPaid} - ${totalTaxPayable} = ${refundOrOwing}`).emit();
+  prov.record('balance_owing', refundOrOwing).computed('total_tax_payable', 'total_tax_deducted', 'cwb').rule('Refund or balance owing (after refundable credits)', 'ITA s.122.7, T1 line 48400/48500').computation(`${taxAlreadyPaid} - ${totalTaxPayable} + ${cwbBasic} + ${cwbDisability} = ${refundOrOwing}`).emit();
 
   // ── Rates ─────────────────────────────────────────────────────────────────
 

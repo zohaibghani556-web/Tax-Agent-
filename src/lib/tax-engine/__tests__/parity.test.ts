@@ -210,20 +210,17 @@ describe('Scenario 2 — Two T4s, $90,000 total employment income', () => {
 
 // ── Scenario 3: Student — T4 + T4A scholarship + T2202 tuition ───────────────
 
-// NOTE on balance owing comparison: engine.ts subtracts CWB (Canada Workers
-// Benefit) from balanceOwing, while taxEngine.ts exposes CWB separately in
-// refundable.cwbBasic and excludes it from refundOrOwing. To make the cross-
-// engine balance comparison valid, income must be above the CWB phase-out
-// (~$33,064 single net income). Employment $40,000 + scholarship $6,000 puts
-// net income at ~$46,000, well above the threshold, so CWB = $0 in both.
 describe('Scenario 3 — Student with T4 + T4A scholarship + T2202 tuition', () => {
-  const employment = 40000;
-  const scholarship = 6000;   // T4A box 105 — included in income in both engines
+  // Low employment income ($22k) means this person qualifies for CWB.
+  // Both engines now include CWB in the balance owing / refundOrOwing line,
+  // so the cross-engine comparison holds regardless of CWB amount.
+  const employment = 22000;
+  const scholarship = 8000;   // T4A box 105 — included in income in both engines
   const tuition     = 7500;   // T2202 boxA
 
   const cpp = r(Math.min((employment - 3500) * 0.0595, CPP.maxEmployeeContribution));
   const ei  = r(Math.min(employment * 0.0164, EI.maxPremium));
-  const tax = 6000;
+  const tax = 2800;
 
   const slips: TaxSlip[] = [
     makeT4Slip({ box14: employment, box16: cpp, box18: ei, box22: tax, box24: employment, box26: employment }),
@@ -260,7 +257,7 @@ describe('Scenario 3 — Student with T4 + T4A scholarship + T2202 tuition', () 
     taxWithheld: tax,
     cppContributedEmployee: cpp,
     eiContributedEmployee: ei,
-    age: 22,
+    age: 40,  // matches baseProfile() DOB 1985-06-15
   };
   const flatResult = calculateTaxes(flatInput);
 
@@ -285,41 +282,35 @@ describe('Scenario 3 — Student with T4 + T4A scholarship + T2202 tuition', () 
   });
 });
 
-// ── Scenario 4: Senior — T4A pension + RRSP withdrawal ───────────────────────
-//
-// NOTE on T4AP / T4AOAS (CPP and OAS): engine.ts correctly includes T4AP and
-// T4AOAS amounts in eligiblePensionIncome for the $2,000 pension income credit
-// (ITA s.118(3)), while taxEngine.ts computes pensionAmt from L11500 only
-// (T4A box016). This is a known parity gap for CPP-only and OAS-only pensioners.
-// That gap is intentionally NOT tested here so that this suite acts as a green
-// baseline. Add a dedicated gap test once the flat engine is updated to include
-// L11400/L11300 in the pension income credit base.
+// ── Scenario 4: Senior — CPP pension (T4AP) + OAS (T4AOAS) ──────────────────
+// Tests the pension income credit fix: both engines now include CPP (L11400)
+// and OAS (L11300) in the eligible pension base for the $2,000 credit.
 
-describe('Scenario 4 — Senior with T4A pension + RRSP withdrawal (age 72)', () => {
-  const pensionInc  = 18000;  // T4A box016 — eligible pension (line 11500 in both engines)
-  const rrspWithdrawal = 15000;  // T4RSP box22 — RRSP withdrawal (line 12900 / L13000)
-  const taxWithheld = 5500;
+describe('Scenario 4 — Senior with CPP pension (T4AP) + OAS (T4AOAS) (age 72)', () => {
+  const cppPension = 14000;   // T4AP box16 → L11400 in flat engine
+  const oasPension = 8500;    // T4AOAS box18 → L11300 in flat engine
+  const taxWithheld = 4800;
 
   // Senior profile — born 1953, age 72 on Dec 31 2025
   const seniorProfile = { ...baseProfile(), dateOfBirth: '1953-06-15' };
 
   const slips: TaxSlip[] = [
     {
-      type: 'T4A',
+      type: 'T4AP',
       data: {
-        issuerName: 'Pension Corp',
-        box016: pensionInc,
-        box018: 0, box020: 0,
-        box022: taxWithheld * 0.6,
-        box024: 0, box028: 0, box105: 0, box135: 0,
+        issuerName: 'Service Canada',
+        box16: cppPension,
+        box20: 0,
+        box22: taxWithheld * 0.55,
       },
     },
     {
-      type: 'T4RSP',
+      type: 'T4AOAS',
       data: {
-        issuerName: 'TD Bank',
-        box22: rrspWithdrawal,
-        box30: taxWithheld * 0.4,
+        issuerName: 'Service Canada',
+        box18: oasPension,
+        box21: 0,
+        box22: taxWithheld * 0.45,
       },
     },
   ];
@@ -328,8 +319,8 @@ describe('Scenario 4 — Senior with T4A pension + RRSP withdrawal (age 72)', ()
 
   const flatInput = {
     ...emptyTaxInput(),
-    pensionIncome: pensionInc,
-    rrspIncome: rrspWithdrawal,
+    disabilityPensionCPP: cppPension,  // T4AP box16 → L11400
+    oasPension: oasPension,             // T4AOAS box18 → L11300
     taxWithheld: taxWithheld,
     age: 72,
   };
