@@ -13,15 +13,37 @@ interface ManualEntryFormProps {
   onAdd: (type: string, issuerName: string, data: Record<string, number | string>) => void;
   /** Pre-select a slip type tab. */
   defaultType?: string;
+  /**
+   * Pre-populate the form with an existing slip's data (edit mode).
+   * Keys present in defaultData are shown; keys absent remain blank.
+   */
+  defaultData?: Record<string, number | string>;
+  /** When true, the submit button reads "Save … Slip" instead of "Add … Slip". */
+  isEditing?: boolean;
+}
+
+/** Parse a raw string from a number input: '' → '' (blank), invalid → '', valid → number */
+function parseFormNumber(raw: string): number | string {
+  if (raw === '') return '';
+  const n = parseFloat(raw);
+  return isNaN(n) ? '' : n;
 }
 
 const SLIP_TYPES = Object.keys(SLIP_TYPE_LABELS);
 
-export function ManualEntryForm({ onAdd, defaultType = 'T4' }: ManualEntryFormProps) {
+export function ManualEntryForm({ onAdd, defaultType = 'T4', defaultData, isEditing = false }: ManualEntryFormProps) {
   const [activeTab, setActiveTab] = useState(defaultType);
-  // Separate form state per slip type so switching tabs doesn't lose entered data
+  // Separate form state per slip type so switching tabs doesn't lose entered data.
+  // When defaultData is provided (edit mode), seed the active type's values from it.
   const [formState, setFormState] = useState<Record<string, Record<string, number | string>>>(
-    () => Object.fromEntries(SLIP_TYPES.map((t) => [t, getEmptySlipValues(t)]))
+    () => {
+      const initial = Object.fromEntries(SLIP_TYPES.map((t) => [t, getEmptySlipValues(t)]));
+      if (defaultData) {
+        // Merge saved data over the blank base — keys not in defaultData stay blank
+        initial[defaultType] = { ...initial[defaultType], ...defaultData };
+      }
+      return initial;
+    }
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState<string | null>(null);
@@ -36,7 +58,7 @@ export function ManualEntryForm({ onAdd, defaultType = 'T4' }: ManualEntryFormPr
       ...prev,
       [slipType]: {
         ...prev[slipType],
-        [key]: valueType === 'number' ? (parseFloat(raw) || 0) : raw,
+        [key]: valueType === 'number' ? parseFormNumber(raw) : raw,
       },
     }));
     // Clear error on edit
@@ -121,7 +143,7 @@ export function ManualEntryForm({ onAdd, defaultType = 'T4' }: ManualEntryFormPr
                         id={`manual-${slipType}-${field.key}`}
                         type={field.valueType === 'number' ? 'number' : 'text'}
                         placeholder={field.placeholder ?? (field.valueType === 'number' ? '0.00' : '')}
-                        value={values[field.key] ?? (field.valueType === 'number' ? 0 : '')}
+                        value={values[field.key] ?? ''}
                         onChange={(e) =>
                           handleChange(slipType, field.key, e.target.value, field.valueType)
                         }
@@ -154,11 +176,11 @@ export function ManualEntryForm({ onAdd, defaultType = 'T4' }: ManualEntryFormPr
                   className="w-full bg-[var(--emerald)] hover:bg-[var(--emerald-dark)]"
                 >
                   {submitted === slipType ? (
-                    'Slip Added!'
+                    isEditing ? 'Saved!' : 'Slip Added!'
                   ) : (
                     <>
                       <PlusCircle className="mr-2 h-4 w-4" />
-                      Add {slipType} Slip
+                      {isEditing ? `Save ${slipType} Slip` : `Add ${slipType} Slip`}
                     </>
                   )}
                 </Button>

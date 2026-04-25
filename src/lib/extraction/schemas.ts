@@ -94,7 +94,10 @@ export const T4ExtractionSchema = z.object({
   box22: numericField(),  // Income tax deducted
   box24: numericField(),  // EI insurable earnings
   box26: numericField(),  // CPP/QPP pensionable earnings
+  box40: numericField(),  // Other taxable allowances and benefits
+  box42: numericField(),  // Employment commissions
   box44: numericField(),  // Union dues
+  box45: stringField(),   // Employer-offered dental benefits code (1–5)
   box46: numericField(),  // Charitable donations
   box52: numericField(),  // Pension adjustment
   box55: numericField(),  // PPIP premiums

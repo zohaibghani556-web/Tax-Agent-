@@ -3,11 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Upload, FileText, CheckCircle, AlertCircle,
-  X, Loader2, Shield, Clipboard, ChevronDown, ChevronUp,
+  X, Loader2, Shield, Clipboard, ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   SLIP_FIELDS,
   SLIP_TYPE_LABELS,
@@ -28,7 +27,6 @@ type UploadState =
   | { status: 'error'; message: string };
 
 const HIGH_CONFIDENCE = 0.85;
-const LOW_CONFIDENCE = 0.65;
 
 const SLIP_TYPE_ICONS: Record<string, string> = {
   T4: '💼', T5: '🏦', T5008: '📈', T3: '📊', T4A: '🏛',
@@ -36,95 +34,17 @@ const SLIP_TYPE_ICONS: Record<string, string> = {
   T4RSP: '💰', T4RIF: '💰', 'RRSP-Receipt': '💰', T4FHSA: '🏠',
 };
 
-function formatCad(n: number): string {
-  return new Intl.NumberFormat('en-CA', {
-    style: 'currency', currency: 'CAD', maximumFractionDigits: 2,
-  }).format(n);
-}
-
-/**
- * The fields that matter most for a quick sanity-check summary per slip type.
- * We show these prominently after OCR so the user can immediately confirm
- * the key numbers were read correctly — without needing to open "all fields".
- */
-const KEY_FIELDS: Record<string, Array<{ key: string; label: string }>> = {
-  T4: [
-    { key: 'box14', label: 'Employment income' },
-    { key: 'box22', label: 'Tax withheld' },
-    { key: 'box16', label: 'CPP contributions' },
-    { key: 'box18', label: 'EI premiums' },
-  ],
-  T5: [
-    { key: 'box13', label: 'Interest income' },
-    { key: 'box25', label: 'Taxable eligible dividends' },
-    { key: 'box11', label: 'Taxable non-eligible dividends' },
-  ],
-  T5008: [
-    { key: 'box21', label: 'Proceeds (sold for)' },
-    { key: 'box20', label: 'Cost / ACB (paid)' },
-    { key: 'box16', label: 'Security' },
-  ],
-  T3: [
-    { key: 'box21', label: 'Capital gains' },
-    { key: 'box49', label: 'Interest' },
-    { key: 'box22', label: 'Eligible dividends' },
-  ],
-  T4A: [
-    { key: 'box016', label: 'Pension income' },
-    { key: 'box022', label: 'Tax withheld' },
-    { key: 'box028', label: 'Other income' },
-  ],
-  T2202: [
-    { key: 'boxA', label: 'Tuition fees' },
-    { key: 'boxC', label: 'Full-time months' },
-    { key: 'boxB', label: 'Part-time months' },
-  ],
-  T4E: [
-    { key: 'box14', label: 'EI benefits received' },
-    { key: 'box22', label: 'Tax withheld' },
-  ],
-  T4AP: [
-    { key: 'box16', label: 'CPP pension amount' },
-    { key: 'box22', label: 'Tax withheld' },
-  ],
-  T4AOAS: [
-    { key: 'box18', label: 'OAS pension' },
-    { key: 'box22', label: 'Tax withheld' },
-  ],
-  T4RSP: [
-    { key: 'box22', label: 'RRSP income withdrawn' },
-    { key: 'box30', label: 'Tax withheld' },
-  ],
-  T4RIF: [
-    { key: 'box16', label: 'RRIF income' },
-    { key: 'box30', label: 'Tax withheld' },
-  ],
-  'RRSP-Receipt': [
-    { key: 'amount', label: 'Contribution amount' },
-    { key: 'planType', label: 'Plan type' },
-  ],
-  T4FHSA: [
-    { key: 'box24', label: 'FHSA contributions' },
-    { key: 'box14', label: 'Taxable income' },
-  ],
-  T5007: [
-    { key: 'box10', label: 'Social assistance payments' },
-  ],
-};
-
 export function SlipUpload({ onAdd }: SlipUploadProps) {
   const [uploadState, setUploadState] = useState<UploadState>({ status: 'idle' });
   const [isDragging, setIsDragging] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, number | string>>({});
   const [selectedType, setSelectedType] = useState('T4');
-  const [showAllFields, setShowAllFields] = useState(false);
   const [pasteHint, setPasteHint] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
     setUploadState({ status: 'idle' });
     setFormValues({});
-    setShowAllFields(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -144,7 +64,6 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
   // ── Clipboard paste support (Cmd+V / Ctrl+V with a screenshot) ──────────
   useEffect(() => {
     function onPaste(e: ClipboardEvent) {
-      // Only intercept paste when we're in idle or error state
       if (uploadState.status !== 'idle' && uploadState.status !== 'error') return;
       const items = e.clipboardData?.items;
       if (!items) return;
@@ -164,7 +83,6 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadState.status]);
 
-  // Show paste hint briefly on focus so users discover the shortcut
   useEffect(() => {
     const t = setTimeout(() => setPasteHint(true), 600);
     return () => clearTimeout(t);
@@ -215,7 +133,7 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
   const handleFieldChange = (key: string, raw: string, valueType: 'number' | 'text') => {
     setFormValues((prev) => ({
       ...prev,
-      [key]: valueType === 'number' ? (parseFloat(raw) || 0) : raw,
+      [key]: valueType === 'number' ? (raw === '' ? '' : (isNaN(parseFloat(raw)) ? '' : parseFloat(raw))) : raw,
     }));
   };
 
@@ -226,7 +144,7 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
     reset();
   };
 
-  // ── Idle ────────────────────────────────────────────────────────────────────
+  // ── Idle ─────────────────────────────────────────────────────────────────────
   if (uploadState.status === 'idle') {
     return (
       <div className="space-y-3">
@@ -250,7 +168,6 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
           <p className="mt-1 text-sm text-white/40">or click to browse</p>
         </div>
 
-        {/* Paste hint — the key discovery moment */}
         {pasteHint && (
           <div
             className="flex items-center gap-3 rounded-xl px-4 py-3"
@@ -258,9 +175,7 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
           >
             <Clipboard className="h-4 w-4 text-indigo-400 flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-indigo-300">
-                Got a screenshot? Just paste it.
-              </p>
+              <p className="text-xs font-semibold text-indigo-300">Got a screenshot? Just paste it.</p>
               <p className="text-xs text-white/40 mt-0.5">
                 Screenshot your CRA My Account slip, then press{' '}
                 <kbd className="rounded px-1 py-0.5 text-[10px] font-mono" style={{ background: 'rgba(255,255,255,0.1)' }}>⌘V</kbd>
@@ -287,7 +202,7 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
     );
   }
 
-  // ── File selected ────────────────────────────────────────────────────────────
+  // ── File selected ─────────────────────────────────────────────────────────────
   if (uploadState.status === 'selected') {
     return (
       <div className="rounded-xl p-5 space-y-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -312,7 +227,7 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
     );
   }
 
-  // ── Processing ───────────────────────────────────────────────────────────────
+  // ── Processing ────────────────────────────────────────────────────────────────
   if (uploadState.status === 'processing') {
     return (
       <div className="rounded-xl p-12 flex flex-col items-center gap-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -325,7 +240,7 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
     );
   }
 
-  // ── Error ────────────────────────────────────────────────────────────────────
+  // ── Error ─────────────────────────────────────────────────────────────────────
   if (uploadState.status === 'error') {
     return (
       <div className="space-y-3">
@@ -349,177 +264,197 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
     );
   }
 
-  // ── Extracted ────────────────────────────────────────────────────────────────
+  // ── Extracted ─────────────────────────────────────────────────────────────────
+  //
+  // Design goals:
+  //   1. Every extracted box is immediately visible as an inline-editable field.
+  //   2. Low-confidence fields are highlighted per-row so the user knows exactly
+  //      which values to double-check — no hunting.
+  //   3. Boxes not found on this slip are collapsed by default so they don't
+  //      clutter the review, but remain accessible if the user needs to add one.
+  //   4. One click to save once the user is satisfied.
+  //
   const result = uploadState.result;
   const confidence = result.confidence;
   const isHighConfidence = confidence >= HIGH_CONFIDENCE;
-  const isLowConfidence = confidence < LOW_CONFIDENCE;
   const icon = SLIP_TYPE_ICONS[selectedType] ?? '📄';
   const slipLabel = SLIP_TYPE_LABELS[selectedType] ?? selectedType;
   const fields = SLIP_FIELDS[selectedType] ?? [];
   const lowConfFields = new Set(result.lowConfidenceFields);
-  const keyFields = KEY_FIELDS[selectedType] ?? [];
 
-  // Key fields that have non-zero / non-empty values — the "what was read" view
-  const readableKeyFields = keyFields.filter(({ key }) => {
-    const v = formValues[key];
-    return v !== undefined && v !== '' && v !== 0;
-  });
+  // The issuer/institution field is populated from OCR metadata, not result.boxes.
+  const issuerKey = selectedType === 'T2202' ? 'institutionName' : 'issuerName';
+
+  // "Extracted" = has a value in formValues (including the issuer field).
+  // "Missing"   = no value found; collapsed accordion, user can fill manually.
+  const extractedFields = fields.filter(f =>
+    formValues[f.key] !== undefined || f.key === issuerKey
+  );
+  const missingFields = fields.filter(f =>
+    formValues[f.key] === undefined && f.key !== issuerKey
+  );
 
   return (
     <div className="space-y-4">
 
-      {/* ── What was read — the most important section ─────────────────────── */}
-      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(16,185,129,0.25)' }}>
-        {/* Header */}
-        <div
-          className="flex items-center gap-3 px-4 py-3"
-          style={{ background: 'rgba(16,185,129,0.1)' }}
-        >
-          <span className="text-xl" aria-hidden="true">{icon}</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-white">{slipLabel}</p>
-            {result.issuerName && (
-              <p className="text-xs text-white/50 truncate">{result.issuerName}</p>
-            )}
-          </div>
-          {/* Confidence badge */}
-          <span
-            className="flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full"
-            style={{
-              background: isHighConfidence
-                ? 'rgba(16,185,129,0.15)'
-                : isLowConfidence
-                ? 'rgba(245,158,11,0.15)'
-                : 'rgba(255,255,255,0.08)',
-              color: isHighConfidence ? 'var(--emerald)' : isLowConfidence ? 'var(--warning)' : 'rgba(255,255,255,0.6)',
-            }}
-          >
-            {isHighConfidence ? '✓ Clear read' : isLowConfidence ? '⚠ Needs review' : `${Math.round(confidence * 100)}%`}
-          </span>
+      {/* ── Slip identity header ─────────────────────────────────────────── */}
+      <div
+        className="flex items-center gap-3 rounded-xl px-4 py-3"
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}
+      >
+        <span className="text-[22px] leading-none shrink-0">{icon}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-white leading-snug truncate">{slipLabel}</p>
+          <p className="text-[11px] text-white/40 mt-0.5">{result.taxYear}</p>
         </div>
-
-        {/* Extracted values — shown immediately, no click required */}
-        {readableKeyFields.length > 0 ? (
-          <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-            {readableKeyFields.map(({ key, label }) => {
-              const raw = formValues[key];
-              const isUncertain = lowConfFields.has(key);
-              const displayValue =
-                typeof raw === 'number'
-                  ? formatCad(raw)
-                  : String(raw);
-
-              return (
-                <div
-                  key={key}
-                  className="flex items-center justify-between px-4 py-3"
-                  style={{ background: isUncertain ? 'rgba(245,158,11,0.05)' : undefined }}
-                >
-                  <span className={`text-sm ${isUncertain ? 'text-amber-300' : 'text-white/60'}`}>
-                    {isUncertain && <span className="mr-1">⚠</span>}
-                    {label}
-                  </span>
-                  <span className={`text-sm font-bold tabular-nums ${isUncertain ? 'text-amber-300' : 'text-white'}`}>
-                    {displayValue}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="px-4 py-4">
-            {result.summary ? (
-              <p className="text-sm text-white/60 leading-relaxed">{result.summary}</p>
-            ) : (
-              <p className="text-sm text-white/40 italic">No values extracted — check the fields below.</p>
-            )}
-          </div>
-        )}
-
-        {/* Plain-English summary beneath the values */}
-        {result.summary && readableKeyFields.length > 0 && (
-          <div className="px-4 pb-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-            <p className="text-xs text-white/40 pt-3 leading-relaxed">{result.summary}</p>
-          </div>
-        )}
+        <span
+          className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full"
+          style={{
+            background: isHighConfidence ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+            color: isHighConfidence ? 'var(--emerald)' : '#F59E0B',
+          }}
+        >
+          {isHighConfidence
+            ? `✓ ${Math.round(confidence * 100)}% read`
+            : `⚠ ${Math.round(confidence * 100)}% — check values`}
+        </span>
       </div>
 
-      {/* ── Warning for low confidence ──────────────────────────────────────── */}
-      {isLowConfidence && (
+      {/* ── Extracted boxes — inline-editable, one row per box ───────────── */}
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/30 mb-2 px-0.5">
+          {extractedFields.length} box{extractedFields.length !== 1 ? 'es' : ''} extracted
+        </p>
         <div
-          className="flex items-start gap-3 rounded-xl px-4 py-3"
-          style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}
+          className="rounded-xl overflow-hidden divide-y"
+          style={{ border: '1px solid rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.07)' }}
         >
-          <AlertCircle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-300 leading-relaxed">
-            Some values were hard to read from the image — the ones marked ⚠ above may be wrong.
-            Check them in the fields below before saving.
-          </p>
-        </div>
-      )}
-
-      {/* ── All fields (expandable for high confidence, always shown for low) ─ */}
-      {isLowConfidence || showAllFields ? (
-        <div className="space-y-3">
-          <p className="text-xs font-semibold text-white/40 uppercase tracking-widest">
-            {isLowConfidence ? 'Review all extracted values' : 'All extracted values'}
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {fields.map((field) => {
+          {extractedFields.length === 0 ? (
+            <div className="px-4 py-5">
+              <p className="text-sm text-white/40 italic">
+                Nothing was extracted — try uploading a clearer image or select the correct slip type manually.
+              </p>
+            </div>
+          ) : (
+            extractedFields.map((field) => {
               const isUncertain = lowConfFields.has(field.key);
               return (
-                <div key={field.key} className="space-y-1">
-                  <Label
-                    htmlFor={`ocr-${field.key}`}
-                    className={`text-xs ${isUncertain ? 'text-amber-400' : 'text-white/50'}`}
+                <div
+                  key={field.key}
+                  className="flex items-center gap-3 px-4 py-2.5"
+                  style={{ background: isUncertain ? 'rgba(245,158,11,0.06)' : undefined }}
+                >
+                  <label
+                    htmlFor={`ocr-ext-${field.key}`}
+                    className="flex-1 min-w-0 cursor-pointer"
                   >
-                    {field.label}
-                    {field.required && <span className="text-red-400 ml-1">*</span>}
-                    {isUncertain && <span className="ml-1 text-amber-400 font-semibold">⚠ check this</span>}
-                  </Label>
+                    <span className={`text-xs leading-none ${isUncertain ? 'text-amber-300/90' : 'text-white/55'}`}>
+                      {isUncertain && (
+                        <span className="mr-1 text-amber-400 font-bold">⚠</span>
+                      )}
+                      {field.label}
+                      {field.required && (
+                        <span className="text-red-400/60 ml-1">*</span>
+                      )}
+                    </span>
+                  </label>
                   <Input
-                    id={`ocr-${field.key}`}
+                    id={`ocr-ext-${field.key}`}
                     type={field.valueType === 'number' ? 'number' : 'text'}
-                    placeholder={field.placeholder ?? (field.valueType === 'number' ? '0' : '')}
-                    value={formValues[field.key] ?? (field.valueType === 'number' ? 0 : '')}
+                    placeholder="—"
+                    value={formValues[field.key] ?? ''}
                     onChange={(e) => handleFieldChange(field.key, e.target.value, field.valueType)}
-                    className={`text-sm bg-white/5 border-white/10 text-white ${isUncertain ? 'border-amber-400/50' : ''}`}
+                    className={[
+                      'w-40 text-right text-sm font-mono h-8',
+                      'bg-white/5 text-white placeholder:text-white/20',
+                      isUncertain
+                        ? 'border-amber-400/40 focus-visible:ring-amber-400/30'
+                        : 'border-white/10',
+                    ].join(' ')}
                     step={field.valueType === 'number' ? '0.01' : undefined}
                     min={field.valueType === 'number' ? '0' : undefined}
                   />
                 </div>
               );
-            })}
-          </div>
-          {showAllFields && (
-            <button
-              onClick={() => setShowAllFields(false)}
-              className="flex items-center gap-1.5 text-xs text-white/35 hover:text-white/55 transition-colors"
-            >
-              <ChevronUp className="h-3.5 w-3.5" />
-              Hide fields
-            </button>
+            })
           )}
         </div>
-      ) : (
-        <button
-          onClick={() => setShowAllFields(true)}
-          className="flex items-center gap-1.5 text-xs text-white/35 hover:text-white/55 transition-colors"
-        >
-          <ChevronDown className="h-3.5 w-3.5" />
-          Edit individual values
-        </button>
+      </div>
+
+      {/* ── Not-found boxes — collapsed accordion, add manually if needed ─── */}
+      {missingFields.length > 0 && (
+        <details className="group">
+          <summary
+            className="flex items-center gap-2 cursor-pointer select-none list-none px-0.5"
+            style={{ ['WebkitListStyle' as string]: 'none' }}
+          >
+            <ChevronDown
+              className="h-3.5 w-3.5 text-white/30 group-open:text-white/50 transition-transform group-open:rotate-180 shrink-0"
+            />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/30 group-open:text-white/50 transition-colors">
+              {missingFields.length} box{missingFields.length !== 1 ? 'es' : ''} not found on this slip
+            </span>
+            <span className="text-[11px] normal-case font-normal text-white/20 tracking-normal ml-0.5">
+              — expand to add manually
+            </span>
+          </summary>
+
+          <div
+            className="mt-2 rounded-xl overflow-hidden divide-y"
+            style={{ border: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            {missingFields.map((field) => (
+              <div
+                key={field.key}
+                className="flex items-center gap-3 px-4 py-2.5"
+                style={{ opacity: 0.55 }}
+              >
+                <label
+                  htmlFor={`ocr-miss-${field.key}`}
+                  className="flex-1 min-w-0 cursor-pointer"
+                >
+                  <span className="text-xs text-white/45">{field.label}</span>
+                </label>
+                <Input
+                  id={`ocr-miss-${field.key}`}
+                  type={field.valueType === 'number' ? 'number' : 'text'}
+                  placeholder="not found"
+                  value={formValues[field.key] ?? ''}
+                  onChange={(e) => handleFieldChange(field.key, e.target.value, field.valueType)}
+                  className="w-40 text-right text-sm font-mono h-8 bg-white/3 border-white/8 text-white placeholder:text-white/20"
+                  step={field.valueType === 'number' ? '0.01' : undefined}
+                  min={field.valueType === 'number' ? '0' : undefined}
+                />
+              </div>
+            ))}
+          </div>
+        </details>
       )}
 
-      {/* ── Save / Cancel ───────────────────────────────────────────────────── */}
+      {/* ── Low-confidence warning banner ─────────────────────────────────── */}
+      {result.lowConfidenceFields.length > 0 && (
+        <div
+          className="flex items-start gap-2.5 rounded-xl px-4 py-3"
+          style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.20)' }}
+        >
+          <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-300 leading-relaxed">
+            {result.lowConfidenceFields.length === 1
+              ? '1 value was hard to read'
+              : `${result.lowConfidenceFields.length} values were hard to read`}
+            {' '}— marked ⚠ above. Double-check before saving.
+          </p>
+        </div>
+      )}
+
+      {/* ── Save / Cancel ─────────────────────────────────────────────────── */}
       <div className="flex gap-3 pt-1">
         <Button
           onClick={handleSave}
           className="flex-1 bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] gap-2"
         >
           <CheckCircle className="h-4 w-4" />
-          {isHighConfidence ? 'Save this slip' : 'Confirm & save'}
+          {isHighConfidence ? `Save ${selectedType} slip` : 'Confirm & save'}
         </Button>
         <Button
           variant="outline"

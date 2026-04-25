@@ -612,7 +612,13 @@ export default function SlipsPage() {
             <DialogTitle className="text-white">Edit {editTarget?.type} Slip</DialogTitle>
           </DialogHeader>
           {editTarget && (
-            <ManualEntryForm key={editTarget.id} onAdd={updateSlip} defaultType={editTarget.type} />
+            <ManualEntryForm
+              key={editTarget.id}
+              onAdd={updateSlip}
+              defaultType={editTarget.type}
+              defaultData={editTarget.data}
+              isEditing
+            />
           )}
         </DialogContent>
       </Dialog>

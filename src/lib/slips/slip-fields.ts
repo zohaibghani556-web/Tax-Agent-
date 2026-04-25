@@ -157,24 +157,36 @@ export const SLIP_PRIMARY_BOX: Record<string, { key: string; label: string }> = 
   T4FHSA: { key: 'box24', label: 'FHSA contributions' },
 };
 
-/** Build a zero-filled values object for a given slip type. */
+/**
+ * Build a blank-initialized values object for a given slip type.
+ * Numbers start as '' (empty string) so unset fields show as blank in forms,
+ * not as 0. Only use 0 when a value is explicitly present (OCR read it or
+ * the user typed it).
+ */
 export function getEmptySlipValues(slipType: string): Record<string, number | string> {
   const fields = SLIP_FIELDS[slipType] ?? [];
   return Object.fromEntries(
-    fields.map((f) => [f.key, f.valueType === 'number' ? 0 : ''])
+    fields.map((f) => [f.key, ''])
   );
 }
 
-/** Merge OCR-extracted boxes into the zero-filled values for a slip type. */
+/**
+ * Merge OCR-extracted boxes into a sparse values object for a slip type.
+ * Only keys that are (a) in the schema for this slip type AND (b) present in
+ * ocrBoxes are included. Fields not extracted are left absent so the UI shows
+ * them as blank instead of defaulting to 0.
+ */
 export function mergeOcrValues(
   slipType: string,
   ocrBoxes: Record<string, number | string>
 ): Record<string, number | string> {
   const base = getEmptySlipValues(slipType);
+  const result: Record<string, number | string> = {};
   for (const [k, v] of Object.entries(ocrBoxes)) {
+    // Only keep keys that belong to this slip type's schema
     if (k in base) {
-      base[k] = v;
+      result[k] = v;
     }
   }
-  return base;
+  return result;
 }
