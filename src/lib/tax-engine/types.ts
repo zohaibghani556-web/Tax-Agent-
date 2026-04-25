@@ -574,6 +574,9 @@ export interface TaxCalculationResult {
 
   // Edge case flags — displayed as banners in the calculator UI
   edgeCaseFlags: EdgeCaseFlag[];
+
+  // Provenance — every computed field traced to its source
+  provenance: import('./types/provenance').ProvenanceRecord[];
 }
 
 export interface TaxWarning {

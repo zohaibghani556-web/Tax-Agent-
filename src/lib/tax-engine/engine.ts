@@ -65,6 +65,8 @@ import {
   getAverageTaxRate,
 } from './federal/brackets';
 
+import { ProvenanceCollector } from './types/provenance';
+
 import {
   aggregateTotalIncome,
   calculateNetIncome,
@@ -288,6 +290,7 @@ export function calculateTaxReturn(
 ): TaxCalculationResult {
   const warnings: TaxWarning[] = [];
   const edgeCaseFlags: EdgeCaseFlag[] = [];
+  const prov = new ProvenanceCollector();
 
   // — Partition slips by type for downstream calculations —
   const t4Slips: T4Slip[] = [];
@@ -423,6 +426,34 @@ export function calculateTaxReturn(
   const netIncome     = calculateNetIncome(totalIncome, mergedDeductions, incomeResult.socialAssistanceIncome);
   const taxableIncome = calculateTaxableIncome(netIncome, mergedDeductions);
 
+  // ── Provenance: income lines ───────────────────────────────────────────────
+  const empIncome = roundCRA(t4Slips.reduce((sum, s) => sum + s.box14 + s.box40 + s.box42, 0));
+  prov.record('line_10100', empIncome)
+    .source({ type: 'computed', inputs: t4Slips.map((_, i) => `t4_${i}_box14`) })
+    .rule('Employment income from T4 slips', 'ITA s.5(1)', 'T1 line 10100')
+    .computation(t4Slips.length > 0
+      ? t4Slips.map((s, i) => `T4[${i}]: ${s.box14}+${s.box40}+${s.box42}`).join(' + ') + ` = ${empIncome}`
+      : `0`)
+    .emit();
+
+  prov.record('line_15000', totalIncome)
+    .computed('line_10100')
+    .rule('Total income from all sources', 'ITA s.3', 'T1 line 15000')
+    .computation(`sum of all income sources = ${totalIncome}`)
+    .emit();
+
+  prov.record('line_23600', netIncome)
+    .computed('line_15000')
+    .rule('Net income after deductions', 'ITA s.3(e)', 'T1 line 23600')
+    .computation(`${totalIncome} - deductions = ${netIncome}`)
+    .emit();
+
+  prov.record('line_26000', taxableIncome)
+    .computed('line_23600')
+    .rule('Taxable income', 'ITA s.3', 'T1 line 26000')
+    .computation(`${netIncome} - further deductions = ${taxableIncome}`)
+    .emit();
+
   // ── DTC: Disability Tax Credit (ITA s.118.3) ─────────────────────────────
   // Compute once and pass to both federal and Ontario credit aggregators.
   // Under-18 supplement and transfer flag are derived from optional DTC inputs.
@@ -438,6 +469,12 @@ export function calculateTaxReturn(
   // ── STEP 4: Federal tax on taxable income (Schedule 1) ───────────────────
 
   const federalTaxOnIncome = calculateFederalTaxOnIncome(taxableIncome);
+
+  prov.record('federal_gross_tax', federalTaxOnIncome)
+    .computed('line_26000')
+    .rule('Federal tax on taxable income using progressive brackets', 'ITA s.117', 'Schedule 1')
+    .computation(`progressive brackets on ${taxableIncome} = ${federalTaxOnIncome}`)
+    .emit();
 
   // ── STEP 5: Federal non-refundable credits (Schedule 1) ──────────────────
 
@@ -479,6 +516,12 @@ export function calculateTaxReturn(
 
   const federalNonRefundableCredits = fedCredits.totalCreditValue;
 
+  prov.record('federal_nrc', federalNonRefundableCredits)
+    .computed('line_26000')
+    .rule('Federal non-refundable credits total', 'ITA s.118', 'Schedule 1 line 35000')
+    .computation(`BPA + age + CPP/EI + other credits × 15% = ${federalNonRefundableCredits}`)
+    .emit();
+
   // ── STEP 6: Federal dividend tax credit (Schedule 1) ─────────────────────
 
   const divResult = calculateDividendIncome(t5Slips, t3Slips);
@@ -494,6 +537,18 @@ export function calculateTaxReturn(
   const topUpTaxCredit = roundCRA(
     fedCredits.totalCreditAmount * (FEDERAL_CREDIT_RATE - FEDERAL_LOWEST_RATE)
   );
+
+  prov.record('federal_dtc_dividend', federalDividendTaxCredit)
+    .computed('line_12000', 'line_12010')
+    .rule('Federal dividend tax credit', 'ITA s.121', 'Schedule 1')
+    .computation(`eligible DTC ${divResult.federalDTC} + non-eligible DTC ${divResult.federalNonEligibleDTC} = ${federalDividendTaxCredit}`)
+    .emit();
+
+  prov.record('federal_topup_credit', topUpTaxCredit)
+    .computed('federal_nrc')
+    .rule('Top-Up Tax Credit: compensates for 14.5% blended lowest rate', 'Bill C-4 (2025)', 'Schedule 1 line 41000')
+    .computation(`${fedCredits.totalCreditAmount} × (${FEDERAL_CREDIT_RATE} - ${FEDERAL_LOWEST_RATE}) = ${topUpTaxCredit}`)
+    .emit();
 
   // ── STEP 8: Net federal tax ───────────────────────────────────────────────
 
@@ -533,6 +588,12 @@ export function calculateTaxReturn(
     });
   }
 
+  prov.record('net_federal_tax', netFederalTax)
+    .computed('federal_gross_tax', 'federal_nrc', 'federal_dtc_dividend', 'federal_topup_credit')
+    .rule('Net federal tax after credits and clawbacks', 'ITA s.117–120', 'T1 line 42000')
+    .computation(`max(0, ${federalTaxOnIncome} - ${federalNonRefundableCredits} - ${federalDividendTaxCredit} - ${topUpTaxCredit})${oasClawback > 0 ? ` + OAS clawback ${oasClawback}` : ''} = ${netFederalTax}`)
+    .emit();
+
   // ── STEPS 9–10: Ontario tax on income + non-refundable credits (ON428) ───
 
   const ontarioTaxOnIncome = calculateOntarioTaxOnIncome(taxableIncome);
@@ -560,6 +621,18 @@ export function calculateTaxReturn(
     ontarioPoliticalContributions: mergedDeductions.ontarioPoliticalContributions ?? 0,
   });
 
+  prov.record('ontario_gross_tax', ontarioTaxOnIncome)
+    .computed('line_26000')
+    .rule('Ontario tax on taxable income using progressive brackets', 'Ontario Taxation Act s.8', 'ON428')
+    .computation(`progressive brackets on ${taxableIncome} = ${ontarioTaxOnIncome}`)
+    .emit();
+
+  prov.record('ontario_nrc', ontarioNonRefundableCredits)
+    .computed('line_26000')
+    .rule('Ontario non-refundable credits total', 'Ontario Taxation Act s.8(3)', 'ON428')
+    .computation(`BPA + age + CPP/EI + other credits × 5.05% = ${ontarioNonRefundableCredits}`)
+    .emit();
+
   // ── STEP 11: Ontario dividend tax credit (ON428) ──────────────────────────
 
   const ontarioDividendTaxCredit = roundCRA(
@@ -583,15 +656,51 @@ export function calculateTaxReturn(
 
   const ontarioSurtax = calculateOntarioSurtax(basicOntarioTax);
 
+  prov.record('ontario_dtc_dividend', ontarioDividendTaxCredit)
+    .computed('line_12000', 'line_12010')
+    .rule('Ontario dividend tax credit', 'Ontario Taxation Act s.19.1', 'ON428')
+    .computation(`eligible DTC ${divResult.ontarioDTC} + non-eligible DTC ${divResult.ontarioNonEligibleDTC} = ${ontarioDividendTaxCredit}`)
+    .emit();
+
+  prov.record('ontario_litr', ontarioLowIncomeReduction)
+    .computed('ontario_gross_tax', 'ontario_nrc')
+    .rule('Ontario Low-Income Tax Reduction', 'Ontario Taxation Act s.8(3)', 'ON428')
+    .computation(`reduction on pre-LIR tax ${preLIROntarioTax}, taxable income ${taxableIncome} = ${ontarioLowIncomeReduction}`)
+    .emit();
+
+  prov.record('ontario_surtax', ontarioSurtax)
+    .computed('ontario_gross_tax', 'ontario_nrc', 'ontario_litr')
+    .rule('Ontario surtax on basic Ontario tax', 'Ontario Taxation Act s.48', 'ON428')
+    .computation(`surtax on basic Ontario tax ${basicOntarioTax} = ${ontarioSurtax}`)
+    .emit();
+
   // ── STEP 15–16: Ontario tax payable + Ontario Health Premium ─────────────
 
   const ontarioTaxPayable  = roundCRA(basicOntarioTax + ontarioSurtax);
   const ontarioHealthPremium = calculateOntarioHealthPremium(taxableIncome);
 
+  prov.record('ontario_health_premium', ontarioHealthPremium)
+    .computed('line_26000')
+    .rule('Ontario Health Premium', 'Ontario Taxation Act s.33.1', 'ON428 line 62')
+    .computation(`OHP on taxable income ${taxableIncome} = ${ontarioHealthPremium}`)
+    .emit();
+
   // ── STEP 17: Total tax payable ────────────────────────────────────────────
 
   const netOntarioTax   = roundCRA(ontarioTaxPayable + ontarioHealthPremium);
   const totalTaxPayable = roundCRA(netFederalTax + netOntarioTax);
+
+  prov.record('net_ontario_tax', netOntarioTax)
+    .computed('ontario_gross_tax', 'ontario_surtax', 'ontario_health_premium')
+    .rule('Net Ontario tax including surtax and OHP', 'Ontario Taxation Act', 'ON428')
+    .computation(`${ontarioTaxPayable} + ${ontarioHealthPremium} = ${netOntarioTax}`)
+    .emit();
+
+  prov.record('total_tax_payable', totalTaxPayable)
+    .computed('net_federal_tax', 'net_ontario_tax')
+    .rule('Total tax payable (federal + Ontario)', 'T1 line 43500')
+    .computation(`${netFederalTax} + ${netOntarioTax} = ${totalTaxPayable}`)
+    .emit();
 
   // ── STEP 18: Total tax deducted at source ─────────────────────────────────
   // All CRA slips that report "income tax deducted at source"
@@ -606,6 +715,12 @@ export function calculateTaxReturn(
     t4rifSlips.reduce((sum, s) => sum + s.box30, 0) +
     t4fhsaSlips.reduce((sum, s) => sum + s.box22, 0)
   );
+
+  prov.record('total_tax_deducted', totalTaxDeducted)
+    .source({ type: 'computed', inputs: ['t4_box22', 't4a_box022', 't4e_box22', 't4ap_box22', 't4aoas_box22', 't4rsp_box30', 't4rif_box30', 't4fhsa_box22'] })
+    .rule('Income tax deducted at source from all slips', 'ITA s.153', 'T1 line 43700')
+    .computation(`sum of all slip box 22/30 withholdings = ${totalTaxDeducted}`)
+    .emit();
 
   // ── STEP 18b: CPP/EI over-deduction refund — line 44800/45000 ────────────
   // Over-deducted amounts (multiple employers) are refunded separately, not a credit.
@@ -655,6 +770,30 @@ export function calculateTaxReturn(
   const gstReduction = Math.max(0, roundCRA((netIncome - GST_CREDIT.clawStart) * GST_CREDIT.clawRate));
   const estimatedGSTCredit = Math.max(0, roundCRA(gstAdult - gstReduction));
 
+  prov.record('cwb', canadaWorkersCredit)
+    .computed('line_10100', 'line_23600')
+    .rule('Canada Workers Benefit — refundable', 'ITA s.122.7', 'T1 line 45300')
+    .computation(`CWB on earned income ${earnedIncome}, net income ${netIncome} = ${canadaWorkersCredit}`)
+    .emit();
+
+  prov.record('rmes', refundableMedicalSupplement)
+    .computed('line_23600')
+    .rule('Refundable Medical Expense Supplement', 'ITA s.122.51', 'T1 line 45200')
+    .computation(`RMES on medical ${eligibleMedicalForCredit}, earned ${earnedIncome}, net ${netIncome} = ${refundableMedicalSupplement}`)
+    .emit();
+
+  prov.record('ctc', canadaTrainingCredit)
+    .input('canadaTrainingCreditRoom')
+    .rule('Canada Training Credit — 50% of eligible fees capped at room', 'ITA s.122.91', 'T1 line 45350')
+    .computation(`min(${mergedDeductions.trainingFeesForCTC ?? 0} × 50%, ${mergedDeductions.canadaTrainingCreditRoom ?? 0}) = ${canadaTrainingCredit}`)
+    .emit();
+
+  prov.record('cpp_ei_overdeduction', cppEiOverdeductionRefund)
+    .computed('t4_cpp', 't4_cpp2', 't4_ei')
+    .rule('CPP/EI over-deduction refund', 'ITA s.118.7', 'T1 line 44800/45000')
+    .computation(`CPP over ${Math.max(0, rawCPP1 - CPP.maxEmployeeContribution)} + CPP2 over ${Math.max(0, rawCPP2 - CPP2.maxEmployeeContribution)} + EI over ${Math.max(0, rawEI - EI.maxPremium)} = ${cppEiOverdeductionRefund}`)
+    .emit();
+
   // ── STEP 19: Balance owing / refund ──────────────────────────────────────
   // Negative = refund. Refundable credits reduce payable directly (like tax withheld).
 
@@ -669,6 +808,12 @@ export function calculateTaxReturn(
     - ontarioSeniorsHomeCredit
     - cppEiOverdeductionRefund
   );
+
+  prov.record('balance_owing', balanceOwing)
+    .computed('total_tax_payable', 'total_tax_deducted', 'cwb', 'rmes', 'ctc', 'cpp_ei_overdeduction')
+    .rule('Balance owing or refund', 'basic arithmetic', 'T1 line 48500/48400')
+    .computation(`${totalTaxPayable} - ${totalTaxDeducted} - ${totalInstalmentsApplied} - refundable credits = ${balanceOwing}`)
+    .emit();
 
   // ── STEP 20: Marginal and average rates ───────────────────────────────────
 
@@ -816,5 +961,7 @@ export function calculateTaxReturn(
 
     warnings,
     edgeCaseFlags,
+
+    provenance: prov.toArray(),
   };
 }

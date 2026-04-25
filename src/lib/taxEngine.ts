@@ -58,6 +58,7 @@ import {
 } from './tax-engine/constants';
 import { calculateOntarioHealthPremium } from './tax-engine/ontario/health-premium';
 import type { TaxBracket } from './tax-engine/constants';
+import { ProvenanceCollector } from './tax-engine/types/provenance';
 
 // ============================================================
 // ROUNDING HELPER
@@ -297,6 +298,9 @@ export interface TaxBreakdown {
 
   warnings:      string[];
   optimizations: string[];
+
+  // Provenance — every computed field traced to its source
+  provenance: import('./tax-engine/types/provenance').ProvenanceRecord[];
 }
 
 // ============================================================
@@ -437,6 +441,7 @@ function calcSurtax(basicOntarioTax: number): number {
 export function calculateTaxes(input: TaxInput): TaxBreakdown {
   const warnings:      string[] = [];
   const optimizations: string[] = [];
+  const prov = new ProvenanceCollector();
 
   // ── STEP 1: Income lines ─────────────────────────────────────────────────
 
@@ -480,6 +485,21 @@ export function calculateTaxes(input: TaxInput): TaxBreakdown {
     L12600 + L13100 + L14500
   );
 
+  // Provenance: income lines
+  prov.record('line_10100', L10100).input('employmentIncome').rule('Employment income', 'ITA s.5(1)', 'T1 line 10100').emit();
+  prov.record('line_10400', L10400).input('otherEmploymentIncome').rule('Other employment income', 'ITA s.6', 'T1 line 10400').emit();
+  prov.record('line_11300', L11300).input('oasPension').rule('OAS pension', 'ITA s.56(1)(a)', 'T1 line 11300').emit();
+  prov.record('line_11400', L11400).input('disabilityPensionCPP').rule('CPP/QPP benefits', 'ITA s.56(1)(a)', 'T1 line 11400').emit();
+  prov.record('line_11500', L11500).input('pensionIncome').rule('Other pensions and annuities', 'ITA s.56(1)(a)', 'T1 line 11500').computation(`${input.pensionIncome} + ${input.annuityIncome} = ${L11500}`).emit();
+  prov.record('line_11900', L11900).input('eiRegularBenefits').rule('EI benefits', 'ITA s.56(1)(a)', 'T1 line 11900').emit();
+  prov.record('line_12000', L12000).input('eligibleDividends').rule('Taxable eligible dividends (grossed up)', 'ITA s.82(1)(b)', 'T1 line 12000').computation(`${input.eligibleDividends} × ${1 + DIVIDENDS.eligible.grossUpRate} = ${L12000}`).emit();
+  prov.record('line_12010', L12010).input('ineligibleDividends').rule('Taxable non-eligible dividends (grossed up)', 'ITA s.82(1)(b)', 'T1 line 12010').computation(`${input.ineligibleDividends} × ${1 + DIVIDENDS.nonEligible.grossUpRate} = ${L12010}`).emit();
+  prov.record('line_12100', L12100).input('interestIncome').rule('Interest and other investment income', 'ITA s.12(1)(c)', 'T1 line 12100').emit();
+  prov.record('line_12700', L12700).computed('capitalGains').rule('Taxable capital gains', 'ITA s.38', 'T1 line 12700').computation(`max(0, ${input.capitalGains} - ${input.capitalLossesPriorYears}) × ${CAPITAL_GAINS.inclusionRateLow} = ${L12700}`).emit();
+  prov.record('line_13000', L13000).input('otherIncome').rule('Other income', 'ITA s.56', 'T1 line 13000').emit();
+  prov.record('line_13500', L13500).input('selfEmploymentNetIncome').rule('Self-employment net income', 'ITA s.9', 'T1 line 13500').emit();
+  prov.record('line_15000', L15000_totalIncome).computed('line_10100', 'line_10400', 'line_11300', 'line_11400', 'line_11500', 'line_11900', 'line_12000', 'line_12010', 'line_12100', 'line_12700', 'line_13000', 'line_13500').rule('Total income', 'ITA s.3', 'T1 line 15000').computation(`sum of all income lines = ${L15000_totalIncome}`).emit();
+
   // ── STEP 2: Deductions → net income ──────────────────────────────────────
 
   // RRSP deduction capped at contribution room and annual max
@@ -521,6 +541,9 @@ export function calculateTaxes(input: TaxInput): TaxBreakdown {
 
   const L23600_netIncome = Math.max(0, r(L15000_totalIncome - totalDeductions));
 
+  prov.record('line_20800', L20800).input('rrspContribution').rule('RRSP deduction', 'ITA s.60(i)', 'T1 line 20800').computation(`min(${input.rrspContribution}, ${input.rrspContributionRoom}, ${RRSP.maxContribution}) = ${L20800}`).emit();
+  prov.record('line_23600', L23600_netIncome).computed('line_15000').rule('Net income', 'ITA s.3(e)', 'T1 line 23600').computation(`${L15000_totalIncome} - ${totalDeductions} = ${L23600_netIncome}`).emit();
+
   // OAS clawback (social benefits repayment) — ITA s.180.2
   const oasClawback = input.oasPension > 0 && L23600_netIncome > OAS_CLAWBACK.threshold
     ? Math.min(
@@ -538,9 +561,13 @@ export function calculateTaxes(input: TaxInput): TaxBreakdown {
   const capitalLossCarryforward = input.capitalLossesPriorYears; // already applied to net gains above
   const L26000_taxableIncome = Math.max(0, L23600_netIncome); // simplified: no LCGE in this version
 
+  prov.record('line_26000', L26000_taxableIncome).computed('line_23600').rule('Taxable income', 'ITA s.3', 'T1 line 26000').computation(`max(0, ${L23600_netIncome}) = ${L26000_taxableIncome}`).emit();
+
   // ── STEP 4: Federal tax on taxable income ─────────────────────────────────
 
   const federalGrossTax = taxOnIncome(L26000_taxableIncome, FEDERAL_BRACKETS);
+
+  prov.record('federal_gross_tax', federalGrossTax).computed('line_26000').rule('Federal tax on taxable income using progressive brackets', 'ITA s.117', 'Schedule 1').computation(`progressive brackets on ${L26000_taxableIncome} = ${federalGrossTax}`).emit();
 
   // ── STEP 5: Federal non-refundable credits ────────────────────────────────
 
@@ -620,11 +647,16 @@ export function calculateTaxes(input: TaxInput): TaxBreakdown {
 
   const totalFedNRC = r(fedNRCBase + topUpCredit + fedDonationCredit + fedPoliticalCredit);
 
+  prov.record('federal_nrc', totalFedNRC).computed('line_26000').rule('Federal non-refundable credits total', 'ITA s.118', 'Schedule 1 line 35000').computation(`base credits × 15% + top-up + donations + political = ${totalFedNRC}`).emit();
+  prov.record('federal_dtc_dividend', fedDividendTC).computed('line_12000', 'line_12010').rule('Federal dividend tax credit', 'ITA s.121', 'Schedule 1').computation(`eligible ${fedEligDTC} + non-eligible ${fedIneligDTC} = ${fedDividendTC}`).emit();
+
   // Net federal tax before OAS clawback
   const netFedBeforeOAS = Math.max(0, r(federalGrossTax - totalFedNRC - fedDividendTC - foreignTaxCredit));
 
   // OAS clawback added to federal tax (ITA s.180.2)
   const federalTaxPayablePreAMT = r(netFedBeforeOAS + oasClawback);
+
+  prov.record('net_federal_tax', federalTaxPayablePreAMT).computed('federal_gross_tax', 'federal_nrc', 'federal_dtc_dividend').rule('Net federal tax (before AMT)', 'ITA s.117–120', 'T1').computation(`max(0, ${federalGrossTax} - ${totalFedNRC} - ${fedDividendTC} - ${foreignTaxCredit}) + OAS ${oasClawback} = ${federalTaxPayablePreAMT}`).emit();
 
   // ── STEP 6: Alternative Minimum Tax ───────────────────────────────────────
   // Simplified AMT: only applies when taxable capital gains or certain preference items
@@ -692,9 +724,17 @@ export function calculateTaxes(input: TaxInput): TaxBreakdown {
 
   const ontarioTaxPayable = r(ontarioTaxBeforeCredits + ohp);
 
+  prov.record('ontario_gross_tax', ontarioGrossTax).computed('line_26000').rule('Ontario tax on taxable income', 'Ontario Taxation Act s.8', 'ON428').computation(`progressive brackets on ${L26000_taxableIncome} = ${ontarioGrossTax}`).emit();
+  prov.record('ontario_nrc', ontarioNRC).computed('line_26000').rule('Ontario non-refundable credits total', 'Ontario Taxation Act s.8(3)', 'ON428').computation(`BPA + age + CPP/EI + other credits × 5.05% + donations + political = ${ontarioNRC}`).emit();
+  prov.record('ontario_surtax', surtax).computed('ontario_gross_tax', 'ontario_nrc').rule('Ontario surtax', 'Ontario Taxation Act s.48', 'ON428').computation(`surtax on basic Ontario tax ${basicOntarioTax} = ${surtax}`).emit();
+  prov.record('ontario_health_premium', ohp).computed('line_26000').rule('Ontario Health Premium', 'Ontario Taxation Act s.33.1', 'ON428 line 62').computation(`OHP on ${L26000_taxableIncome} = ${ohp}`).emit();
+  prov.record('net_ontario_tax', ontarioTaxPayable).computed('ontario_gross_tax', 'ontario_surtax', 'ontario_health_premium').rule('Net Ontario tax', 'Ontario Taxation Act', 'ON428').computation(`${ontarioTaxBeforeCredits} + ${ohp} = ${ontarioTaxPayable}`).emit();
+
   // ── STEP 9: Total tax payable ─────────────────────────────────────────────
 
   const totalTaxPayable = r(federalTaxPayable + ontarioTaxPayable);
+
+  prov.record('total_tax_payable', totalTaxPayable).computed('net_federal_tax', 'net_ontario_tax').rule('Total tax payable (federal + Ontario)', 'T1 line 43500').computation(`${federalTaxPayable} + ${ontarioTaxPayable} = ${totalTaxPayable}`).emit();
 
   // ── STEP 10: Payroll ──────────────────────────────────────────────────────
 
@@ -749,6 +789,9 @@ export function calculateTaxes(input: TaxInput): TaxBreakdown {
 
   const taxAlreadyPaid = r(input.taxWithheld + input.installmentsPaid);
   const refundOrOwing  = r(taxAlreadyPaid - totalTaxPayable); // positive = refund
+
+  prov.record('total_tax_deducted', taxAlreadyPaid).input('taxWithheld').rule('Tax already paid (withheld + instalments)', 'ITA s.153', 'T1 line 43700').computation(`${input.taxWithheld} + ${input.installmentsPaid} = ${taxAlreadyPaid}`).emit();
+  prov.record('balance_owing', refundOrOwing).computed('total_tax_payable', 'total_tax_deducted').rule('Refund or balance owing', 'basic arithmetic', 'T1 line 48400/48500').computation(`${taxAlreadyPaid} - ${totalTaxPayable} = ${refundOrOwing}`).emit();
 
   // ── Rates ─────────────────────────────────────────────────────────────────
 
@@ -923,6 +966,8 @@ export function calculateTaxes(input: TaxInput): TaxBreakdown {
 
     warnings,
     optimizations,
+
+    provenance: prov.toArray(),
   };
 }
 
