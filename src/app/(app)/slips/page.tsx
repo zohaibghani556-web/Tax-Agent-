@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Pencil, Trash2, FileText, Check, ArrowRight, ChevronRight, Cloud, Upload } from 'lucide-react';
+import { Pencil, Trash2, FileText, Check, ArrowRight, ChevronRight, Cloud, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -39,6 +39,9 @@ const SLIP_GRID = [
   { icon: '📊', type: 'T3',    desc: 'Trust income' },
 ] as const;
 
+// localStorage key for slips the user has marked as "I don't have this"
+const DISMISSED_KEY = 'taxagent_dismissed_slips';
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatCad(n: number): string {
@@ -66,6 +69,11 @@ function formatLastSaved(date: Date | null): string {
   return date.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
 }
 
+/** Convert slip type to URL-safe segment: "RRSP-Receipt" → "rrsp-receipt" */
+function slipTypeToRoute(type: string): string {
+  return type.toLowerCase().replace(/_/g, '-');
+}
+
 // ── Slip type card ─────────────────────────────────────────────────────────────
 
 type SlipCardStatus = 'done' | 'review' | 'pending';
@@ -91,7 +99,6 @@ function SlipTypeCard({
 }) {
   let status: SlipCardStatus = 'pending';
   if (slipsForType.length > 0) {
-    // Mark review if the primary box is zero/missing on any entered slip
     const hasIncomplete = slipsForType.some((s) => {
       const def = SLIP_PRIMARY_BOX[s.type];
       if (!def) return false;
@@ -129,14 +136,15 @@ function SlipTypeCard({
         {status === 'pending' ? desc : `${count} slip${count !== 1 ? 's' : ''} entered`}
       </div>
       {status === 'pending' ? (
-        <button
+        <Link
+          href={`/slips/upload/${slipTypeToRoute(type)}`}
           className="w-full text-white font-semibold text-[13px] py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
           style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)' }}
-          onClick={(e) => { e.stopPropagation(); onUploadClick(); }}
+          onClick={(e) => e.stopPropagation()}
         >
           <Upload className="w-3.5 h-3.5" />
           Upload {type}
-        </button>
+        </Link>
       ) : (
         <button
           className="w-full font-semibold text-[13px] py-2 rounded-lg transition-colors"
@@ -154,6 +162,104 @@ function SlipTypeCard({
   );
 }
 
+// ── Checklist item ─────────────────────────────────────────────────────────────
+
+function ChecklistItem({
+  rec,
+  done,
+  dismissed,
+  onDismiss,
+  onUndismiss,
+}: {
+  rec: SlipRec;
+  done: boolean;
+  dismissed: boolean;
+  onDismiss: (type: string) => void;
+  onUndismiss: (type: string) => void;
+}) {
+  if (dismissed) {
+    return (
+      <div
+        className="flex items-center gap-3 rounded-xl px-4 py-3 opacity-50"
+        style={{
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.05)',
+        }}
+      >
+        <div
+          className="h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ background: 'rgba(255,255,255,0.08)' }}
+        >
+          <X className="h-3 w-3" style={{ color: 'rgba(255,255,255,0.35)' }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold line-through" style={{ color: 'rgba(255,255,255,0.35)' }}>{rec.type}</p>
+          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>Marked as not applicable</p>
+        </div>
+        <button
+          onClick={() => onUndismiss(rec.type)}
+          className="text-[11px] px-2.5 py-1 rounded-lg transition-colors flex-shrink-0"
+          style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.40)' }}
+        >
+          Undo
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center gap-3 rounded-xl px-4 py-3 transition-all"
+      style={{
+        background: done ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.03)',
+        border: `1px solid ${done ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.06)'}`,
+      }}
+    >
+      <div
+        className="h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0"
+        style={{ background: done ? 'var(--emerald)' : 'rgba(255,255,255,0.10)' }}
+      >
+        {done
+          ? <Check className="h-3.5 w-3.5 text-white" />
+          : <FileText className="h-3.5 w-3.5" style={{ color: 'rgba(255,255,255,0.40)' }} />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold" style={{ color: done ? 'var(--emerald)' : 'rgba(255,255,255,0.70)' }}>
+          {rec.type}
+        </p>
+        <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.40)' }}>{rec.description}</p>
+      </div>
+      {done ? (
+        <Link
+          href={`/slips/upload/${slipTypeToRoute(rec.type)}`}
+          className="text-[11px] px-2.5 py-1 rounded-lg flex-shrink-0 transition-colors"
+          style={{ background: 'rgba(16,185,129,0.12)', color: 'var(--emerald)' }}
+        >
+          Add another
+        </Link>
+      ) : (
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Link
+            href={`/slips/upload/${slipTypeToRoute(rec.type)}`}
+            className="text-[11px] px-2.5 py-1 rounded-lg transition-colors font-medium"
+            style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.60)' }}
+          >
+            Upload →
+          </Link>
+          <button
+            onClick={() => onDismiss(rec.type)}
+            className="text-[11px] px-2 py-1 rounded-lg transition-colors"
+            style={{ color: 'rgba(255,255,255,0.28)' }}
+            title="I don't have this slip"
+          >
+            ✕ skip
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SlipsPage() {
@@ -165,6 +271,7 @@ export default function SlipsPage() {
   const [assessmentDone, setAssessmentDone] = useState(false);
   const [userId, setUserId] = useState('');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [dismissedTypes, setDismissedTypes] = useState<Set<string>>(new Set());
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const addFormRef = useRef<HTMLDivElement>(null);
 
@@ -181,6 +288,12 @@ export default function SlipsPage() {
         try { setSlipRecs(JSON.parse(recs) as SlipRec[]); } catch { /* ignore */ }
       }
       setAssessmentDone(!!localStorage.getItem('taxagent_assessment_done'));
+
+      // Load dismissed slips from localStorage
+      const dismissed = localStorage.getItem(DISMISSED_KEY);
+      if (dismissed) {
+        try { setDismissedTypes(new Set(JSON.parse(dismissed) as string[])); } catch { /* ignore */ }
+      }
 
       let loaded: SavedSlip[] = [];
       if (uid) {
@@ -236,13 +349,31 @@ export default function SlipsPage() {
     syncSlips(updated, userId);
   }
 
+  function dismissSlipType(type: string) {
+    const next = new Set([...dismissedTypes, type]);
+    setDismissedTypes(next);
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify([...next]));
+  }
+
+  function undismissSlipType(type: string) {
+    const next = new Set([...dismissedTypes]);
+    next.delete(type);
+    setDismissedTypes(next);
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify([...next]));
+  }
+
   function scrollToAddForm() {
     addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   const enteredTypes = new Set(slips.map((s) => s.type));
-  const recsDone = slipRecs.filter((r) => enteredTypes.has(r.type)).length;
+
+  // Checklist progress: count recs that are done OR dismissed
+  const recsResolved = slipRecs.filter(
+    (r) => enteredTypes.has(r.type) || dismissedTypes.has(r.type),
+  ).length;
   const recsTotal = slipRecs.length;
+  const allRecsResolved = recsTotal > 0 && recsResolved === recsTotal;
 
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-10 space-y-6">
@@ -302,39 +433,37 @@ export default function SlipsPage() {
         >
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-semibold text-white">Slips from your assessment</p>
-            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.40)' }}>{recsDone}/{recsTotal} uploaded</span>
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.40)' }}>
+              {recsResolved}/{recsTotal} done
+            </span>
           </div>
           <div className="space-y-2">
-            {slipRecs.map((rec) => {
-              const done = enteredTypes.has(rec.type);
-              return (
-                <div
-                  key={rec.type}
-                  className="flex items-center gap-3 rounded-xl px-4 py-3 transition-all"
-                  style={{
-                    background: done ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${done ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.06)'}`,
-                  }}
-                >
-                  <div
-                    className="h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: done ? 'var(--emerald)' : 'rgba(255,255,255,0.10)' }}
-                  >
-                    {done ? <Check className="h-3.5 w-3.5 text-white" /> : <FileText className="h-3.5 w-3.5" style={{ color: 'rgba(255,255,255,0.40)' }} />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold" style={{ color: done ? 'var(--emerald)' : 'rgba(255,255,255,0.70)' }}>{rec.type}</p>
-                    <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.40)' }}>{rec.description}</p>
-                  </div>
-                  {!done && (
-                    <span className="text-[10px] text-right max-w-[120px] leading-tight" style={{ color: 'rgba(255,255,255,0.30)' }}>
-                      {rec.where}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
+            {slipRecs.map((rec) => (
+              <ChecklistItem
+                key={rec.type}
+                rec={rec}
+                done={enteredTypes.has(rec.type)}
+                dismissed={dismissedTypes.has(rec.type)}
+                onDismiss={dismissSlipType}
+                onUndismiss={undismissSlipType}
+              />
+            ))}
           </div>
+
+          {/* Proceed CTA — shown once all checklist items are resolved */}
+          {allRecsResolved && (
+            <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+              <button
+                onClick={() => router.push('/calculator')}
+                className="w-full flex items-center justify-center gap-2 rounded-full py-3.5 text-sm font-semibold text-white transition-colors"
+                style={{ background: 'var(--emerald)', boxShadow: '0 8px 24px rgba(16,185,129,0.25)' }}
+              >
+                <Check className="h-4 w-4" />
+                All slips done — calculate my taxes
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -460,8 +589,8 @@ export default function SlipsPage() {
         </div>
       )}
 
-      {/* ── Go to calculator CTA ─────────────────────────────────── */}
-      {slips.length > 0 && (
+      {/* ── Go to calculator CTA (shown when slips exist but no checklist) ── */}
+      {slips.length > 0 && slipRecs.length === 0 && (
         <button
           onClick={() => router.push('/calculator')}
           className="w-full flex items-center justify-center gap-2 rounded-full py-4 text-sm font-semibold text-white transition-colors"
