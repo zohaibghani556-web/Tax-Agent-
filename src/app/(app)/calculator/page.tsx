@@ -107,6 +107,7 @@ function savedToTaxSlip(s: SavedSlip): TaxSlip | null {
     extractionModel: null,
     extractionModelVersion: null,
     needsReview: false,
+    sourceExtractionId: null,
     createdAt: s.enteredAt,
     updatedAt: s.enteredAt,
   };

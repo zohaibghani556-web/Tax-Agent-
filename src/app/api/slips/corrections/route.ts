@@ -128,42 +128,12 @@ export async function POST(req: NextRequest) {
     log('warn', 'corrections.mark_reviewed_failed', { reason: updateErr.message });
   }
 
-  // --- 3. Upsert corrected slip into tax_slips via tax_profiles ---
-  // Get or create the tax_profiles row for this user + year
-  const { data: profileRow } = await supabase
-    .from('tax_profiles')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('tax_year', taxYear ?? 2025)
-    .maybeSingle();
-
-  let profileId = profileRow?.id as string | undefined;
-  if (!profileId) {
-    const { data: created } = await supabase
-      .from('tax_profiles')
-      .insert({ user_id: user.id, tax_year: taxYear ?? 2025 })
-      .select('id')
-      .single();
-    profileId = created?.id as string | undefined;
-  }
-
-  if (profileId) {
-    const { error: slipErr } = await supabase.from('tax_slips').upsert(
-      {
-        profile_id: profileId,
-        slip_type: slipType,
-        issuer_name: issuerName ?? '',
-        slip_data: correctedBoxes,
-        tax_year: taxYear ?? 2025,
-        source: 'ocr_reviewed',
-      },
-      { onConflict: 'profile_id,slip_type,issuer_name' },
-    );
-
-    if (slipErr) {
-      log('warn', 'corrections.slip_upsert_failed', { reason: slipErr.message });
-    }
-  }
+  // Step 3 (old: upsert tax_slips via profile_id) was removed.
+  // Persistence to tax_slips is now owned exclusively by createSlip() in
+  // the review page client, which writes via user_id (unified store path).
+  // Keeping the write here created a duplicate row per review save because
+  // the old path used profile_id and the new path uses user_id — two rows,
+  // same slip, doubled income in the tax engine.
 
   return NextResponse.json({ ok: true });
 }

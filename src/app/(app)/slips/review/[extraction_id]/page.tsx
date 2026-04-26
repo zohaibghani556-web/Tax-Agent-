@@ -45,6 +45,8 @@ interface ExtractionReview {
   createdAt: string;
   documentUrl: string | null;
   documentType: 'image' | 'pdf';
+  /** SHA-256 of the uploaded file; null if extraction predates this field. */
+  fileHash: string | null;
 }
 
 interface CorrectionEntry {
@@ -327,7 +329,11 @@ export default function SlipReviewPage() {
               rawExtractedData: { extractionId: extraction.id },
               unmappedFields: null,
               missingRequired: [],
-              fileHash: null,
+              // sourceExtractionId + fileHash enable createSlip dedup:
+              // if the user re-saves the same review session, the existing
+              // row is returned and no duplicate row is created.
+              sourceExtractionId: extraction.id,
+              fileHash: extraction.fileHash,
               originalFilename: null,
               schemaVersion: null,
               importedAt: new Date().toISOString(),

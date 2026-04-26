@@ -184,6 +184,7 @@ function makeBaseSlip(
     extractionModel: 'claude-sonnet-4-6',
     extractionModelVersion: null,
     needsReview: false,
+    sourceExtractionId: null,
     ...overrides,
   };
 }
@@ -619,5 +620,119 @@ describe('slip-store', () => {
     expect(updated.issuerName).toBe('Corp B');
     expect(updated.boxes['box14']).toBe(50000); // unchanged
     expect(updated.slipType).toBe('T4');         // unchanged
+  });
+
+  // ── Dedup regression tests ───────────────────────────────────────────────────
+  // These tests prove the acceptance criteria: uploading the same slip twice
+  // cannot produce doubled income in the tax engine.
+
+  /**
+   * Test A — file-hash deduplication
+   * Uploading the same physical file twice must not create two rows.
+   * createSlip with an identical (userId, taxYear, slipType, fileHash)
+   * must return the existing row without inserting.
+   */
+  it('Test A: createSlip with duplicate file_hash returns existing row, no second insert', async () => {
+    const inputA = makeBaseSlip({
+      slipType: 'T4',
+      issuerName: 'ACME Corp',
+      boxes: { box14: 2320, box22: 127.71 },
+      fileHash: 'sha256-abc123',
+    });
+
+    const slip1 = await createSlip(client, inputA);
+    // Second upload: same user + year + type + file hash
+    const slip2 = await createSlip(client, { ...inputA, issuerName: 'ACME Corp (re-upload)' });
+
+    // Must return the SAME row
+    expect(slip2.id).toBe(slip1.id);
+    // Must NOT insert a new row — storage still has exactly one entry
+    expect(storage.size).toBe(1);
+  });
+
+  /**
+   * Test B — review-save idempotency via source_extraction_id
+   * If the user re-saves the same review session (back-navigation, double-click),
+   * createSlip must return the existing row and not insert a duplicate.
+   * The manual audit from recordManualOverride is preserved.
+   */
+  it('Test B: createSlip with duplicate source_extraction_id returns existing row and preserves audit', async () => {
+    const inputB = makeBaseSlip({
+      slipType: 'T4',
+      boxes: { box14: 2320, box22: 127.71 },
+      sourceExtractionId: 'extraction-uuid-1',
+    });
+
+    const slip1 = await createSlip(client, inputB);
+
+    // Record a correction to verify audit survives the second save attempt
+    const afterCorrection = await recordManualOverride(
+      client, slip1.id, 'box14', 2320, 2500, 'user-abc',
+    );
+    expect(afterCorrection.boxes['box14']).toBe(2500);
+
+    // User re-saves the same review session
+    const slip2 = await createSlip(client, { ...inputB, boxes: { box14: 9999, box22: 0 } });
+
+    // Must return the original row (not the re-save payload)
+    expect(slip2.id).toBe(slip1.id);
+    // Storage unchanged — still one row
+    expect(storage.size).toBe(1);
+
+    // Audit metadata is preserved on the stored row
+    const stored = await getSlip(client, slip1.id);
+    const raw = stored!.rawExtractedData as { _manualAudit: Array<{ box: string }> };
+    expect(raw._manualAudit).toHaveLength(1);
+    expect(raw._manualAudit[0].box).toBe('box14');
+  });
+
+  /**
+   * Test C — listSlipsByUserAndTaxYear returns one slip after duplicate attempt
+   */
+  it('Test C: listSlipsByUserAndTaxYear returns one slip after duplicate upload attempt', async () => {
+    const input = makeBaseSlip({
+      slipType: 'T4',
+      boxes: { box14: 2320, box22: 127.71 },
+      fileHash: 'sha256-unique-hash',
+    });
+
+    await createSlip(client, input);
+    await createSlip(client, input); // duplicate
+
+    const slips = await listSlipsByUserAndTaxYear(client, 'user-abc', 2025, ['active']);
+    expect(slips).toHaveLength(1);
+  });
+
+  /**
+   * Test D — tax engine sees income once, not doubled
+   * A T4 with box14=$2,320 and box22=$127.71 uploaded twice must not produce
+   * $4,640 employment income or $255.42 tax deducted.
+   */
+  it('Test D: duplicate upload does not double income seen by the tax engine', async () => {
+    const input = makeBaseSlip({
+      slipType: 'T4',
+      issuerName: 'Employer Inc',
+      boxes: { box14: 2320, box22: 127.71 },
+      fileHash: 'sha256-t4-income-hash',
+    });
+
+    await createSlip(client, input); // first upload
+    await createSlip(client, input); // re-upload of same file
+
+    const slips = await listSlipsByUserAndTaxYear(client, 'user-abc', 2025, ['active']);
+    expect(slips).toHaveLength(1);
+
+    const taxSlips = slips.map(toTaxSlip).filter((s) => s !== null);
+    expect(taxSlips).toHaveLength(1);
+
+    const t4 = taxSlips[0];
+    expect(t4!.type).toBe('T4');
+    if (t4!.type === 'T4') {
+      // Income must not be doubled
+      expect(t4.data.box14).toBe(2320);
+      expect(t4.data.box14).not.toBe(4640);
+      expect(t4.data.box22).toBe(127.71);
+      expect(t4.data.box22).not.toBe(255.42);
+    }
   });
 });

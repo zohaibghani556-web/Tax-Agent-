@@ -85,6 +85,12 @@ export interface UnifiedSlip {
   extractionModel: string | null;
   extractionModelVersion: string | null;
   needsReview: boolean;
+  /**
+   * FK to slip_extractions.id. Set when the slip was created from the OCR review
+   * flow. NULL for manually-entered slips and old-path (profile_id) rows.
+   * Used by createSlip() to detect re-saves of the same review session.
+   */
+  sourceExtractionId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -396,6 +402,7 @@ function rowToUnifiedSlip(row: Record<string, unknown>): UnifiedSlip {
     extractionModelVersion:
       (row['extraction_model_version'] as string | null) ?? null,
     needsReview: (row['needs_review'] as boolean | null) ?? false,
+    sourceExtractionId: (row['source_extraction_id'] as string | null) ?? null,
     createdAt:
       (row['created_at'] as string | null) ?? new Date().toISOString(),
     updatedAt:
@@ -425,6 +432,7 @@ function unifiedSlipToInsertRow(
     extraction_model: input.extractionModel,
     extraction_model_version: input.extractionModelVersion,
     needs_review: input.needsReview,
+    source_extraction_id: input.sourceExtractionId,
   };
 }
 
@@ -432,12 +440,65 @@ function unifiedSlipToInsertRow(
 
 /**
  * Insert a new slip row and return the persisted UnifiedSlip.
+ *
+ * IDEMPOTENT: two dedup checks prevent duplicate rows that would double income:
+ *
+ *   1. source_extraction_id — if a slip already exists for this
+ *      (user_id, source_extraction_id), return it without inserting.
+ *      Prevents re-saving the same OCR review session (back-navigation,
+ *      double-click, or accidental retry).
+ *
+ *   2. file_hash — if a slip already exists for this
+ *      (user_id, tax_year, slip_type, file_hash), return it without inserting.
+ *      Prevents re-uploading the same physical document from doubling employment
+ *      income, dividends, or any other slip amount.
+ *
+ * Both checks are guarded by IS NOT NULL so manually-entered slips (no file,
+ * no extraction) are unaffected and always insert.
+ *
  * Throws on Supabase errors — callers should handle appropriately.
  */
 export async function createSlip(
   client: SupabaseClient,
   input: Omit<UnifiedSlip, 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<UnifiedSlip> {
+  // Dedup check 1: same review session (extraction → unified slip is 1:1)
+  if (input.sourceExtractionId) {
+    const { data: existing, error: existingErr } = await client
+      .from('tax_slips')
+      .select('*')
+      .eq('user_id', input.userId)
+      .eq('source_extraction_id', input.sourceExtractionId)
+      .maybeSingle();
+
+    if (!existingErr && existing) {
+      log('info', 'slip-store.createSlip.dedup_extraction', {
+        sourceExtractionId: input.sourceExtractionId,
+      });
+      return rowToUnifiedSlip(existing as Record<string, unknown>);
+    }
+  }
+
+  // Dedup check 2: same physical file for same user + year + slip type
+  if (input.fileHash) {
+    const { data: existing, error: existingErr } = await client
+      .from('tax_slips')
+      .select('*')
+      .eq('user_id', input.userId)
+      .eq('tax_year', input.taxYear)
+      .eq('slip_type', input.slipType)
+      .eq('file_hash', input.fileHash)
+      .maybeSingle();
+
+    if (!existingErr && existing) {
+      log('info', 'slip-store.createSlip.dedup_file_hash', {
+        slipType: input.slipType,
+        taxYear: input.taxYear,
+      });
+      return rowToUnifiedSlip(existing as Record<string, unknown>);
+    }
+  }
+
   const row = unifiedSlipToInsertRow(input);
 
   const { data, error } = await client

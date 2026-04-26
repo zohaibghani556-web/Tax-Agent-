@@ -23,6 +23,7 @@
  *   - Accepted types: image/jpeg, image/png, image/webp, application/pdf
  */
 
+import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -139,6 +140,10 @@ export async function POST(req: NextRequest) {
   // --- Upload to Supabase Storage ---
   const buffer = await file.arrayBuffer();
   const base64 = Buffer.from(buffer).toString('base64');
+  // SHA-256 of the raw file bytes. Stored on slip_extractions so the review
+  // page can propagate it to tax_slips.file_hash, enabling createSlip() to
+  // detect and reject duplicate uploads before they double income.
+  const fileHash = createHash('sha256').update(Buffer.from(buffer)).digest('hex');
   const ext = file.type === 'application/pdf' ? 'pdf' : file.type.split('/')[1];
   const storagePath = `slips/${user.id}/${Date.now()}.${ext}`;
 
@@ -187,6 +192,7 @@ export async function POST(req: NextRequest) {
         raw_model_response: result.rawModelResponses,
         validation_errors: result.validation?.flags ?? [],
         usage_tokens: result.usage,
+        file_hash: fileHash,
       })
       .select('id')
       .single();

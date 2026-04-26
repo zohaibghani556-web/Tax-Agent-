@@ -44,7 +44,7 @@ export async function GET(
   const { data: extraction, error: fetchError } = await supabase
     .from('slip_extractions')
     .select(
-      'id, slip_type_detected, classification_confidence, status, boxes, validation_errors, created_at, reviewed_by_user_at, document_storage_path',
+      'id, slip_type_detected, classification_confidence, status, boxes, validation_errors, created_at, reviewed_by_user_at, document_storage_path, file_hash',
     )
     .eq('id', extraction_id)
     .single();
@@ -93,5 +93,6 @@ export async function GET(
     createdAt: extraction.created_at,
     documentUrl,
     documentType,
+    fileHash: (extraction.file_hash as string | null) ?? null,
   });
 }
