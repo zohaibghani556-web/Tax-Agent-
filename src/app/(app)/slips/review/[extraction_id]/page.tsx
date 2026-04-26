@@ -206,7 +206,10 @@ function FieldRow({
         value={currentValue}
         onChange={(e) => {
           const raw = e.target.value;
-          onChange(fieldKey, valueType === 'number' ? (parseFloat(raw) || 0) : raw);
+          // Use raw === '' guard so intentionally cleared fields stay 0 rather
+          // than silently coercing NaN (garbage input) to 0. Empty → 0 is still
+          // the right UI default since fieldValues is Record<string, number|string>.
+          onChange(fieldKey, valueType === 'number' ? (raw === '' ? 0 : (parseFloat(raw) || 0)) : raw);
         }}
         step={valueType === 'number' ? '0.01' : undefined}
         min={valueType === 'number' ? '0' : undefined}
@@ -281,6 +284,12 @@ export default function SlipReviewPage() {
       const issuerName =
         String(fieldValues['issuerName'] ?? fieldValues['institutionName'] ?? '');
 
+      // TODO Session C: wire createSlip / recordManualOverride here.
+      // This page works from slip_extractions.id, not a tax_slips row, so we
+      // cannot yet call setSlipBoxValue + updateSlip from slip-store.ts.
+      // Session C should: after /api/slips/corrections resolves, call createSlip()
+      // with the corrected boxes to persist a UnifiedSlip row in tax_slips, then
+      // call recordManualOverride() for each field in `corrections`.
       try {
         const res = await fetch(
           '/api/slips/corrections',

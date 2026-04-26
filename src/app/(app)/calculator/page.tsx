@@ -33,6 +33,8 @@ import {
   saveCalculationResult,
 } from '@/lib/supabase/tax-data';
 import type { SavedSlip as DbSavedSlip } from '@/lib/supabase/tax-data';
+import { toTaxSlip } from '@/lib/supabase/slip-store';
+import type { UnifiedSlip, TaxSlipType } from '@/lib/supabase/slip-store';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -82,8 +84,33 @@ interface SavedSlip {
   enteredAt: string;
 }
 
-function savedToTaxSlip(s: SavedSlip): TaxSlip {
-  return { type: s.type, data: { issuerName: s.issuerName, ...s.data } } as TaxSlip;
+function savedToTaxSlip(s: SavedSlip): TaxSlip | null {
+  // Bridge the local SavedSlip shape to UnifiedSlip so toTaxSlip() can
+  // apply typeof-safe 0 defaults at the engine boundary (never Number() || 0).
+  const unified: UnifiedSlip = {
+    id: s.id,
+    userId: '',
+    taxYear: 2025,
+    slipType: s.type as TaxSlipType,
+    issuerName: s.issuerName,
+    sourceMethod: 'manual',
+    slipStatus: 'active',
+    boxes: s.data as Record<string, number | string | null>,
+    fieldProvenance: {},
+    rawExtractedData: null,
+    unmappedFields: null,
+    missingRequired: [],
+    fileHash: null,
+    originalFilename: null,
+    schemaVersion: null,
+    importedAt: null,
+    extractionModel: null,
+    extractionModelVersion: null,
+    needsReview: false,
+    createdAt: s.enteredAt,
+    updatedAt: s.enteredAt,
+  };
+  return toTaxSlip(unified);
 }
 
 interface UserDeductions {
@@ -571,7 +598,7 @@ export default function CalculatorPage() {
       updatedAt: new Date().toISOString(),
     };
 
-    const slips: TaxSlip[] = savedSlips.map(savedToTaxSlip);
+    const slips: TaxSlip[] = savedSlips.map(savedToTaxSlip).filter((s): s is TaxSlip => s !== null);
 
     try {
       const res = await fetch('/api/calculate', addCsrfHeader({
@@ -662,7 +689,7 @@ export default function CalculatorPage() {
 
   // Compute validation result reactively whenever slips or deductions change
   const validation = useMemo(
-    () => validateTaxReturn(currentProfile, savedSlips.map(savedToTaxSlip), buildDeductions()),
+    () => validateTaxReturn(currentProfile, savedSlips.map(savedToTaxSlip).filter((s): s is TaxSlip => s !== null), buildDeductions()),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [savedSlips, userDeductions, profileName]
   );
