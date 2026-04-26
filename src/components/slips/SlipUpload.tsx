@@ -15,9 +15,15 @@ import {
 import { addCsrfHeader } from '@/lib/csrf-client';
 import type { OcrResult } from '@/app/api/ocr/route';
 
+/** Optional OCR metadata propagated from the extraction pipeline to tax_slips. */
+export interface OcrSlipMeta {
+  fileHash: string | null;
+  sourceExtractionId: string | null;
+}
+
 interface SlipUploadProps {
   /** source is always 'ocr' for this component — passed through to the caller. */
-  onAdd: (type: string, issuerName: string, data: Record<string, number | string>, source?: string) => void;
+  onAdd: (type: string, issuerName: string, data: Record<string, number | string>, source?: string, meta?: OcrSlipMeta) => void;
 }
 
 type UploadState =
@@ -134,7 +140,11 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
   const handleSave = () => {
     const issuerKey = selectedType === 'T2202' ? 'institutionName' : 'issuerName';
     // Mark as 'ocr': the user confirmed AI-extracted values, not typed them manually.
-    onAdd(selectedType, String(formValues[issuerKey] ?? ''), formValues, 'ocr');
+    // Pass fileHash + extractionId so they propagate to tax_slips for lineage tracking.
+    const meta: OcrSlipMeta = uploadState.status === 'extracted'
+      ? { fileHash: uploadState.result.fileHash ?? null, sourceExtractionId: uploadState.result.extractionId ?? null }
+      : { fileHash: null, sourceExtractionId: null };
+    onAdd(selectedType, String(formValues[issuerKey] ?? ''), formValues, 'ocr', meta);
     reset();
   };
 

@@ -72,6 +72,7 @@ export function upsertSlipInList(
   issuerName: string,
   data: Record<string, number | string>,
   source?: string,
+  meta?: { fileHash?: string | null; sourceExtractionId?: string | null },
 ): SavedSlip[] {
   const dupIdx = slips.findIndex((s) =>
     isLogicalT2202Duplicate(s, type, issuerName, data),
@@ -81,7 +82,14 @@ export function upsertSlipInList(
     // Replace: preserve id and enteredAt so the Supabase row is updated.
     // Carry source forward (prefer the incoming source if provided).
     return slips.map((s, i) =>
-      i === dupIdx ? { ...s, issuerName, data, source: source ?? s.source ?? 'manual' } : s,
+      i === dupIdx ? {
+        ...s,
+        issuerName,
+        data,
+        source: source ?? s.source ?? 'manual',
+        fileHash: meta?.fileHash ?? s.fileHash ?? null,
+        sourceExtractionId: meta?.sourceExtractionId ?? s.sourceExtractionId ?? null,
+      } : s,
     );
   }
 
@@ -95,6 +103,8 @@ export function upsertSlipInList(
       data,
       enteredAt: new Date().toISOString(),
       source: source ?? 'manual',
+      fileHash: meta?.fileHash ?? null,
+      sourceExtractionId: meta?.sourceExtractionId ?? null,
     },
   ];
 }

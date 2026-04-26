@@ -57,6 +57,8 @@ export interface OcrResult {
   status: PipelineResult['status'];
   flags: Array<{ field: string; reason: string; message: string }>;
   extractionId: string | null;
+  /** SHA-256 hex digest of the uploaded file — propagated to tax_slips.file_hash. */
+  fileHash: string | null;
 }
 
 interface OcrApiResponse {
@@ -73,6 +75,7 @@ interface OcrApiResponse {
     message: string;
   }>;
   extractionId: string | null;
+  fileHash: string | null;
 }
 
 export async function POST(req: NextRequest) {
@@ -229,6 +232,7 @@ export async function POST(req: NextRequest) {
     confidence: result.classification.confidence,
     flags,
     extractionId,
+    fileHash,
   };
 
   // OcrResult shape (superset of OcrApiResponse + backward compat fields)

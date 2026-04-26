@@ -20,6 +20,7 @@ import { createClient } from '@/lib/supabase/client';
 import { getSlips, upsertSlips } from '@/lib/supabase/tax-data';
 import type { SavedSlip } from '@/lib/supabase/tax-data';
 import { upsertSlipInList, dedupeSlipList } from '@/lib/slips/slip-dedup';
+import type { OcrSlipMeta } from '@/components/slips/SlipUpload';
 // TODO: re-enable slip-store.ts (listSlipsByUserAndTaxYear) as the primary
 // read path only after the unified migration is applied to the live database.
 // Until then, getSlips() (profile_id-based) is the sole authoritative path.
@@ -340,11 +341,11 @@ export default function SlipsPage() {
     }, 800);
   }, []);
 
-  function addSlip(type: string, issuerName: string, data: Record<string, number | string>, source?: string) {
+  function addSlip(type: string, issuerName: string, data: Record<string, number | string>, source?: string, meta?: OcrSlipMeta) {
     // upsertSlipInList replaces a logical duplicate (e.g. same T2202 from the
     // same institution) rather than appending a second row. For all other slip
     // types it behaves like a plain append.
-    const updated = upsertSlipInList(slips, type, issuerName, data, source);
+    const updated = upsertSlipInList(slips, type, issuerName, data, source, meta ?? undefined);
     setSlips(updated);
     setActiveInputTab('upload');
     syncSlips(updated, userId);

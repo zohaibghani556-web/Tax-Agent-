@@ -355,3 +355,73 @@ describe('dedupeSlipList', () => {
     expect(result[0].id).toBe(slip.id);
   });
 });
+
+// ── Stage 4: OCR metadata propagation through upsertSlipInList ──────────────
+
+describe('upsertSlipInList — OCR metadata (fileHash / sourceExtractionId)', () => {
+  it('appended OCR slip carries fileHash and sourceExtractionId', () => {
+    const meta = { fileHash: 'abc123', sourceExtractionId: 'ext-001' };
+    const result = upsertSlipInList([], 'T4', 'Employer', { box14: 50000 }, 'ocr', meta);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].fileHash).toBe('abc123');
+    expect(result[0].sourceExtractionId).toBe('ext-001');
+    expect(result[0].source).toBe('ocr');
+  });
+
+  it('manual entry with no meta gets null fileHash and sourceExtractionId', () => {
+    const result = upsertSlipInList([], 'T4', 'Employer', { box14: 50000 });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].fileHash).toBeNull();
+    expect(result[0].sourceExtractionId).toBeNull();
+    expect(result[0].source).toBe('manual');
+  });
+
+  it('replacing a T2202 duplicate updates fileHash and sourceExtractionId', () => {
+    const existing = makeT2202({ id: 'orig' });
+    expect(existing.fileHash).toBeUndefined(); // no hash on the original
+
+    const meta = { fileHash: 'def456', sourceExtractionId: 'ext-002' };
+    const result = upsertSlipInList(
+      [existing], 'T2202', existing.issuerName,
+      { boxA: 14625.25, boxB: 0, boxC: 8 }, 'ocr', meta,
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('orig');
+    expect(result[0].fileHash).toBe('def456');
+    expect(result[0].sourceExtractionId).toBe('ext-002');
+  });
+
+  it('replacing without meta preserves existing fileHash', () => {
+    const existing: SavedSlip = {
+      ...makeT2202({ id: 'orig' }),
+      fileHash: 'keep-me',
+      sourceExtractionId: 'ext-keep',
+    };
+
+    // Re-upload same T2202 without meta (e.g. manual edit).
+    const result = upsertSlipInList(
+      [existing], 'T2202', existing.issuerName,
+      { boxA: 14625.25, boxB: 0, boxC: 8 },
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].fileHash).toBe('keep-me');
+    expect(result[0].sourceExtractionId).toBe('ext-keep');
+  });
+
+  it('uploading same T2202 twice with meta produces one slip with non-null metadata', () => {
+    const data = { boxA: 14625.25, boxB: 1, boxC: 10 };
+    const meta = { fileHash: 'same-hash', sourceExtractionId: 'ext-same' };
+
+    const after1 = upsertSlipInList([], 'T2202', 'WLU', data, 'ocr', meta);
+    expect(after1).toHaveLength(1);
+
+    const after2 = upsertSlipInList(after1, 'T2202', 'WLU', data, 'ocr', meta);
+    expect(after2).toHaveLength(1);
+    expect(after2[0].fileHash).toBe('same-hash');
+    expect(after2[0].sourceExtractionId).toBe('ext-same');
+  });
+});
