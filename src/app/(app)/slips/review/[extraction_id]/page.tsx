@@ -27,6 +27,9 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { SLIP_FIELDS, SLIP_TYPE_LABELS } from '@/lib/slips/slip-fields';
 import { addCsrfHeader } from '@/lib/csrf-client';
+import { createClient } from '@/lib/supabase/client';
+import { createSlip, recordManualOverride } from '@/lib/supabase/slip-store';
+import type { TaxSlipType } from '@/lib/supabase/slip-store';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -284,12 +287,6 @@ export default function SlipReviewPage() {
       const issuerName =
         String(fieldValues['issuerName'] ?? fieldValues['institutionName'] ?? '');
 
-      // TODO Session C: wire createSlip / recordManualOverride here.
-      // This page works from slip_extractions.id, not a tax_slips row, so we
-      // cannot yet call setSlipBoxValue + updateSlip from slip-store.ts.
-      // Session C should: after /api/slips/corrections resolves, call createSlip()
-      // with the corrected boxes to persist a UnifiedSlip row in tax_slips, then
-      // call recordManualOverride() for each field in `corrections`.
       try {
         const res = await fetch(
           '/api/slips/corrections',
@@ -311,6 +308,48 @@ export default function SlipReviewPage() {
           const { error } = (await res.json()) as { error: string };
           toast.error(error ?? 'Could not save. Please try again.');
           return;
+        }
+
+        // Persist the reviewed slip to tax_slips via the unified store.
+        try {
+          const supabase = createClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const newSlip = await createSlip(supabase, {
+              userId: user.id,
+              taxYear: 2025,
+              slipType: extraction.slipType as TaxSlipType,
+              issuerName,
+              sourceMethod: 'ocr',
+              slipStatus: 'active',
+              boxes: fieldValues as Record<string, number | string | null>,
+              fieldProvenance: {},
+              rawExtractedData: { extractionId: extraction.id },
+              unmappedFields: null,
+              missingRequired: [],
+              fileHash: null,
+              originalFilename: null,
+              schemaVersion: null,
+              importedAt: new Date().toISOString(),
+              extractionModel: null,
+              extractionModelVersion: null,
+              needsReview: false,
+            });
+
+            // Record each user correction in the audit trail.
+            for (const c of corrections) {
+              await recordManualOverride(
+                supabase,
+                newSlip.id,
+                c.fieldName,
+                c.originalValue !== null ? c.originalValue : null,
+                c.correctedValue,
+                user.id,
+              );
+            }
+          }
+        } catch {
+          toast.error('Slip saved but could not write to your account history.');
         }
 
         toast.success(

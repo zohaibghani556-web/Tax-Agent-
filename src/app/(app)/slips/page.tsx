@@ -19,6 +19,8 @@ import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { getSlips, upsertSlips } from '@/lib/supabase/tax-data';
 import type { SavedSlip } from '@/lib/supabase/tax-data';
+import { listSlipsByUserAndTaxYear } from '@/lib/supabase/slip-store';
+import type { UnifiedSlip } from '@/lib/supabase/slip-store';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -67,6 +69,16 @@ function formatLastSaved(date: Date | null): string {
   if (diffMin < 1) return 'Just saved';
   if (diffMin < 60) return `${diffMin} min ago`;
   return date.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
+}
+
+function unifiedToSavedSlip(u: UnifiedSlip): SavedSlip {
+  return {
+    id: u.id,
+    type: u.slipType,
+    issuerName: u.issuerName,
+    data: u.boxes as Record<string, number | string>,
+    enteredAt: u.createdAt,
+  };
 }
 
 /** Convert slip type to URL-safe segment: "RRSP-Receipt" → "rrsp-receipt" */
@@ -297,7 +309,13 @@ export default function SlipsPage() {
 
       let loaded: SavedSlip[] = [];
       if (uid) {
-        loaded = await getSlips(uid, 2025);
+        try {
+          const unified = await listSlipsByUserAndTaxYear(supabase, uid, 2025, ['active', 'needs_review']);
+          loaded = unified.map(unifiedToSavedSlip);
+        } catch {
+          // Unified store unavailable — fall back to old path so slips remain visible.
+          loaded = await getSlips(uid, 2025);
+        }
       }
 
       if (loaded.length > 0) {

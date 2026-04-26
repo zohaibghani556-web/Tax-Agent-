@@ -33,7 +33,7 @@ import {
   saveCalculationResult,
 } from '@/lib/supabase/tax-data';
 import type { SavedSlip as DbSavedSlip } from '@/lib/supabase/tax-data';
-import { toTaxSlip } from '@/lib/supabase/slip-store';
+import { toTaxSlip, listSlipsByUserAndTaxYear } from '@/lib/supabase/slip-store';
 import type { UnifiedSlip, TaxSlipType } from '@/lib/supabase/slip-store';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -111,6 +111,16 @@ function savedToTaxSlip(s: SavedSlip): TaxSlip | null {
     updatedAt: s.enteredAt,
   };
   return toTaxSlip(unified);
+}
+
+function unifiedToSavedSlip(u: UnifiedSlip): SavedSlip {
+  return {
+    id: u.id,
+    type: u.slipType,
+    issuerName: u.issuerName,
+    data: u.boxes as Record<string, number | string>,
+    enteredAt: u.createdAt,
+  };
 }
 
 interface UserDeductions {
@@ -472,13 +482,22 @@ export default function CalculatorPage() {
       setProfileName(name);
       setUserId(uid);
 
-      // Load slips: Supabase → localStorage fallback
+      // Load slips: unified store → old path fallback → localStorage
       let loadedSlips: SavedSlip[] = [];
       if (uid) {
-        const dbSlips = await getDbSlips(uid, 2025);
-        if (dbSlips.length > 0) {
-          loadedSlips = dbSlips;
-          localStorage.setItem('taxagent_slips', JSON.stringify(dbSlips));
+        try {
+          const unified = await listSlipsByUserAndTaxYear(supabase, uid, 2025, ['active', 'needs_review']);
+          if (unified.length > 0) {
+            loadedSlips = unified.map(unifiedToSavedSlip);
+            localStorage.setItem('taxagent_slips', JSON.stringify(loadedSlips));
+          }
+        } catch {
+          // Unified store unavailable — fall back to old path so the calculator stays usable.
+          const dbSlips = await getDbSlips(uid, 2025);
+          if (dbSlips.length > 0) {
+            loadedSlips = dbSlips;
+            localStorage.setItem('taxagent_slips', JSON.stringify(dbSlips));
+          }
         }
       }
       if (loadedSlips.length === 0) {
