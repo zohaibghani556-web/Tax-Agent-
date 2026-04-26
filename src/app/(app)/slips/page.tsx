@@ -19,8 +19,10 @@ import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { getSlips, upsertSlips } from '@/lib/supabase/tax-data';
 import type { SavedSlip } from '@/lib/supabase/tax-data';
-import { listSlipsByUserAndTaxYear } from '@/lib/supabase/slip-store';
-import type { UnifiedSlip } from '@/lib/supabase/slip-store';
+import { upsertSlipInList } from '@/lib/slips/slip-dedup';
+// TODO: re-enable slip-store.ts (listSlipsByUserAndTaxYear) as the primary
+// read path only after the unified migration is applied to the live database.
+// Until then, getSlips() (profile_id-based) is the sole authoritative path.
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -69,16 +71,6 @@ function formatLastSaved(date: Date | null): string {
   if (diffMin < 1) return 'Just saved';
   if (diffMin < 60) return `${diffMin} min ago`;
   return date.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
-}
-
-function unifiedToSavedSlip(u: UnifiedSlip): SavedSlip {
-  return {
-    id: u.id,
-    type: u.slipType,
-    issuerName: u.issuerName,
-    data: u.boxes as Record<string, number | string>,
-    enteredAt: u.createdAt,
-  };
 }
 
 /** Convert slip type to URL-safe segment: "RRSP-Receipt" → "rrsp-receipt" */
@@ -307,15 +299,14 @@ export default function SlipsPage() {
         try { setDismissedTypes(new Set(JSON.parse(dismissed) as string[])); } catch { /* ignore */ }
       }
 
+      // Profile-id-based path is the authoritative read for production.
+      // slip-store.ts (listSlipsByUserAndTaxYear) is NOT called here — it
+      // queries columns (user_id, tax_year, slip_status) that do not yet
+      // exist on the live database schema. Re-enable once the unified
+      // migration (20260427+) has been applied to production.
       let loaded: SavedSlip[] = [];
       if (uid) {
-        try {
-          const unified = await listSlipsByUserAndTaxYear(supabase, uid, 2025, ['active', 'needs_review']);
-          loaded = unified.map(unifiedToSavedSlip);
-        } catch {
-          // Unified store unavailable — fall back to old path so slips remain visible.
-          loaded = await getSlips(uid, 2025);
-        }
+        loaded = await getSlips(uid, 2025);
       }
 
       if (loaded.length > 0) {
@@ -344,10 +335,10 @@ export default function SlipsPage() {
   }, []);
 
   function addSlip(type: string, issuerName: string, data: Record<string, number | string>) {
-    const updated: SavedSlip[] = [
-      ...slips,
-      { id: crypto.randomUUID(), type, issuerName, data, enteredAt: new Date().toISOString() },
-    ];
+    // upsertSlipInList replaces a logical duplicate (e.g. same T2202 from the
+    // same institution) rather than appending a second row. For all other slip
+    // types it behaves like a plain append.
+    const updated = upsertSlipInList(slips, type, issuerName, data);
     setSlips(updated);
     setActiveInputTab('upload');
     syncSlips(updated, userId);

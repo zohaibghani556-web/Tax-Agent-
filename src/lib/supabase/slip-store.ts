@@ -4,7 +4,25 @@
  * Persistence layer for all 14 CRA slip types. Backed by the tax_slips table
  * with the schema added in 20260425000002_unified_slip_store.sql.
  *
- * Design contract:
+ * ⚠️  PRE-PRODUCTION — NOT WIRED INTO THE LIVE UI
+ *
+ * The unified-store columns (user_id, tax_year, slip_status, source_method,
+ * field_provenance, raw_extracted_data, etc.) do NOT exist on the live
+ * Supabase database as of the 20260427 stabilization session. Calling
+ * any function in this module against the live DB will cause a Supabase
+ * error because the required columns are absent.
+ *
+ * The production read/write path is getSlips() / upsertSlips() in
+ * src/lib/supabase/tax-data.ts (profile_id-based). This module must NOT
+ * be imported from any production UI page until the following migration
+ * has been applied to the live database:
+ *
+ *   TODO: Apply 20260425000002_unified_slip_store.sql (and prerequisites
+ *         20260424000001 through 20260426000001) to the live database,
+ *         then re-enable listSlipsByUserAndTaxYear() in slips/page.tsx
+ *         as the primary read path.
+ *
+ * Design contract (for when it IS enabled):
  *   - STORE layer (UnifiedSlip) never coerces null/undefined to 0. Missing
  *     boxes stay absent (null/undefined) in UnifiedSlip.boxes.
  *   - ENGINE boundary (toTaxSlip) is the ONLY place where 0 defaults are

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SLIP_FIELDS, SLIP_TYPE_LABELS, getEmptySlipValues } from '@/lib/slips/slip-fields';
 import type { SlipFieldDef } from '@/lib/slips/slip-fields';
+import { validateT2202Boxes } from '@/lib/slips/t2202-validation';
 
 interface ManualEntryFormProps {
   onAdd: (type: string, issuerName: string, data: Record<string, number | string>) => void;
@@ -161,6 +162,17 @@ export function ManualEntryForm({
           newErrors[field.key] = 'Required';
         }
       }
+    }
+
+    // T2202-specific: Box B and Box C must be month counts (0–12), not dollar amounts.
+    // ITA s.118.5 — tuition must be in Box A; months in Box B (part-time) / Box C (full-time).
+    if (slipType === 'T2202') {
+      const { errors: t2202Errors } = validateT2202Boxes(
+        values['boxA'],
+        values['boxB'],
+        values['boxC'],
+      );
+      Object.assign(newErrors, t2202Errors);
     }
 
     if (Object.keys(newErrors).length > 0) {

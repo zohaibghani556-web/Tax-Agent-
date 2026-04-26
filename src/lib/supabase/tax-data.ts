@@ -56,10 +56,16 @@ export interface UserDeductions {
 }
 
 // Slip types that satisfy the DB CHECK constraint on tax_slips.slip_type.
-// Must stay in sync with: (1) SLIP_FIELDS in slip-fields.ts, (2) the CHECK
-// constraint in migration 20260420000001_slip_types_expand.sql, and (3)
-// TaxSlip['type'] in tax-engine/types.ts.
-// The parity test in tax-data.test.ts fails CI if any type is missing here.
+//
+// This set MUST stay in sync with ALL THREE of:
+//   1. SLIP_FIELDS in src/lib/slips/slip-fields.ts  (UI fields + labels)
+//   2. The CHECK constraint in the latest slip_type migration
+//      (currently 20260427000001_align_tax_slips_to_live.sql)
+//   3. TaxSlip['type'] in src/lib/tax-engine/types.ts  (engine union type)
+//
+// If you add a type here, also add it to the DB CHECK constraint via a new
+// migration, or the insert will fail with a constraint violation at runtime.
+// The parity test in tax-data.test.ts enforces (1) ↔ (this set) in CI.
 export const SUPPORTED_SLIP_TYPES = new Set([
   'T4', 'T5', 'T5008', 'T3', 'T4A', 'T2202', 'T4E', 'T5007',
   'T4AP', 'T4AOAS', 'T4RSP', 'T4RIF', 'RRSP-Receipt', 'T4FHSA',
