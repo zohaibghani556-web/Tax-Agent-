@@ -425,3 +425,91 @@ describe('upsertSlipInList — OCR metadata (fileHash / sourceExtractionId)', ()
     expect(after2[0].sourceExtractionId).toBe('ext-same');
   });
 });
+
+// ── Regression: dedupeSlipList merges OCR metadata into kept duplicate ────────
+
+describe('dedupeSlipList — OCR metadata merge on duplicate collapse', () => {
+  it('merges fileHash and sourceExtractionId from incoming into existing when existing lacks them', () => {
+    // Scenario: DB has an old T2202 row without OCR metadata (saved before Stage 4).
+    // A second row (from re-upload) carries metadata. dedupeSlipList must keep
+    // one T2202 with the non-null fileHash and sourceExtractionId.
+    const existing: SavedSlip = {
+      id: 'old-row',
+      type: 'T2202',
+      issuerName: 'Wilfrid Laurier University',
+      data: { boxA: 14625.25, boxB: 0, boxC: 8 },
+      enteredAt: '2026-04-25T10:00:00.000Z',
+      source: 'ocr',
+      fileHash: null,
+      sourceExtractionId: null,
+    };
+
+    const incoming: SavedSlip = {
+      id: 'new-row',
+      type: 'T2202',
+      issuerName: 'Wilfrid Laurier University',
+      data: { boxA: 14625.25, boxB: 0, boxC: 8 },
+      enteredAt: '2026-04-26T11:00:00.000Z',
+      source: 'ocr',
+      fileHash: 'c513de3f9d9d90bf831572ed289ed800d0cb20e62613919d3c88b52e49a98d1d',
+      sourceExtractionId: '16390edc-79a9-4110-8e7f-2aee0bc3754b',
+    };
+
+    const result = dedupeSlipList([existing, incoming]);
+    expect(result).toHaveLength(1);
+    expect(result[0].fileHash).toBe('c513de3f9d9d90bf831572ed289ed800d0cb20e62613919d3c88b52e49a98d1d');
+    expect(result[0].sourceExtractionId).toBe('16390edc-79a9-4110-8e7f-2aee0bc3754b');
+    expect(result[0].source).toBe('ocr');
+    expect(result[0].data).toEqual({ boxA: 14625.25, boxB: 0, boxC: 8 });
+  });
+
+  it('merges metadata when existing is preferred (newer enteredAt) but lacks fileHash', () => {
+    // Existing is more recent (wins on recency) but has no metadata.
+    // Incoming is older but has OCR metadata. Merged result must have both.
+    const existing: SavedSlip = {
+      id: 'recent-row',
+      type: 'T2202',
+      issuerName: 'WLU',
+      data: { boxA: 14625.25 },
+      enteredAt: '2026-04-27T12:00:00.000Z',
+      source: 'manual',
+      fileHash: null,
+      sourceExtractionId: null,
+    };
+
+    const incoming: SavedSlip = {
+      id: 'ocr-row',
+      type: 'T2202',
+      issuerName: 'WLU',
+      data: { boxA: 14625.25 },
+      enteredAt: '2026-04-25T08:00:00.000Z',
+      source: 'ocr',
+      fileHash: 'hash-from-ocr',
+      sourceExtractionId: 'ext-from-ocr',
+    };
+
+    const result = dedupeSlipList([existing, incoming]);
+    expect(result).toHaveLength(1);
+    // incoming has fileHash → _preferIncoming returns true → incoming is base
+    expect(result[0].fileHash).toBe('hash-from-ocr');
+    expect(result[0].sourceExtractionId).toBe('ext-from-ocr');
+    expect(result[0].source).toBe('ocr');
+  });
+
+  it('manual slips without metadata remain unchanged after dedup', () => {
+    const manual: SavedSlip = {
+      id: 'manual-row',
+      type: 'T2202',
+      issuerName: 'UofT',
+      data: { boxA: 5000 },
+      enteredAt: '2026-04-20T09:00:00.000Z',
+      source: 'manual',
+    };
+
+    const result = dedupeSlipList([manual]);
+    expect(result).toHaveLength(1);
+    expect(result[0].fileHash).toBeUndefined();
+    expect(result[0].sourceExtractionId).toBeUndefined();
+    expect(result[0].source).toBe('manual');
+  });
+});

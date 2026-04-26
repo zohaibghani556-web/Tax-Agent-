@@ -141,10 +141,19 @@ export function dedupeSlipList(slips: SavedSlip[]): SavedSlip[] {
     if (existingIdx === -1) {
       result.push(candidate);
     } else {
-      // Keep whichever version is more complete.
-      if (_preferIncoming(candidate, result[existingIdx])) {
-        result[existingIdx] = candidate;
-      }
+      // Merge: pick the better base, then backfill metadata from the loser
+      // so OCR lineage (fileHash, sourceExtractionId) is never silently dropped.
+      const existing = result[existingIdx];
+      const base = _preferIncoming(candidate, existing) ? candidate : existing;
+      const other = base === candidate ? existing : candidate;
+      result[existingIdx] = {
+        ...base,
+        fileHash: base.fileHash ?? other.fileHash ?? null,
+        sourceExtractionId: base.sourceExtractionId ?? other.sourceExtractionId ?? null,
+        source: base.source === 'ocr' || other.source === 'ocr'
+          ? 'ocr'
+          : base.source ?? other.source ?? 'manual',
+      };
     }
   }
 
