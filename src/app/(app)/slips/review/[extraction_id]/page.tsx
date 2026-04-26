@@ -478,6 +478,36 @@ export default function SlipReviewPage() {
         </div>
       )}
 
+      {/* ── T2202 field mapping warning ──────────────────────────────────── */}
+      {/* Shown when OCR puts the tuition dollar amount in boxC (full-time months) */}
+      {slipType === 'T2202' && (() => {
+        const boxA = fieldValues['boxA'];
+        const boxC = fieldValues['boxC'];
+        const tuitionInWrongBox =
+          typeof boxC === 'number' && boxC > 12 &&
+          (typeof boxA !== 'number' || boxA === 0);
+        if (!tuitionInWrongBox) return null;
+        return (
+          <div
+            className="flex items-start gap-3 rounded-xl px-4 py-3"
+            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.30)' }}
+          >
+            <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-red-300 leading-relaxed">
+              <strong>Possible field mapping error:</strong>{' '}
+              Box C shows{' '}
+              {typeof boxC === 'number'
+                ? boxC.toLocaleString('en-CA', { style: 'currency', currency: 'CAD' })
+                : boxC}
+              {' '}which looks like a tuition amount, not months enrolled.
+              Please verify: <strong>Box A</strong> should be the eligible tuition fees (dollar amount)
+              and <strong>Box C</strong> should be the number of full-time months (0–12).
+              Correct the values below before saving.
+            </p>
+          </div>
+        );
+      })()}
+
       {/* ── Split layout ─────────────────────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row gap-6">
 

@@ -220,6 +220,34 @@ async function classifyDocument(
 // Stage 2 — Extraction (Sonnet)
 // ---------------------------------------------------------------------------
 
+/**
+ * Slip-type-specific extraction hints appended to the base prompt.
+ * These correct recurring model errors where box labels on physical documents
+ * differ from schema field names or appear in unexpected visual positions.
+ */
+function buildSlipTypeHints(slipType: ExtractableSlipType): string {
+  switch (slipType) {
+    case 't2202':
+      // T2202 field mapping errors are the #1 source of bad extractions:
+      // Claude frequently puts the tuition dollar amount into boxC (full-time months)
+      // because some university PDFs show the dollar column to the right of the month
+      // columns. This hint is intentionally emphatic.
+      return `
+
+T2202 CRITICAL FIELD MAPPING — read before extracting:
+- boxA: DOLLAR AMOUNT — the "Eligible tuition fees" for the tax year. This is a currency amount (e.g. 14625.25). It will be the LARGEST number on the slip.
+- boxB: MONTH COUNT — "Part-time months enrolled". This is a SMALL INTEGER (0–12). It is NOT a dollar amount.
+- boxC: MONTH COUNT — "Full-time months enrolled". This is a SMALL INTEGER (0–12). It is NOT a dollar amount.
+
+VALIDATION RULES:
+- boxB and boxC MUST be 12 or less. If you read a value > 12 for boxB or boxC, you have almost certainly picked up the tuition amount by mistake — put the tuition amount in boxA instead.
+- If boxA appears to be 0 but you can see a large dollar amount elsewhere on the form, that dollar amount belongs in boxA.
+- The form may show multiple sessions (e.g. Fall, Winter). Add all session tuition amounts together for boxA; add all session months for boxB/boxC.`;
+    default:
+      return '';
+  }
+}
+
 function buildExtractionPrompt(slipType: ExtractableSlipType): string {
   const label = SLIP_TYPE_LABELS[slipType];
   return `You are a Canadian tax document data extractor. This document is a ${label}.
@@ -236,7 +264,7 @@ RULES:
 - For metadata.taxYear: the tax year printed on the slip (default 2025 if not visible)
 - If a field is not present on the document, omit it (leave as null/undefined)
 - All monetary values must be positive numbers (not strings). Use 0 for explicitly printed zeros.
-- Do NOT guess amounts that aren't printed — omit the field instead.`;
+- Do NOT guess amounts that aren't printed — omit the field instead.${buildSlipTypeHints(slipType)}`;
 }
 
 async function extractFields(

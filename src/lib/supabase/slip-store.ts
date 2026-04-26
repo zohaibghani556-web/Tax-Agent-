@@ -462,6 +462,26 @@ export async function createSlip(
   client: SupabaseClient,
   input: Omit<UnifiedSlip, 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<UnifiedSlip> {
+  // Defensive: log if T2202 month fields contain suspicious dollar amounts.
+  // boxB (part-time months) and boxC (full-time months) must be ≤ 12.
+  // A value > 12 almost certainly means the OCR put tuition fees in the wrong box.
+  if (input.slipType === 'T2202') {
+    const boxB = input.boxes['boxB'];
+    const boxC = input.boxes['boxC'];
+    if (typeof boxB === 'number' && boxB > 12) {
+      log('warn', 'slip-store.createSlip.t2202_month_anomaly', {
+        field: 'boxB', value: boxB,
+        hint: 'boxB should be part-time months (0–12), not a dollar amount',
+      });
+    }
+    if (typeof boxC === 'number' && boxC > 12) {
+      log('warn', 'slip-store.createSlip.t2202_month_anomaly', {
+        field: 'boxC', value: boxC,
+        hint: 'boxC should be full-time months (0–12), not a dollar amount',
+      });
+    }
+  }
+
   // Dedup check 1: same review session (extraction → unified slip is 1:1)
   if (input.sourceExtractionId) {
     const { data: existing, error: existingErr } = await client
@@ -471,7 +491,12 @@ export async function createSlip(
       .eq('source_extraction_id', input.sourceExtractionId)
       .maybeSingle();
 
-    if (!existingErr && existing) {
+    if (existingErr) {
+      // Log but do not abort — the DB-level unique index is the safety net.
+      log('warn', 'slip-store.createSlip.dedup_extraction_check_error', {
+        reason: existingErr.message,
+      });
+    } else if (existing) {
       log('info', 'slip-store.createSlip.dedup_extraction', {
         sourceExtractionId: input.sourceExtractionId,
       });
@@ -490,7 +515,11 @@ export async function createSlip(
       .eq('file_hash', input.fileHash)
       .maybeSingle();
 
-    if (!existingErr && existing) {
+    if (existingErr) {
+      log('warn', 'slip-store.createSlip.dedup_file_hash_check_error', {
+        reason: existingErr.message,
+      });
+    } else if (existing) {
       log('info', 'slip-store.createSlip.dedup_file_hash', {
         slipType: input.slipType,
         taxYear: input.taxYear,
@@ -507,11 +536,54 @@ export async function createSlip(
     .select('*')
     .single();
 
-  if (error || !data) {
+  if (error) {
+    // Postgres unique constraint violation (error code 23505) means our pre-flight
+    // SELECT missed an existing row — e.g. the dedup column wasn't yet populated on
+    // an older row, or a race condition between two concurrent saves. Recover
+    // gracefully by finding and returning the conflicting row instead of throwing.
+    if (error.code === '23505') {
+      log('warn', 'slip-store.createSlip.constraint_violation_recovery', {
+        slipType: input.slipType,
+        taxYear: input.taxYear,
+      });
+
+      if (input.sourceExtractionId) {
+        const { data: ex } = await client
+          .from('tax_slips')
+          .select('*')
+          .eq('user_id', input.userId)
+          .eq('source_extraction_id', input.sourceExtractionId)
+          .maybeSingle();
+        if (ex) return rowToUnifiedSlip(ex as Record<string, unknown>);
+      }
+
+      if (input.fileHash) {
+        const { data: ex } = await client
+          .from('tax_slips')
+          .select('*')
+          .eq('user_id', input.userId)
+          .eq('tax_year', input.taxYear)
+          .eq('slip_type', input.slipType)
+          .eq('file_hash', input.fileHash)
+          .maybeSingle();
+        if (ex) return rowToUnifiedSlip(ex as Record<string, unknown>);
+      }
+
+      // Could not identify the conflicting row — this is abnormal; throw.
+      log('error', 'slip-store.createSlip.dedup_recovery_failed', {
+        slipType: input.slipType,
+      });
+      throw new Error('createSlip: duplicate row detected but could not be recovered');
+    }
+
     log('error', 'slip-store.createSlip.error', {
-      reason: error?.message ?? 'no data returned',
+      reason: error.message,
     });
-    throw new Error(`createSlip failed: ${error?.message ?? 'no data returned'}`);
+    throw new Error(`createSlip failed: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error('createSlip failed: no data returned');
   }
 
   return rowToUnifiedSlip(data as Record<string, unknown>);

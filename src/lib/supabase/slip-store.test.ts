@@ -13,6 +13,13 @@
  *   7. recordManualOverride records previous and new value + audit log
  *   8. Status transitions: active → amended → cancelled; list filtering
  *   9. All 14 slip types can be stored and toTaxSlip returns non-null for all
+ *  10. T2202 dedup — duplicate file_hash returns existing row (Test A)
+ *  11. T2202 dedup — duplicate source_extraction_id returns existing row (Test B)
+ *  12. T2202 dedup — listSlips shows one slip after duplicate attempt (Test C)
+ *  13. T2202 field mapping — toTaxSlip puts tuition in boxA, months in boxB/boxC (Test D)
+ *  14. T2202 field mapping — toTaxSlip boxC must not equal tuition amount (Test D variant)
+ *  15. T2202 tax engine regression — tuition counted once after duplicate upload (Test E)
+ *  16. createSlip dedup check error is logged and INSERT still attempted
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -36,11 +43,24 @@ import type { UnifiedSlip, TaxSlipType } from './slip-store';
  * Creates a lightweight mock Supabase client backed by an in-memory Map.
  * Supports the fluent query-builder pattern used by slip-store.ts.
  * Only models the tax_slips table operations actually used in this module.
+ *
+ * Pass `injectSelectError` to simulate a SELECT failure on the next query that
+ * uses maybeSingle() — used to test that dedup errors are logged but don't
+ * silently abort the save.
  */
 function createMockSupabaseClient(
   storage: Map<string, Record<string, unknown>>,
+  options: {
+    /** Number of consecutive maybeSingle() calls to return an error for. */
+    injectSelectErrorCount?: number;
+    injectSelectErrorCode?: string;
+    injectSelectErrorMessage?: string;
+  } = {},
 ): SupabaseClient {
   let idSeq = 0;
+  let errorCountdown = options.injectSelectErrorCount ?? 0;
+  const errorCode = options.injectSelectErrorCode ?? 'PGRST204';
+  const errorMessage = options.injectSelectErrorMessage ?? 'column does not exist';
 
   return {
     from(table: string) {
@@ -72,8 +92,14 @@ function createMockSupabaseClient(
 
       async function resolveOne(): Promise<{
         data: Record<string, unknown> | null;
-        error: null;
+        error: { code: string; message: string } | null;
       }> {
+        // Simulate SELECT errors for dedup check testing
+        if (state.op === 'select' && errorCountdown > 0) {
+          errorCountdown--;
+          return { data: null, error: { code: errorCode, message: errorMessage } };
+        }
+
         if (state.op === 'insert' && state.insertPayload) {
           const id = `test-id-${++idSeq}`;
           const now = new Date().toISOString();
@@ -734,5 +760,207 @@ describe('slip-store', () => {
       expect(t4.data.box22).toBe(127.71);
       expect(t4.data.box22).not.toBe(255.42);
     }
+  });
+
+  // ── T2202-specific dedup and field mapping tests ─────────────────────────────
+  // These tests reproduce the smoke-test failure: user uploaded the same T2202
+  // (WLU, $14,625.25) and ended up with 3 duplicate rows.
+
+  /**
+   * Test A (T2202) — duplicate file_hash returns existing row, no insert
+   * Uploading the same T2202 PDF twice must not create a second tax_slips row.
+   */
+  it('T2202 Test A: duplicate file_hash returns existing row, no second insert', async () => {
+    const input = makeBaseSlip({
+      slipType: 'T2202',
+      issuerName: 'Wilfrid Laurier University',
+      boxes: { boxA: 14625.25, boxB: 0, boxC: 4 },
+      fileHash: 'sha256-wlu-t2202-2025',
+    });
+
+    const slip1 = await createSlip(client, input);
+    const slip2 = await createSlip(client, { ...input, issuerName: 'WLU (re-upload)' });
+
+    expect(slip2.id).toBe(slip1.id);
+    expect(storage.size).toBe(1);
+  });
+
+  /**
+   * Test B (T2202) — duplicate source_extraction_id returns existing row
+   * Re-saving the same review session (back-nav, double-click) must not insert twice.
+   */
+  it('T2202 Test B: duplicate source_extraction_id returns existing row', async () => {
+    const input = makeBaseSlip({
+      slipType: 'T2202',
+      issuerName: 'Wilfrid Laurier University',
+      boxes: { boxA: 14625.25, boxB: 0, boxC: 4 },
+      sourceExtractionId: 'extraction-wlu-t2202-uuid',
+    });
+
+    const slip1 = await createSlip(client, input);
+
+    // User navigates back and re-saves the same review page
+    const slip2 = await createSlip(client, { ...input, boxes: { boxA: 0, boxB: 0, boxC: 99999 } });
+
+    expect(slip2.id).toBe(slip1.id);
+    expect(storage.size).toBe(1);
+    // The original boxes are preserved — the re-save payload is discarded
+    const stored = await getSlip(client, slip1.id);
+    expect(stored!.boxes['boxA']).toBe(14625.25);
+  });
+
+  /**
+   * Test C (T2202) — listSlipsByUserAndTaxYear returns one T2202 after duplicate
+   */
+  it('T2202 Test C: listSlips returns one T2202 after duplicate upload attempt', async () => {
+    const input = makeBaseSlip({
+      slipType: 'T2202',
+      issuerName: 'Wilfrid Laurier University',
+      boxes: { boxA: 14625.25, boxB: 0, boxC: 4 },
+      fileHash: 'sha256-wlu-t2202-dedup-test',
+    });
+
+    await createSlip(client, input);
+    await createSlip(client, input);
+
+    const slips = await listSlipsByUserAndTaxYear(client, 'user-abc', 2025, ['active']);
+    const t2202Slips = slips.filter((s) => s.slipType === 'T2202');
+    expect(t2202Slips).toHaveLength(1);
+  });
+
+  /**
+   * Test D (T2202) — field mapping: toTaxSlip routes values to correct engine fields
+   * boxA must be tuition fees, boxB and boxC must be month counts.
+   * boxC must NOT equal the tuition amount.
+   */
+  it('T2202 Test D: toTaxSlip routes tuition to boxA, months to boxB/boxC', async () => {
+    const slip = await createSlip(
+      client,
+      makeBaseSlip({
+        slipType: 'T2202',
+        issuerName: 'Wilfrid Laurier University',
+        boxes: { boxA: 14625.25, boxB: 0, boxC: 4 },
+      }),
+    );
+
+    const taxSlip = toTaxSlip(slip);
+    expect(taxSlip).not.toBeNull();
+    expect(taxSlip!.type).toBe('T2202');
+
+    if (taxSlip!.type === 'T2202') {
+      // Tuition is in boxA
+      expect(taxSlip.data.boxA).toBe(14625.25);
+      // Months are small integers
+      expect(taxSlip.data.boxB).toBe(0);
+      expect(taxSlip.data.boxC).toBe(4);
+      // boxC must not be the tuition amount — this is the smoke-test failure scenario
+      expect(taxSlip.data.boxC).not.toBe(14625.25);
+      expect(taxSlip.data.boxA).not.toBe(0);
+    }
+  });
+
+  it('T2202 Test D (mapping regression): boxC with tuition amount is preserved in store but flaggable', async () => {
+    // Simulate an OCR mis-extraction: tuition landed in boxC, boxA is 0.
+    // The store must persist what was given (no silent coercion), but the
+    // warning flag lets the caller detect the anomaly.
+    const slip = await createSlip(
+      client,
+      makeBaseSlip({
+        slipType: 'T2202',
+        issuerName: 'Wilfrid Laurier University',
+        boxes: { boxA: 0, boxB: 0, boxC: 14625.25 }, // wrong mapping from OCR
+      }),
+    );
+
+    // Store layer preserves the bad values as-is (no silent correction)
+    expect(slip.boxes['boxA']).toBe(0);
+    expect(slip.boxes['boxC']).toBe(14625.25);
+
+    // toTaxSlip still routes them correctly by box key — engine gets wrong data
+    // (this is expected: the fix is in the extraction prompt, not in the store)
+    const taxSlip = toTaxSlip(slip);
+    if (taxSlip!.type === 'T2202') {
+      expect(taxSlip.data.boxC).toBe(14625.25); // wrong but faithfully preserved
+    }
+  });
+
+  /**
+   * Test E (T2202) — tax engine sees tuition once after duplicate upload
+   * The full scenario from the smoke test: T4 + T4A + T2202, with T2202 uploaded twice.
+   * After dedup, only one T2202 row should exist and tuition is counted once.
+   */
+  it('T2202 Test E: duplicate T2202 upload leaves tuition counted once in engine', async () => {
+    const t4Input = makeBaseSlip({
+      slipType: 'T4',
+      issuerName: 'Employer Inc',
+      boxes: { box14: 2320, box22: 127.71 },
+      fileHash: 'sha256-t4-smoke-test',
+    });
+
+    const t4aInput = makeBaseSlip({
+      slipType: 'T4A',
+      issuerName: 'University',
+      boxes: { box105: 2030 }, // exempt scholarship, ITA s.56(3)
+      fileHash: 'sha256-t4a-smoke-test',
+    });
+
+    const t2202Input = makeBaseSlip({
+      slipType: 'T2202',
+      issuerName: 'Wilfrid Laurier University',
+      boxes: { boxA: 14625.25, boxB: 0, boxC: 4 },
+      fileHash: 'sha256-wlu-t2202-e2e',
+    });
+
+    await createSlip(client, t4Input);
+    await createSlip(client, t4aInput);
+    await createSlip(client, t2202Input);
+    await createSlip(client, t2202Input); // duplicate upload — must not insert
+    await createSlip(client, t2202Input); // third upload — must not insert
+
+    const slips = await listSlipsByUserAndTaxYear(client, 'user-abc', 2025, ['active']);
+
+    // Must have exactly 3 slips: T4, T4A, T2202 (not 4 or 5)
+    expect(slips).toHaveLength(3);
+
+    const t2202s = slips.filter((s) => s.slipType === 'T2202');
+    expect(t2202s).toHaveLength(1);
+
+    // Tuition is counted once: $14,625.25, NOT $29,250.50 or $43,875.75
+    const taxSlips = slips.map(toTaxSlip).filter((s) => s !== null);
+    const engineT2202 = taxSlips.find((s) => s!.type === 'T2202');
+    expect(engineT2202).toBeDefined();
+    if (engineT2202 && engineT2202.type === 'T2202') {
+      expect(engineT2202.data.boxA).toBe(14625.25);
+      expect(engineT2202.data.boxA).not.toBe(29250.50);
+      expect(engineT2202.data.boxA).not.toBe(43875.75);
+    }
+  });
+
+  /**
+   * Test 16 — dedup SELECT error is logged but INSERT is still attempted
+   * When the dedup SELECT fails (e.g. column not yet added in local dev), the
+   * code must not silently succeed without inserting — it should proceed to
+   * INSERT (which will succeed or fail with a constraint violation at DB level).
+   */
+  it('dedup SELECT error is logged and INSERT proceeds', async () => {
+    // Inject a SELECT error on the first maybeSingle() call (sourceExtractionId check)
+    const errorClient = createMockSupabaseClient(storage, {
+      injectSelectErrorCount: 1,
+      injectSelectErrorCode: 'PGRST204',
+      injectSelectErrorMessage: 'column source_extraction_id does not exist',
+    });
+
+    const input = makeBaseSlip({
+      slipType: 'T2202',
+      issuerName: 'Test University',
+      boxes: { boxA: 5000, boxB: 0, boxC: 4 },
+      sourceExtractionId: 'extraction-error-test',
+      fileHash: null, // no file hash — only extraction dedup would apply
+    });
+
+    // Even though the dedup SELECT errors, the INSERT must succeed
+    const slip = await createSlip(errorClient, input);
+    expect(slip.id).toBeTruthy();
+    expect(storage.size).toBe(1);
   });
 });
