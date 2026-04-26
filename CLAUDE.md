@@ -50,10 +50,10 @@ Canadians filing their own T1 return (not accountants, not businesses). Ontario 
 - Province: Ontario only
 - Return type: T1 individual only
 - Slip support: T4, T5, T5008, T3, T4A, T2202, T4E, T5007, T4AP, T4AOAS, T4RSP, T4RIF, RRSP-Receipt, T4FHSA (14 types)
-- **DB gap**: only 8 slip types persist to Supabase today (T4, T5, T5008, T3, T4A, T2202, T4E, T5007). T4AP, T4AOAS, T4RSP, T4RIF, RRSP-Receipt, T4FHSA are parsed by OCR and accepted by the engine but silently dropped on save. Fix by updating `SUPPORTED_SLIP_TYPES` in `src/lib/supabase/tax-data.ts` and the DB CHECK constraint.
+- **DB gap (resolved 2026-04-27)**: All 14 slip types now persist. `SUPPORTED_SLIP_TYPES` in `tax-data.ts` and the DB CHECK constraint both accept T4, T5, T5008, T3, T4A, T2202, T4E, T5007, T4AP, T4AOAS, T4RSP, T4RIF, RRSP-Receipt, T4FHSA.
 
 ## Capital Gains — 2025 Reality
-The two-tier capital gains inclusion rate (50% on first $250,000 / 66.67% above) is **already implemented** in `constants.ts` and both engines per Budget 2024. The previous CLAUDE.md annotation "50% flat, two-tier deferred to 2026" was incorrect. Do not revert this.
+The 2025 capital gains inclusion rate is **50% flat** for all gains. The proposed two-tier increase (50% on first $250k / 66.67% above) from Budget 2024 was **deferred to January 1, 2026** by CRA. Both `constants.ts` (inclusionRateLow = 0.50, inclusionRateHigh = 0.50) and both engines implement 50% flat. `constants-integrity.test.ts` asserts this. Do not introduce two-tier logic for the 2025 tax year.
 
 ## Tech Stack
 - Next.js 15 (App Router), TypeScript strict mode (`"strict": true` in tsconfig)
@@ -93,7 +93,7 @@ There are TWO tax engines that must stay in sync:
 - NEVER hardcode a dollar amount, rate, or threshold in business logic. Every tax value belongs in `src/lib/tax-engine/constants.ts` and must be imported.
 - If you see a magic number in engine code (e.g. `2759`, `90997`, `44325`), move it to `constants.ts` immediately.
 - When adding a new tax year constant, cite the CRA source in a comment (e.g. `// CRA T1 2025, Schedule 1`). Never copy-paste a prior-year value without re-verifying it against CRA's current-year publications.
-- Key 2025 values verified in constants.ts: Federal BPA $16,129 | Ontario BPA $12,747 | Medical threshold $2,759 | RRSP max $32,490 | Capital gains: 50% (≤$250k) / 66.67% (>$250k).
+- Key 2025 values verified in constants.ts: Federal BPA $16,129 | Ontario BPA $12,747 | Medical threshold $2,759 | RRSP max $32,490 | Capital gains: 50% flat (two-tier deferred to 2026).
 
 ## CRA Classification — Check Before Coding
 Before implementing any new deduction or credit, answer these two questions:
