@@ -226,8 +226,8 @@ export const T4AOASExtractionSchema = z.object({
  */
 export const T4RSPExtractionSchema = z.object({
   metadata: metadataSchema,
-  box22: numericField(), // Total RRSP income withdrawn
-  box30: numericField(), // Income tax deducted
+  box20: numericField(), // Total RRSP income withdrawn → line 12900
+  box22: numericField(), // Income tax deducted at source
 });
 
 /**

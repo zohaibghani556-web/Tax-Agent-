@@ -78,8 +78,8 @@ export function aggregateTotalIncome(
         interest = roundCRA(interest + slip.data.box13);
         eligibleDividends = roundCRA(eligibleDividends + slip.data.box25);
         nonEligibleDividends = roundCRA(nonEligibleDividends + slip.data.box11);
-        // box14 = other income; box18 = capital gains dividends (Schedule 3 / capital gains stream)
-        otherIncome = roundCRA(otherIncome + slip.data.box14);
+        // box14 = other income; box15 = foreign income (line 12100); box18 = capital gains dividends
+        otherIncome = roundCRA(otherIncome + slip.data.box14 + (slip.data.box15 ?? 0));
         taxableCapGainsDividends = roundCRA(taxableCapGainsDividends + roundCRA(slip.data.box18 * 0.50));
         break;
 
@@ -92,7 +92,8 @@ export function aggregateTotalIncome(
         interest = roundCRA(interest + slip.data.box49);
         eligibleDividends = roundCRA(eligibleDividends + slip.data.box23);
         nonEligibleDividends = roundCRA(nonEligibleDividends + slip.data.box32);
-        otherIncome = roundCRA(otherIncome + slip.data.box26);
+        // box26 = other income; box25 = foreign non-business income (line 12100)
+        otherIncome = roundCRA(otherIncome + slip.data.box26 + (slip.data.box25 ?? 0));
         // T3 box 21 capital gains fed into Schedule 3 via calculateCapitalGains
         t3Slips.push(slip.data);
         break;
@@ -102,7 +103,9 @@ export function aggregateTotalIncome(
         // box018 = lump-sum payments (retiring allowance, death benefits, etc.) → line 13000
         // box024 = annuities → line 11500 (treated as pension-equivalent for credit purposes)
         // box028 = other income → line 13000
-        otherIncome = roundCRA(otherIncome + slip.data.box018 + slip.data.box024 + slip.data.box028);
+        // box048 = fees for services → line 28000 (self-employment income; may trigger CPP self-employment
+        //          obligation under ITA s.12(1)(a) in a future session)
+        otherIncome = roundCRA(otherIncome + slip.data.box018 + slip.data.box024 + slip.data.box028 + (slip.data.box048 ?? 0));
         // Scholarships for full-time students are exempt (ITA s.56(3)).
         // The scholarship exemption is handled here conservatively: full inclusion.
         // The exemption is applied as a deduction when the student status is known.
@@ -137,8 +140,8 @@ export function aggregateTotalIncome(
         break;
 
       case 'T4RSP':
-        // RRSP withdrawal → line 12900 (fully taxable)
-        otherIncome = roundCRA(otherIncome + slip.data.box22);
+        // RRSP withdrawal → line 12900 (fully taxable); box20 = income, box22 = tax deducted
+        otherIncome = roundCRA(otherIncome + slip.data.box20);
         break;
 
       case 'T4RIF':

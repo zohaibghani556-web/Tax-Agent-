@@ -711,13 +711,15 @@ export function calculateTaxReturn(
     t4eSlips.reduce((sum, s) => sum + s.box22, 0) +
     t4apSlips.reduce((sum, s) => sum + s.box22, 0) +
     t4aoasSlips.reduce((sum, s) => sum + s.box22, 0) +
-    t4rspSlips.reduce((sum, s) => sum + s.box30, 0) +
+    t4rspSlips.reduce((sum, s) => sum + s.box22, 0) +
     t4rifSlips.reduce((sum, s) => sum + s.box30, 0) +
-    t4fhsaSlips.reduce((sum, s) => sum + s.box22, 0)
+    t4fhsaSlips.reduce((sum, s) => sum + s.box22, 0) +
+    // T5 box16 = foreign tax paid; credited at line 43100 (foreign tax credit)
+    t5Slips.reduce((sum, s) => sum + (s.box16 ?? 0), 0)
   );
 
   prov.record('total_tax_deducted', totalTaxDeducted)
-    .source({ type: 'computed', inputs: ['t4_box22', 't4a_box022', 't4e_box22', 't4ap_box22', 't4aoas_box22', 't4rsp_box30', 't4rif_box30', 't4fhsa_box22'] })
+    .source({ type: 'computed', inputs: ['t4_box22', 't4a_box022', 't4e_box22', 't4ap_box22', 't4aoas_box22', 't4rsp_box22', 't4rif_box30', 't4fhsa_box22', 't5_box16'] })
     .rule('Income tax deducted at source from all slips', 'ITA s.153', 'T1 line 43700')
     .computation(`sum of all slip box 22/30 withholdings = ${totalTaxDeducted}`)
     .emit();

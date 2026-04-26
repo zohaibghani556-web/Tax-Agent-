@@ -83,6 +83,8 @@ export interface T5Slip {
   box12: number;   // Actual dividends (non-eligible)
   box13: number;   // Interest from Canadian sources
   box14: number;   // Other income
+  box15?: number;  // Foreign income → line 12100 (optional — not on all T5s)
+  box16?: number;  // Foreign tax paid → line 43100 (foreign tax credit, optional)
   box18: number;   // Capital gains dividends
   box24: number;   // Actual eligible dividends
   box25: number;   // Taxable eligible dividends
@@ -103,8 +105,10 @@ export interface T3Slip {
   box21: number;   // Capital gains
   box22: number;   // Actual eligible dividends
   box23: number;   // Taxable eligible dividends
+  box25?: number;  // Foreign non-business income → line 12100 (optional)
   box26: number;   // Other income
   box32: number;   // Taxable other dividends
+  box37?: number;  // Foreign non-business tax paid → line 43100 (foreign tax credit, optional)
   box49: number;   // Interest
   box50: number;   // Other investment income
 }
@@ -117,6 +121,7 @@ export interface T4ASlip {
   box022: number;  // Income tax deducted
   box024: number;  // Annuities
   box028: number;  // Other income
+  box048?: number; // Fees for services → line 28000 (self-employment/other income, optional)
   box105: number;  // Scholarships/bursaries/fellowships
   box135: number;  // RESP accumulated income
 }
@@ -156,8 +161,8 @@ export interface T4AOASSlip {
 // T4RSP — Statement of RRSP Income (withdrawal from RRSP, ITA s.146(8))
 export interface T4RSPSlip {
   issuerName: string;
-  box22: number;   // Total RRSP income withdrawn → line 12900
-  box30: number;   // Income tax deducted at source
+  box20: number;   // Total RRSP income withdrawn → line 12900
+  box22: number;   // Income tax deducted at source
 }
 
 // T4RIF — Statement of Income from a Registered Retirement Income Fund
