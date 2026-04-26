@@ -9,6 +9,7 @@
 
 import { createClient } from '@/lib/supabase/client';
 import type { TaxProfile, TaxCalculationResult, FilingGuide } from '@/lib/tax-engine/types';
+import { dedupeSlipList } from '@/lib/slips/slip-dedup';
 
 // ─── Exported types ──────────────────────────────────────────────────────────
 
@@ -18,6 +19,21 @@ export interface SavedSlip {
   issuerName: string;
   data: Record<string, number | string>;
   enteredAt: string;
+  /**
+   * Ingestion method. 'ocr' for uploaded images/PDFs reviewed by the user;
+   * 'manual' for keyboard entry. Absent on rows that pre-date this field.
+   */
+  source?: string;
+  /**
+   * SHA-256 hex digest of the original uploaded file.
+   * Null/absent for manually-entered slips; used by the DB-level file-hash dedup index.
+   */
+  fileHash?: string | null;
+  /**
+   * FK to slip_extractions.id. Set when the slip was saved via the OCR review page.
+   * Null/absent for manually-entered slips and pre-unified-store rows.
+   */
+  sourceExtractionId?: string | null;
 }
 
 /**
@@ -174,6 +190,11 @@ export async function getTaxProfile(userId: string): Promise<TaxProfile | null> 
  * Replaces all slips for this profile in Supabase.
  * Slip types not in the DB CHECK constraint are silently skipped —
  * they remain in localStorage as the primary store.
+ *
+ * App-layer dedup (dedupeSlipList) runs before every write so that no two
+ * logically-identical T2202 slips can reach the database, regardless of which
+ * code path called upsertSlips(). This guards against stale state, page
+ * navigation, localStorage merge, and any future ingestion paths.
  */
 export async function upsertSlips(
   userId: string,
@@ -184,10 +205,13 @@ export async function upsertSlips(
   const profileId = await getOrCreateProfileId(userId, taxYear);
   if (!profileId) return;
 
+  // Safety-net dedup: collapse any logical T2202 duplicates before touching the DB.
+  const deduped = dedupeSlipList(slips);
+
   // Delete old rows then bulk-insert fresh
   await supabase.from('tax_slips').delete().eq('profile_id', profileId);
 
-  const supported = slips.filter((s) => SUPPORTED_SLIP_TYPES.has(s.type));
+  const supported = deduped.filter((s) => SUPPORTED_SLIP_TYPES.has(s.type));
   if (supported.length === 0) return;
 
   const rows = supported.map((s) => ({
@@ -195,9 +219,15 @@ export async function upsertSlips(
     slip_type: s.type,
     issuer_name: s.issuerName,
     boxes: s.data,
-    source: 'manual',
+    // Preserve the actual ingestion source ('ocr' for uploads, 'manual' for
+    // keyboard entry). The DB CHECK allows: manual | ocr | xml | pdf-text | imported.
+    source: s.source ?? 'manual',
     verified: true,
     created_at: s.enteredAt,
+    // Columns added in 20260427000001_align_tax_slips_to_live.sql:
+    tax_year: taxYear,
+    file_hash: s.fileHash ?? null,
+    source_extraction_id: s.sourceExtractionId ?? null,
   }));
 
   const { error } = await supabase.from('tax_slips').insert(rows);
@@ -214,25 +244,34 @@ export async function getSlips(
 
   const { data, error } = await supabase
     .from('tax_slips')
-    .select('id, slip_type, issuer_name, boxes, created_at')
+    .select('id, slip_type, issuer_name, boxes, created_at, source, file_hash, source_extraction_id')
     .eq('profile_id', profileId)
     .order('created_at', { ascending: true });
 
   if (error || !data) return [];
 
-  return (data as Array<{
+  const slips = (data as Array<{
     id: string;
     slip_type: string;
     issuer_name: string | null;
     boxes: Record<string, number | string>;
     created_at: string | null;
+    source: string | null;
+    file_hash: string | null;
+    source_extraction_id: string | null;
   }>).map((row) => ({
     id: row.id,
     type: row.slip_type,
     issuerName: row.issuer_name ?? '',
     data: row.boxes ?? {},
     enteredAt: row.created_at ?? new Date().toISOString(),
+    source: row.source ?? undefined,
+    fileHash: row.file_hash ?? null,
+    sourceExtractionId: row.source_extraction_id ?? null,
   }));
+
+  // Sanitize any legacy duplicate rows before the caller touches them.
+  return dedupeSlipList(slips);
 }
 
 // ─── Deductions ──────────────────────────────────────────────────────────────

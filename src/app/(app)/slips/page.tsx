@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { getSlips, upsertSlips } from '@/lib/supabase/tax-data';
 import type { SavedSlip } from '@/lib/supabase/tax-data';
-import { upsertSlipInList } from '@/lib/slips/slip-dedup';
+import { upsertSlipInList, dedupeSlipList } from '@/lib/slips/slip-dedup';
 // TODO: re-enable slip-store.ts (listSlipsByUserAndTaxYear) as the primary
 // read path only after the unified migration is applied to the live database.
 // Until then, getSlips() (profile_id-based) is the sole authoritative path.
@@ -310,12 +310,18 @@ export default function SlipsPage() {
       }
 
       if (loaded.length > 0) {
-        setSlips(loaded);
-        localStorage.setItem('taxagent_slips', JSON.stringify(loaded));
+        // Dedupe any legacy duplicate rows from the DB before setting state.
+        const deduped = dedupeSlipList(loaded);
+        setSlips(deduped);
+        localStorage.setItem('taxagent_slips', JSON.stringify(deduped));
       } else {
         const saved = localStorage.getItem('taxagent_slips');
         if (saved) {
-          try { setSlips(JSON.parse(saved) as SavedSlip[]); } catch { /* ignore */ }
+          try {
+            // Dedupe localStorage slips in case stale duplicates were written there.
+            const parsed = dedupeSlipList(JSON.parse(saved) as SavedSlip[]);
+            setSlips(parsed);
+          } catch { /* ignore */ }
         }
       }
     }
@@ -334,11 +340,11 @@ export default function SlipsPage() {
     }, 800);
   }, []);
 
-  function addSlip(type: string, issuerName: string, data: Record<string, number | string>) {
+  function addSlip(type: string, issuerName: string, data: Record<string, number | string>, source?: string) {
     // upsertSlipInList replaces a logical duplicate (e.g. same T2202 from the
     // same institution) rather than appending a second row. For all other slip
     // types it behaves like a plain append.
-    const updated = upsertSlipInList(slips, type, issuerName, data);
+    const updated = upsertSlipInList(slips, type, issuerName, data, source);
     setSlips(updated);
     setActiveInputTab('upload');
     syncSlips(updated, userId);

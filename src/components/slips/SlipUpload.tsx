@@ -16,7 +16,8 @@ import { addCsrfHeader } from '@/lib/csrf-client';
 import type { OcrResult } from '@/app/api/ocr/route';
 
 interface SlipUploadProps {
-  onAdd: (type: string, issuerName: string, data: Record<string, number | string>) => void;
+  /** source is always 'ocr' for this component — passed through to the caller. */
+  onAdd: (type: string, issuerName: string, data: Record<string, number | string>, source?: string) => void;
 }
 
 type UploadState =
@@ -132,7 +133,8 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
 
   const handleSave = () => {
     const issuerKey = selectedType === 'T2202' ? 'institutionName' : 'issuerName';
-    onAdd(selectedType, String(formValues[issuerKey] ?? ''), formValues);
+    // Mark as 'ocr': the user confirmed AI-extracted values, not typed them manually.
+    onAdd(selectedType, String(formValues[issuerKey] ?? ''), formValues, 'ocr');
     reset();
   };
 

@@ -10,7 +10,7 @@ import type { SlipFieldDef } from '@/lib/slips/slip-fields';
 import { validateT2202Boxes } from '@/lib/slips/t2202-validation';
 
 interface ManualEntryFormProps {
-  onAdd: (type: string, issuerName: string, data: Record<string, number | string>) => void;
+  onAdd: (type: string, issuerName: string, data: Record<string, number | string>, source?: string) => void;
   defaultType?: string;
   /**
    * Pre-populate the form with an existing slip's data (edit mode).
