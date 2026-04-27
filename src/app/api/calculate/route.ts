@@ -91,13 +91,21 @@ export async function POST(req: NextRequest) {
       }
       const result = calculateTaxes(body.input);
 
-      // Fire-and-forget provenance persistence — don't block the response
-      saveTaxReturn(
-        user.id, 2025, 'flat',
-        result as unknown as Record<string, unknown>,
-        result.provenance,
-        body.input as unknown as Record<string, unknown>,
-      ).catch((err) => log('error', 'calculate.persist_error', { message: (err as Error).message }));
+      // Persist tax return — awaited so Vercel doesn't kill the function early
+      try {
+        const persistResult = await saveTaxReturn(
+          user.id, 2025, 'flat',
+          result as unknown as Record<string, unknown>,
+          result.provenance,
+          body.input as unknown as Record<string, unknown>,
+          { supabaseClient: supabase },
+        );
+        if (!persistResult.success) {
+          log('error', 'calculate.persist_error', { mode: 'flat', error: persistResult.error });
+        }
+      } catch (err) {
+        log('error', 'calculate.persist_error', { mode: 'flat', message: (err as Error).message });
+      }
 
       return NextResponse.json(result);
     }
@@ -124,13 +132,21 @@ export async function POST(req: NextRequest) {
       slipBody.deductions,
     );
 
-    // Fire-and-forget provenance persistence — don't block the response
-    saveTaxReturn(
-      user.id, 2025, 'slips',
-      result as unknown as Record<string, unknown>,
-      result.provenance,
-      { profile: slipBody.profile, slips: slipBody.slips, deductions: slipBody.deductions } as unknown as Record<string, unknown>,
-    ).catch((err) => log('error', 'calculate.persist_error', { message: (err as Error).message }));
+    // Persist tax return — awaited so Vercel doesn't kill the function early
+    try {
+      const persistResult = await saveTaxReturn(
+        user.id, 2025, 'slips',
+        result as unknown as Record<string, unknown>,
+        result.provenance,
+        { profile: slipBody.profile, slips: slipBody.slips, deductions: slipBody.deductions } as unknown as Record<string, unknown>,
+        { supabaseClient: supabase },
+      );
+      if (!persistResult.success) {
+        log('error', 'calculate.persist_error', { mode: 'slips', error: persistResult.error });
+      }
+    } catch (err) {
+      log('error', 'calculate.persist_error', { mode: 'slips', message: (err as Error).message });
+    }
 
     return NextResponse.json(result);
   } catch (err) {

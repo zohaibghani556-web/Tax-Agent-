@@ -99,8 +99,9 @@ export const SUPPORTED_SLIP_TYPES = new Set([
 async function getOrCreateProfileId(
   userId: string,
   taxYear: number,
+  supabaseOverride?: ReturnType<typeof createClient>,
 ): Promise<string | null> {
-  const supabase = createClient();
+  const supabase = supabaseOverride ?? createClient();
 
   const { data: existing, error: fetchErr } = await supabase
     .from('tax_profiles')
@@ -487,13 +488,17 @@ export async function saveTaxReturn(
   result: Record<string, unknown>,
   provenanceRecords: ProvenanceRecord[],
   inputSnapshot: Record<string, unknown>,
-  profileId?: string,
-): Promise<void> {
-  const supabase = createClient();
-  const pid = profileId ?? await getOrCreateProfileId(userId, taxYear);
+  options?: {
+    profileId?: string;
+    supabaseClient?: ReturnType<typeof createClient>;
+  },
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = options?.supabaseClient ?? createClient();
+  const pid = options?.profileId ?? await getOrCreateProfileId(userId, taxYear, supabase);
   if (!pid) {
-    console.error('[tax-data] saveTaxReturn: could not resolve profile_id');
-    return;
+    const msg = 'could not resolve profile_id';
+    console.error('[tax-data] saveTaxReturn:', msg);
+    return { success: false, error: msg };
   }
 
   if (!provenanceRecords || provenanceRecords.length === 0) {
@@ -516,7 +521,12 @@ export async function saveTaxReturn(
       { onConflict: 'profile_id,tax_year,engine_mode' },
     );
 
-  if (error) console.error('[tax-data] saveTaxReturn error:', error.message);
+  if (error) {
+    console.error('[tax-data] saveTaxReturn error:', error.message);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
 }
 
 /**
