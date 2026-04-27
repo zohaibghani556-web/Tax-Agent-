@@ -342,15 +342,6 @@ export default function SlipsPage() {
   }, []);
 
   function addSlip(type: string, issuerName: string, data: Record<string, number | string>, source?: string, meta?: OcrSlipMeta) {
-    // [OCR_LINEAGE] Trace metadata entering addSlip
-    if (source === 'ocr') {
-      console.info('[OCR_LINEAGE] slips/page addSlip:', {
-        type,
-        source,
-        fileHash: meta?.fileHash,
-        sourceExtractionId: meta?.sourceExtractionId,
-      });
-    }
     // upsertSlipInList replaces a logical duplicate (e.g. same T2202 from the
     // same institution) rather than appending a second row. For all other slip
     // types it behaves like a plain append.

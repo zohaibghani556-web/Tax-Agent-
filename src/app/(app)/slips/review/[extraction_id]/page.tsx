@@ -325,13 +325,6 @@ export default function SlipReviewPage() {
               fileHash: extraction.fileHash ?? null,
               sourceExtractionId: extraction.id,
             };
-            // [OCR_LINEAGE] Review page: trace metadata before persistence
-            console.info('[OCR_LINEAGE] review/save meta:', {
-              fileHash: meta.fileHash,
-              sourceExtractionId: meta.sourceExtractionId,
-              slipType: extraction.slipType,
-              existingSlipCount: existing.length,
-            });
             const updated = upsertSlipInList(
               existing,
               extraction.slipType,
@@ -340,12 +333,6 @@ export default function SlipReviewPage() {
               'ocr',
               meta,
             );
-            const target = updated.find((s) => s.type === extraction.slipType);
-            console.info('[OCR_LINEAGE] review/save after upsertSlipInList:', {
-              fileHash: target?.fileHash,
-              sourceExtractionId: target?.sourceExtractionId,
-              source: target?.source,
-            });
             await upsertSlips(user.id, 2025, updated);
             // Also write to localStorage so the /slips page picks it up instantly.
             localStorage.setItem('taxagent_slips', JSON.stringify(updated));
