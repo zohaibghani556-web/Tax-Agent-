@@ -4,21 +4,26 @@
 -- Stores computed tax return results alongside provenance records
 -- so every field on a return is traceable to its source without
 -- recomputation. Provenance is TaxAgent's core differentiator.
+--
+-- Follows the profile_id-based canonical path used by tax_slips,
+-- deductions_credits, and tax_calculations.
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS public.tax_returns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  profile_id UUID NOT NULL REFERENCES public.tax_profiles(id) ON DELETE CASCADE,
   tax_year INT NOT NULL DEFAULT 2025,
 
   -- Engine inputs (stored for reproducibility)
   engine_mode TEXT NOT NULL CHECK (engine_mode IN ('slips', 'flat')),
+  input_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
 
   -- Computed results (JSON — full TaxCalculationResult or TaxBreakdown)
   result JSONB NOT NULL DEFAULT '{}'::jsonb,
 
   -- Provenance: every computed field traced to its source
-  -- Array of ProvenanceRecord objects (see docs/architecture/provenance.md)
+  -- Array of ProvenanceRecord objects (see src/lib/tax-engine/types/provenance.ts)
   provenance_records JSONB NOT NULL DEFAULT '[]'::jsonb,
 
   -- Metadata
@@ -26,8 +31,8 @@ CREATE TABLE IF NOT EXISTS public.tax_returns (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-  -- One return per user per tax year per mode
-  UNIQUE (user_id, tax_year, engine_mode)
+  -- One active return per profile per tax year per mode
+  UNIQUE (profile_id, tax_year, engine_mode)
 );
 
 -- GIN index on provenance_records for querying specific field_ids
@@ -35,9 +40,12 @@ CREATE TABLE IF NOT EXISTS public.tax_returns (
 CREATE INDEX IF NOT EXISTS idx_tax_returns_provenance
   ON public.tax_returns USING GIN (provenance_records);
 
--- Standard index for user lookups
+-- Standard indexes for user/profile lookups
 CREATE INDEX IF NOT EXISTS idx_tax_returns_user_year
   ON public.tax_returns (user_id, tax_year);
+
+CREATE INDEX IF NOT EXISTS idx_tax_returns_profile
+  ON public.tax_returns (profile_id);
 
 -- RLS: users can only access their own returns
 ALTER TABLE public.tax_returns ENABLE ROW LEVEL SECURITY;

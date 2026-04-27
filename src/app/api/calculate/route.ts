@@ -21,6 +21,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { validateCsrfToken } from '@/lib/csrf';
 import { log } from '@/lib/logger';
+import { saveTaxReturn } from '@/lib/supabase/tax-data';
 import type {
   TaxProfile,
   TaxSlip,
@@ -89,6 +90,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'input is required for flat mode' }, { status: 400 });
       }
       const result = calculateTaxes(body.input);
+
+      // Fire-and-forget provenance persistence — don't block the response
+      saveTaxReturn(
+        user.id, 2025, 'flat',
+        result as unknown as Record<string, unknown>,
+        result.provenance,
+        body.input as unknown as Record<string, unknown>,
+      ).catch((err) => log('error', 'calculate.persist_error', { message: (err as Error).message }));
+
       return NextResponse.json(result);
     }
 
@@ -113,6 +123,15 @@ export async function POST(req: NextRequest) {
       slipBody.rental ?? [],
       slipBody.deductions,
     );
+
+    // Fire-and-forget provenance persistence — don't block the response
+    saveTaxReturn(
+      user.id, 2025, 'slips',
+      result as unknown as Record<string, unknown>,
+      result.provenance,
+      { profile: slipBody.profile, slips: slipBody.slips, deductions: slipBody.deductions } as unknown as Record<string, unknown>,
+    ).catch((err) => log('error', 'calculate.persist_error', { message: (err as Error).message }));
+
     return NextResponse.json(result);
   } catch (err) {
     // Log error without PII — err.message is from our own engine

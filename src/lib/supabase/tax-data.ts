@@ -9,6 +9,8 @@
 
 import { createClient } from '@/lib/supabase/client';
 import type { TaxProfile, TaxCalculationResult, FilingGuide } from '@/lib/tax-engine/types';
+import type { ProvenanceRecord } from '@/lib/tax-engine/types/provenance';
+import { ENGINE_VERSION } from '@/lib/tax-engine/types/provenance';
 import { dedupeSlipList } from '@/lib/slips/slip-dedup';
 
 // ─── Exported types ──────────────────────────────────────────────────────────
@@ -465,6 +467,93 @@ export async function getCalculationHistory(
       createdAt: row.calculated_at ?? new Date().toISOString(),
       result: row.detailed_breakdown as TaxCalculationResult,
     }));
+}
+
+// ─── Tax Returns (with provenance) ───────────────────────────────────────────
+
+/**
+ * Persists a tax return result with provenance records to the tax_returns table.
+ * Uses upsert on (profile_id, tax_year, engine_mode) so re-calculations
+ * overwrite the previous return for that profile+year+mode combination.
+ *
+ * Does NOT replace tax_calculations — both tables coexist.
+ * tax_calculations is the append-only history; tax_returns is the latest
+ * provenance-rich result per profile+year+mode.
+ */
+export async function saveTaxReturn(
+  userId: string,
+  taxYear: number,
+  engineMode: 'slips' | 'flat',
+  result: Record<string, unknown>,
+  provenanceRecords: ProvenanceRecord[],
+  inputSnapshot: Record<string, unknown>,
+  profileId?: string,
+): Promise<void> {
+  const supabase = createClient();
+  const pid = profileId ?? await getOrCreateProfileId(userId, taxYear);
+  if (!pid) {
+    console.error('[tax-data] saveTaxReturn: could not resolve profile_id');
+    return;
+  }
+
+  if (!provenanceRecords || provenanceRecords.length === 0) {
+    console.warn('[tax-data] saveTaxReturn: provenance_records is empty — persisting anyway');
+  }
+
+  const { error } = await supabase
+    .from('tax_returns')
+    .upsert(
+      {
+        user_id: userId,
+        profile_id: pid,
+        tax_year: taxYear,
+        engine_mode: engineMode,
+        input_snapshot: inputSnapshot,
+        result,
+        provenance_records: provenanceRecords,
+        engine_version: ENGINE_VERSION,
+      },
+      { onConflict: 'profile_id,tax_year,engine_mode' },
+    );
+
+  if (error) console.error('[tax-data] saveTaxReturn error:', error.message);
+}
+
+/**
+ * Retrieves the latest tax return (with provenance) for a user+year+mode.
+ */
+export async function getTaxReturn(
+  userId: string,
+  taxYear: number,
+  engineMode: 'slips' | 'flat',
+): Promise<{
+  result: Record<string, unknown>;
+  provenanceRecords: ProvenanceRecord[];
+  engineVersion: string;
+  inputSnapshot: Record<string, unknown>;
+  updatedAt: string;
+} | null> {
+  const supabase = createClient();
+  const profileId = await getOrCreateProfileId(userId, taxYear);
+  if (!profileId) return null;
+
+  const { data, error } = await supabase
+    .from('tax_returns')
+    .select('result, provenance_records, engine_version, input_snapshot, updated_at')
+    .eq('profile_id', profileId)
+    .eq('tax_year', taxYear)
+    .eq('engine_mode', engineMode)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return {
+    result: (data.result as Record<string, unknown>) ?? {},
+    provenanceRecords: (data.provenance_records as ProvenanceRecord[]) ?? [],
+    engineVersion: (data.engine_version as string) ?? '0.0.0',
+    inputSnapshot: (data.input_snapshot as Record<string, unknown>) ?? {},
+    updatedAt: (data.updated_at as string) ?? new Date().toISOString(),
+  };
 }
 
 // ─── Chat Messages ────────────────────────────────────────────────────────────
