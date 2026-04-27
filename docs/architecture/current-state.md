@@ -16,6 +16,7 @@ This document records the verified production state for TaxAgent.ai as of Stage 
 - The T2202 duplicate issue is fixed and smoke-tested.
 - T2202 Box A, Box B, and Box C mapping is fixed.
 - `tax-data.ts` with the `profile_id` path is the production canonical persistence path.
+- Stage 6C is complete: `tax_calculations`, `deductions_credits`, `chat_messages`, `business_income`, and `rental_income` now have nullable `user_id` and `tax_year`, backfilled from `tax_profiles`, with validated `user_id` foreign keys.
 
 ## Stable
 
@@ -27,14 +28,14 @@ This document records the verified production state for TaxAgent.ai as of Stage 
 - `tax_returns` and `tax_slips` are current reference models for profile-owned tables with denormalized `user_id`.
 - `profile_id` is canonical for tax-year filing data.
 - `user_id` remains useful and expected on key tables for RLS/query convenience.
+- Stage 6F aligns future writes to populate denormalized `user_id` and `tax_year` where the schema supports them; `profile_id` remains canonical.
 
 ## Pre-Production Or Not Production-Safe
 
 - `slip-store.ts` is not production-safe yet.
 - CRA XSD schemas exist, but they are not wired into active extraction or validation.
 - More ownership alignment is still needed for some profile-owned tables before hard constraints are added.
-- Stage 6C live preflight passed for `tax_calculations`, `deductions_credits`, `chat_messages`, `business_income`, and `rental_income`; a draft additive migration exists locally but must be human-reviewed before application.
-- `tax_slips.user_id` still needs a separate backfill/code fix before any `NOT NULL` constraint or user_id-only RLS consolidation.
+- `tax_slips.user_id` still needs a separate backfill before any `NOT NULL` constraint or user_id-only RLS consolidation.
 
 ## Intentionally Postponed
 
@@ -46,7 +47,7 @@ This document records the verified production state for TaxAgent.ai as of Stage 
 - Do not replace `tax_calculations` with `tax_returns`.
 - Do not run production SQL automatically.
 - Do not add Stage 6D `NOT NULL` constraints until backups and prechecks pass.
-- Do not change `tax_slips` RLS or add `tax_slips.user_id` `NOT NULL` until the separate `tax_slips` backfill/code gap is closed.
+- Do not change `tax_slips` RLS or add `tax_slips.user_id` `NOT NULL` until the separate `tax_slips` backfill is applied and future writes are verified.
 
 ## Tax Truth Boundaries
 

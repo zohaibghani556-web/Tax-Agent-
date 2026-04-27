@@ -91,21 +91,26 @@ export const SUPPORTED_SLIP_TYPES = new Set([
 
 // ─── Internal helper: get or create the tax_profiles row ────────────────────
 
+interface ProfileContext {
+  id: string;
+  taxYear: number;
+}
+
 /**
  * All related tables (slips, deductions, calculations, chat) use profile_id
  * as their FK — not user_id directly. This helper lazily creates the profile
  * if it doesn't exist yet.
  */
-async function getOrCreateProfileId(
+async function getOrCreateProfileContext(
   userId: string,
   taxYear: number,
   supabaseOverride?: ReturnType<typeof createClient>,
-): Promise<string | null> {
+): Promise<ProfileContext | null> {
   const supabase = supabaseOverride ?? createClient();
 
   const { data: existing, error: fetchErr } = await supabase
     .from('tax_profiles')
-    .select('id')
+    .select('id, tax_year')
     .eq('user_id', userId)
     .eq('tax_year', taxYear)
     .maybeSingle();
@@ -114,13 +119,18 @@ async function getOrCreateProfileId(
     console.error('[tax-data] profile fetch error:', fetchErr.message);
     return null;
   }
-  if (existing) return existing.id as string;
+  if (existing) {
+    return {
+      id: existing.id as string,
+      taxYear: (existing.tax_year as number | null) ?? taxYear,
+    };
+  }
 
   // No profile yet — create one
   const { data: created, error: createErr } = await supabase
     .from('tax_profiles')
     .insert({ user_id: userId, tax_year: taxYear })
-    .select('id')
+    .select('id, tax_year')
     .single();
 
   if (createErr) {
@@ -128,7 +138,19 @@ async function getOrCreateProfileId(
     return null;
   }
 
-  return created.id as string;
+  return {
+    id: created.id as string,
+    taxYear: (created.tax_year as number | null) ?? taxYear,
+  };
+}
+
+async function getOrCreateProfileId(
+  userId: string,
+  taxYear: number,
+  supabaseOverride?: ReturnType<typeof createClient>,
+): Promise<string | null> {
+  const profile = await getOrCreateProfileContext(userId, taxYear, supabaseOverride);
+  return profile?.id ?? null;
 }
 
 // ─── Tax Profile ─────────────────────────────────────────────────────────────
@@ -218,6 +240,7 @@ export async function upsertSlips(
   if (supported.length === 0) return;
 
   const rows = supported.map((s) => ({
+    user_id: userId,
     profile_id: profileId,
     slip_type: s.type,
     issuer_name: s.issuerName,
@@ -305,7 +328,9 @@ export async function upsertDeductions(
     .from('deductions_credits')
     .upsert(
       {
+        user_id: userId,
         profile_id: profileId,
+        tax_year: taxYear,
         rrsp_contributions: deductions.rrspContributions,
         rrsp_room: deductions.rrspContributionRoom,
         union_dues: deductions.unionDues,
@@ -399,7 +424,9 @@ export async function saveCalculationResult(
   if (!profileId) return;
 
   const { error } = await supabase.from('tax_calculations').insert({
+    user_id: userId,
     profile_id: profileId,
+    tax_year: taxYear,
     total_income: result.totalIncome,
     net_income: result.netIncome,
     taxable_income: result.taxableIncome,
@@ -572,14 +599,15 @@ export async function saveMessage(
   userId: string,
   role: 'user' | 'assistant',
   content: string,
+  taxYear = 2025,
 ): Promise<void> {
   const supabase = createClient();
-  const profileId = await getOrCreateProfileId(userId, 2025);
-  if (!profileId) return;
+  const profile = await getOrCreateProfileContext(userId, taxYear, supabase);
+  if (!profile) return;
 
   const { error } = await supabase
     .from('chat_messages')
-    .insert({ profile_id: profileId, role, content });
+    .insert({ user_id: userId, profile_id: profile.id, tax_year: profile.taxYear, role, content });
 
   if (error) console.error('[tax-data] saveMessage error:', error.message);
 }

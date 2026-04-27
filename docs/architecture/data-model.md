@@ -40,9 +40,9 @@ This document codifies TaxAgent.ai's canonical ownership model and the current/t
 - `tax_calculations` and `tax_returns` both remain active:
   - `tax_calculations` is append-only calculation history.
   - `tax_returns` is the latest provenance-rich return per profile/year/mode.
-- Stage 6C live preflight confirmed the target profile-owned tables have no orphaned or null `profile_id` rows and can be safely backfilled from `tax_profiles`.
-- Stage 6C draft migration adds nullable `user_id` and `tax_year` to `tax_calculations`, `deductions_credits`, `chat_messages`, `business_income`, and `rental_income`; it does not add `NOT NULL` constraints or change RLS.
-- `tax_slips.user_id` remains a separate gap: live rows have `profile_id` and `tax_year`, but existing rows still need `user_id` backfill/code alignment before any `tax_slips.user_id` `NOT NULL` or user_id-only RLS consolidation.
+- Stage 6C is complete: `tax_calculations`, `deductions_credits`, `chat_messages`, `business_income`, and `rental_income` have nullable `user_id` and `tax_year`, backfilled from `tax_profiles`, with validated `user_id` foreign keys.
+- Stage 6F aligns future write paths so new rows populate denormalized `user_id` and `tax_year` where the schema supports them.
+- `tax_slips.user_id` remains a separate backfill gap: live rows have `profile_id` and `tax_year`, but existing rows still need `user_id` backfill before any `tax_slips.user_id` `NOT NULL` or user_id-only RLS consolidation.
 
 ## Target State
 
@@ -52,7 +52,7 @@ This document codifies TaxAgent.ai's canonical ownership model and the current/t
 - Extraction remains separate:
   - `slip_extractions` stays `user_id`-owned.
   - `slip_corrections` stays `user_id` plus `extraction_id` owned.
-- Stage 6C should plan preflight/backfill work for `user_id` on profile-owned tables.
+- Stage 6C completed additive alignment for profile-owned tables.
 - Stage 6D `NOT NULL` constraints should wait until backups and prechecks pass.
 - RLS consolidation, if any, should happen after additive backfills, app write-path updates, and verification that no new null `user_id`/`tax_year` rows are being created.
 
