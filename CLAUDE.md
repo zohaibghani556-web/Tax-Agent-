@@ -138,9 +138,10 @@ Generated from CRA v1.26.3 XML schemas. **Never hand-edit** anything under `src/
 - **Regenerate**: `npm run gen:slip-types` (runs `scripts/generate-slip-types.ts`)
 - **Annual update**: drop new CRA XSDs in `scripts/cra-xsds/`, re-run the script
 - **Two-layer architecture**:
-  - `src/types/slips/cra/` — XSD-faithful `CraXsd_*` interfaces + Zod schemas (generated)
+  - `src/types/slips/cra/` — XSD-faithful `CraXsd_*` interfaces + Zod schemas (generated, not wired into active extraction/validation yet)
   - `src/lib/tax-engine/types.ts` — app-layer types with box numbers (`box14`, `box16`, etc.) — drives the engine, **do not auto-generate**
-  - `src/types/slips/cra/box-mappings.ts` — `XSD_BOX_MAP[slipType][xsdField]` → app box key (used by OCR route to translate CRA XML → app types)
+  - `src/types/slips/cra/box-mappings.ts` — `XSD_BOX_MAP[slipType][xsdField]` → app box key for future CRA XML import paths
+- **Current status**: CRA XSD schemas exist but are intentionally not wired into active OCR extraction or validation.
 - **Supported v1 slip types** (T4, T4A, T5, T5008, T3, T2202)
 - **Critical**: `brsy_amt → box105` in `XSD_BOX_MAP_T4A` — used by Session 12 for ITA s.56(3) scholarship exemption
 - **Sanity-check tests**: `scripts/generate-slip-types.test.ts` (44 tests) — run after any regeneration
