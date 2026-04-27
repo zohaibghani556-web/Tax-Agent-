@@ -33,7 +33,8 @@ This document records the verified production state for TaxAgent.ai as of Stage 
 - `slip-store.ts` is not production-safe yet.
 - CRA XSD schemas exist, but they are not wired into active extraction or validation.
 - More ownership alignment is still needed for some profile-owned tables before hard constraints are added.
-- Stage 6C still needs preflight/backfill planning for `user_id` on profile-owned tables.
+- Stage 6C live preflight passed for `tax_calculations`, `deductions_credits`, `chat_messages`, `business_income`, and `rental_income`; a draft additive migration exists locally but must be human-reviewed before application.
+- `tax_slips.user_id` still needs a separate backfill/code fix before any `NOT NULL` constraint or user_id-only RLS consolidation.
 
 ## Intentionally Postponed
 
@@ -45,6 +46,7 @@ This document records the verified production state for TaxAgent.ai as of Stage 
 - Do not replace `tax_calculations` with `tax_returns`.
 - Do not run production SQL automatically.
 - Do not add Stage 6D `NOT NULL` constraints until backups and prechecks pass.
+- Do not change `tax_slips` RLS or add `tax_slips.user_id` `NOT NULL` until the separate `tax_slips` backfill/code gap is closed.
 
 ## Tax Truth Boundaries
 
