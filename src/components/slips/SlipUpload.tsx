@@ -117,6 +117,12 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
         return;
       }
       const result = (await res.json()) as OcrResult;
+      // [OCR_LINEAGE] Trace OCR response metadata
+      console.info('[OCR_LINEAGE] OCR response:', {
+        slipType: result.slipType,
+        extractionId: result.extractionId,
+        fileHash: result.fileHash,
+      });
       const knownTypes = Object.keys(SLIP_TYPE_LABELS);
       const type = knownTypes.includes(result.slipType) ? result.slipType : 'T4';
       setSelectedType(type);
@@ -144,6 +150,12 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
     const meta: OcrSlipMeta = uploadState.status === 'extracted'
       ? { fileHash: uploadState.result.fileHash ?? null, sourceExtractionId: uploadState.result.extractionId ?? null }
       : { fileHash: null, sourceExtractionId: null };
+    // [OCR_LINEAGE] Trace metadata passed to onAdd
+    console.info('[OCR_LINEAGE] SlipUpload.handleSave meta:', {
+      fileHash: meta.fileHash,
+      sourceExtractionId: meta.sourceExtractionId,
+      slipType: selectedType,
+    });
     onAdd(selectedType, String(formValues[issuerKey] ?? ''), formValues, 'ocr', meta);
     reset();
   };

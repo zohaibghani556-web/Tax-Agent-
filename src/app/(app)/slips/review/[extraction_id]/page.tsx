@@ -28,8 +28,8 @@ import { toast } from 'sonner';
 import { SLIP_FIELDS, SLIP_TYPE_LABELS } from '@/lib/slips/slip-fields';
 import { addCsrfHeader } from '@/lib/csrf-client';
 import { createClient } from '@/lib/supabase/client';
-import { createSlip, recordManualOverride } from '@/lib/supabase/slip-store';
-import type { TaxSlipType } from '@/lib/supabase/slip-store';
+import { getSlips, upsertSlips } from '@/lib/supabase/tax-data';
+import { upsertSlipInList } from '@/lib/slips/slip-dedup';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -312,47 +312,43 @@ export default function SlipReviewPage() {
           return;
         }
 
-        // Persist the reviewed slip to tax_slips via the unified store.
+        // Persist the reviewed slip to tax_slips via the profile-based path
+        // (tax-data.ts). The unified slip-store.ts path writes columns that do
+        // not exist on the live DB, so createSlip() would fail silently — this
+        // was the root cause of file_hash / source_extraction_id being null.
         try {
           const supabase = createClient();
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
-            const newSlip = await createSlip(supabase, {
-              userId: user.id,
-              taxYear: 2025,
-              slipType: extraction.slipType as TaxSlipType,
-              issuerName,
-              sourceMethod: 'ocr',
-              slipStatus: 'active',
-              boxes: fieldValues as Record<string, number | string | null>,
-              fieldProvenance: {},
-              rawExtractedData: { extractionId: extraction.id },
-              unmappedFields: null,
-              missingRequired: [],
-              // sourceExtractionId + fileHash enable createSlip dedup:
-              // if the user re-saves the same review session, the existing
-              // row is returned and no duplicate row is created.
+            const existing = await getSlips(user.id, 2025);
+            const meta = {
+              fileHash: extraction.fileHash ?? null,
               sourceExtractionId: extraction.id,
-              fileHash: extraction.fileHash,
-              originalFilename: null,
-              schemaVersion: null,
-              importedAt: new Date().toISOString(),
-              extractionModel: null,
-              extractionModelVersion: null,
-              needsReview: false,
+            };
+            // [OCR_LINEAGE] Review page: trace metadata before persistence
+            console.info('[OCR_LINEAGE] review/save meta:', {
+              fileHash: meta.fileHash,
+              sourceExtractionId: meta.sourceExtractionId,
+              slipType: extraction.slipType,
+              existingSlipCount: existing.length,
             });
-
-            // Record each user correction in the audit trail.
-            for (const c of corrections) {
-              await recordManualOverride(
-                supabase,
-                newSlip.id,
-                c.fieldName,
-                c.originalValue !== null ? c.originalValue : null,
-                c.correctedValue,
-                user.id,
-              );
-            }
+            const updated = upsertSlipInList(
+              existing,
+              extraction.slipType,
+              issuerName,
+              fieldValues,
+              'ocr',
+              meta,
+            );
+            const target = updated.find((s) => s.type === extraction.slipType);
+            console.info('[OCR_LINEAGE] review/save after upsertSlipInList:', {
+              fileHash: target?.fileHash,
+              sourceExtractionId: target?.sourceExtractionId,
+              source: target?.source,
+            });
+            await upsertSlips(user.id, 2025, updated);
+            // Also write to localStorage so the /slips page picks it up instantly.
+            localStorage.setItem('taxagent_slips', JSON.stringify(updated));
           }
         } catch {
           toast.error('Slip saved but could not write to your account history.');

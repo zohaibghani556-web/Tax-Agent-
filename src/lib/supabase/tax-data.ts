@@ -230,6 +230,18 @@ export async function upsertSlips(
     source_extraction_id: s.sourceExtractionId ?? null,
   }));
 
+  // [OCR_LINEAGE] Trace insert payload for OCR slips
+  for (const r of rows) {
+    if (r.source === 'ocr') {
+      console.info('[OCR_LINEAGE] upsertSlips insert payload:', {
+        slip_type: r.slip_type,
+        file_hash: r.file_hash,
+        source_extraction_id: r.source_extraction_id,
+        source: r.source,
+      });
+    }
+  }
+
   const { error } = await supabase.from('tax_slips').insert(rows);
   if (error) console.error('[tax-data] upsertSlips error:', error.message);
 }

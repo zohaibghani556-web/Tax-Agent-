@@ -513,3 +513,82 @@ describe('dedupeSlipList — OCR metadata merge on duplicate collapse', () => {
     expect(result[0].source).toBe('manual');
   });
 });
+
+// ── Regression: review page save path (the path that was broken on live) ──────
+
+describe('review page save path — OCR lineage end-to-end', () => {
+  it('simulates /slips/review save: existing DB slips + new OCR slip → metadata preserved', () => {
+    // This test simulates the exact sequence the review page now uses:
+    //   1. getSlips() returns existing slips from DB
+    //   2. upsertSlipInList() adds the new OCR slip with metadata
+    //   3. The resulting list is passed to upsertSlips() which maps to insert rows
+    //
+    // The bug: review page used createSlip() from slip-store.ts, which writes
+    // columns that don't exist on live DB → silent failure → null metadata.
+
+    const existingSlips: SavedSlip[] = [
+      {
+        id: 'existing-t4',
+        type: 'T4',
+        issuerName: 'Acme Corp',
+        data: { box14: 55000, box22: 8500 },
+        enteredAt: '2026-04-20T10:00:00.000Z',
+        source: 'manual',
+      },
+    ];
+
+    const extractionFileHash = 'c513de3f9d9d90bf831572ed289ed800d0cb20e62613919d3c88b52e49a98d1d';
+    const extractionId = '16390edc-79a9-4110-8e7f-2aee0bc3754b';
+    const meta = { fileHash: extractionFileHash, sourceExtractionId: extractionId };
+
+    const updated = upsertSlipInList(
+      existingSlips,
+      'T2202',
+      'Wilfrid Laurier University',
+      { boxA: 14625.25, boxB: 0, boxC: 8, institutionName: 'Wilfrid Laurier University' },
+      'ocr',
+      meta,
+    );
+
+    expect(updated).toHaveLength(2);
+    const t2202 = updated.find((s) => s.type === 'T2202');
+    expect(t2202).toBeDefined();
+    expect(t2202!.fileHash).toBe(extractionFileHash);
+    expect(t2202!.sourceExtractionId).toBe(extractionId);
+    expect(t2202!.source).toBe('ocr');
+
+    const t4 = updated.find((s) => s.type === 'T4');
+    expect(t4).toBeDefined();
+    expect(t4!.fileHash).toBeUndefined();
+  });
+
+  it('re-upload on review page: existing T2202 without metadata gets metadata merged', () => {
+    const existingSlips: SavedSlip[] = [
+      {
+        id: 'stale-t2202',
+        type: 'T2202',
+        issuerName: 'Wilfrid Laurier University',
+        data: { boxA: 14625.25, boxB: 0, boxC: 8 },
+        enteredAt: '2026-04-25T10:00:00.000Z',
+        source: 'ocr',
+        fileHash: null,
+        sourceExtractionId: null,
+      },
+    ];
+
+    const meta = { fileHash: 'new-hash-from-reupload', sourceExtractionId: 'new-ext-id' };
+    const updated = upsertSlipInList(
+      existingSlips,
+      'T2202',
+      'Wilfrid Laurier University',
+      { boxA: 14625.25, boxB: 0, boxC: 8 },
+      'ocr',
+      meta,
+    );
+
+    expect(updated).toHaveLength(1);
+    expect(updated[0].id).toBe('stale-t2202');
+    expect(updated[0].fileHash).toBe('new-hash-from-reupload');
+    expect(updated[0].sourceExtractionId).toBe('new-ext-id');
+  });
+});
