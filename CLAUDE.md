@@ -1,28 +1,36 @@
 # TaxAgent.ai — Canadian T1 Filing Platform
 
 ## Mission
-Help Canadians file their own T1 tax return accurately and confidently, without paying an accountant or fighting CRA's NETFILE portal.
+Turn scattered client tax documents into review-ready, source-linked T1 files for Canadian accounting firms — and help individual Canadians understand and prepare their own returns.
+
+## Strategic Direction (validated April 2026)
+The primary product wedge is an AI T1 Intake + Review Workbench for Canadian small tax firms, starting with simple-to-moderate Ontario T1 files. The consumer self-prep flow remains supported and feeds the same Tax File Graph, but firm workflow is the primary roadmap driver. See `docs/strategy/taxagent-master-plan.md` for full context.
 
 ## Target Customer
-Canadians filing their own T1 return (not accountants, not businesses). Ontario residents primarily. People who find TurboTax confusing, H&R Block expensive, and CRA's NETFILE portal overwhelming. First-time filers, newcomers to Canada, employees with a side income, retirees managing their first RRIF withdrawal, and self-employed tradespeople who want to understand what they owe.
+**Primary**: Canadian small tax firms (3-15 staff) preparing high volumes of T1 returns, constrained by seasonal staff capacity, and using TaxCycle, ProFile, Taxprep, Cantax, DT Max, or similar filing software. TaxAgent sits before and around their existing tools — not as a replacement.
+
+**Secondary**: Individual Canadians filing their own T1 return. Ontario residents primarily. First-time filers, newcomers, students, employees with side income, retirees. Consumer intake produces the same Tax File Graph data and can graduate into firm-supported workflows.
 
 ## Product Goals (launch before tax season 2027)
 - Complete slip OCR and manual entry for all 14 supported slip types
 - Accurate T1 calculation for every Ontario resident income profile
-- AI-guided assessment that produces a complete tax picture via conversation
+- Tax File Graph connecting documents, extractions, corrections, calculations, provenance, and review status
+- Source-linked evidence for CPA review and workpaper output
+- AI-guided assessment that produces a complete tax picture via conversation (consumer flow)
 - Personalized filing guide (step-by-step, CRA line by line)
 - NOA retroactive recovery scan for missed credits on prior years
 - PIPEDA-compliant data handling throughout
-- Subscription gating (free tier: estimator + assessment; pro: optimizer, what-if, filing guide AI, history)
+- Structured export package for firm workflows (CSV/JSON minimum, workpaper PDF target)
 - Vercel production deployment, Canadian data residency
 
 ## Non-Goals
-- We are NOT building accounting software
+- We are NOT building accounting software or practice management (no billing, CRM, or task management)
 - We are NOT CRA-certified (NETFILE) yet — the product guides, it does not submit
-- We are NOT targeting accountants or CPAs as primary users (CPA portal exists as a future revenue line, currently fully mocked)
+- We are NOT replacing TaxCycle, ProFile, Taxprep, Cantax, DT Max, or other filing engines — we sit upstream
 - We are NOT building for provinces other than Ontario
 - We are NOT adding features outside of T1 individual filing (no T2, no T3)
 - We are NOT collecting SIN in the consumer T1 flow (the AI is instructed never to ask for it)
+- We are NOT building broad connectors (Gmail, QBO, etc.) before the review workflow is proven
 
 ## Architecture Principles
 - ALL tax math is deterministic TypeScript — ZERO AI for calculations, ZERO AI for rule citation
