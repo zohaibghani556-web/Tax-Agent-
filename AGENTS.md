@@ -88,25 +88,57 @@ npm run lint
 npm run build
 ```
 
+## Two-Agent Workflow
+
+This project uses two AI agents with distinct roles:
+
+**Codex** (OpenAI, on `ai-worker/*` branches):
+- Heavy implementation, drafting, and documentation work.
+- Creates new modules, writes tests, drafts migration SQL, produces planning docs.
+- Never commits to `main`. Always works on `ai-worker/*` branches.
+- Never applies SQL to production. Drafts only — labels as "DRAFT" and requires human approval.
+
+**Claude Code** (Anthropic, on `main`):
+- Reviewer, tester, QA gate, merger, prompt author.
+- Reviews Codex's work, runs pre-merge checklist, merges to `main`, pushes.
+- Creates PRs, summarizes changes, checks safety, helps with continuation prompts.
+- Never writes implementation code on `ai-worker/*` branches.
+
+**Handoff protocol:**
+- After Codex finishes a task, it should produce a summary of what changed, what was tested, and what needs human review.
+- Claude reviews, runs checks, and merges only after human approval.
+- Use `docs/operations/ai-worker-continuation-template.md` to transfer context between agents and sessions.
+
 ## Git Workflow
 
-- Work on `ai-worker/*` branches.
+- Codex works on `ai-worker/*` branches. Claude Code works on `main`.
 - Never edit `main` directly unless instructed.
 - Keep changes scoped to the assigned task.
 - Commit only after the requested tests/checks pass.
 - Do not revert unrelated user or worker changes.
+- When code changes are involved, always run `npx tsc --noEmit`, `npm run test:run`, and `npm run lint` before committing. Report pass/fail counts.
+- For docs-only changes, checks are optional unless the task owner requests them.
 
 ## Supabase Safety
 
 - Do not apply SQL automatically.
-- Output SQL for human review.
+- Output SQL for human review. Label draft migrations clearly as "DRAFT — requires human approval".
 - Never run destructive SQL without explicit approval.
 - Never modify production Supabase unless the user explicitly instructs it.
 - Any migration must be reviewed before it is run.
-- The user manually approves and runs production SQL.
+- The user manually approves and runs production SQL in the Supabase SQL Editor.
+- Read-only monitoring SQL (SELECT only) may be drafted and committed to `docs/` but never auto-executed against production.
+
+## Session Continuity
+
+When ending a session or handing off to the other agent:
+1. Summarize what was completed (files changed, tests added/passing).
+2. List what remains and exact next steps with file paths.
+3. Note any decisions made or deferred.
+4. If a continuation prompt is needed, use the template at `docs/operations/ai-worker-continuation-template.md`.
 
 ## Current Next Stage
 
-- Current task: Stage 6A docs.
-- Next: Stage 6C preflight/backfill planning for `user_id` on profile-owned tables.
-- Do not do Stage 6D `NOT NULL` constraints until backups and prechecks pass.
+- Stage 6D1 is complete: path coverage matrix and read-only SQL monitoring bundle merged to `main`. All 6 go/no-go checks passed.
+- Next: Stage 6D2 NOT NULL constraint planning (docs/planning only — no migration without human approval).
+- Do not apply NOT NULL constraints until Stage 6D1 monitoring passes and the team decides on `business_income`/`rental_income` scope.

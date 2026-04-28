@@ -221,14 +221,19 @@ tests/                                 — Integration + scenario tests (flat en
 - Integration tests for consumer scenarios live in `tests/tax-engine/scenarios.test.ts` (59 tests, 10 profiles).
 - DO NOT add tests to `tests/` for new modules — put them next to the source file.
 
-## Team Workflow — 3-Agent Setup
+## Team Workflow — Two-Agent Setup
 
 **Roles:**
-- **DeepSeek-V4** (via chat) — strategic direction, Aider commands, tax-rule reasoning.
-- **Aider** (DeepSeek-V3-0324, branch `ai-worker`) — heavy, cheap code writer. Never commits to `main` directly.
-- **Claude Code** (you, on `main`) — reviewer, tester, QA gate, merger, pusher.
+- **Codex** (OpenAI, on `ai-worker/*` branches) — heavy implementation, drafting, documentation, planning. Never commits to `main` directly.
+- **Claude Code** (Anthropic, on `main`) — reviewer, tester, QA gate, merger, pusher, prompt author. Never writes implementation code on `ai-worker/*`.
 
-**Branch rule:** Aider writes on `ai-worker`. Claude Code reviews, runs all checks, then merges + pushes to `main`. Claude Code NEVER writes code on `ai-worker`. Claude Code NEVER merges without completing every step of the pre-merge checklist below.
+**Branch rule:** Codex writes on `ai-worker/*`. Claude Code reviews, runs all checks, then merges + pushes to `main`. Claude Code NEVER merges without completing every step of the pre-merge checklist below.
+
+**Handoff rule:** Use `docs/operations/ai-worker-continuation-template.md` to transfer context between agents and sessions. After completing work, produce a filled-in template so the next agent or session can pick up immediately.
+
+**SQL/migration rule:** AI agents draft migration SQL only. Label as "DRAFT — requires human approval". The human manually reviews and applies production SQL in the Supabase SQL Editor. Read-only monitoring SQL may be committed to `docs/` but never auto-executed.
+
+**Canonical data path:** `src/lib/supabase/tax-data.ts` with `profile_id` ownership is production canonical. Do not switch to `slip-store.ts` without explicit human approval.
 
 ## Pre-Merge Checklist (run every time before merging ai-worker → main)
 
