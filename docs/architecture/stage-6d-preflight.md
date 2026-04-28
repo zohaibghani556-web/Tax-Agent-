@@ -317,13 +317,11 @@ from public.chat_messages
 where created_at > now() - interval '1 day'
 union all
 select 'deductions_credits',
-  max(updated_at),
+  max(created_at),
   count(*) filter (where user_id is null or tax_year is null or profile_id is null)
 from public.deductions_credits
-where updated_at > now() - interval '1 day';
+where created_at > now() - interval '1 day';
 ```
-
-If `deductions_credits.updated_at` does not exist on live, replace that branch with a table-wide null count.
 
 ## Risks Of Adding NOT NULL Constraints
 

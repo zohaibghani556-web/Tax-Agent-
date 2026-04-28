@@ -23,6 +23,9 @@ This document codifies TaxAgent.ai's canonical ownership model and the current/t
 | `tax_returns` | `profile_id` plus provenance | `profile_id` plus denormalized `user_id` | Current reference model. Latest provenance-rich return per profile/year/mode. |
 | `tax_calculations` | Calculation history | `profile_id` plus denormalized `user_id` | Append-only calculation history. Do not replace with `tax_returns`. |
 | `deductions_credits` | Filing data | `profile_id` plus denormalized `user_id` | Should belong to filing context long-term. |
+| `chat_messages` | Onboarding conversation data | `profile_id` plus denormalized `user_id` | Stage 6C/6F aligned. Chat remains tied to the active filing context. |
+| `business_income` | Filing data | `profile_id` plus denormalized `user_id` | Table exists and Stage 6C aligned it, but no active UI/API write path has been found. |
+| `rental_income` | Filing data | `profile_id` plus denormalized `user_id` | Table exists and Stage 6C aligned it, but no active UI/API write path has been found. |
 
 ## Current State
 
@@ -42,7 +45,8 @@ This document codifies TaxAgent.ai's canonical ownership model and the current/t
   - `tax_returns` is the latest provenance-rich return per profile/year/mode.
 - Stage 6C is complete: `tax_calculations`, `deductions_credits`, `chat_messages`, `business_income`, and `rental_income` have nullable `user_id` and `tax_year`, backfilled from `tax_profiles`, with validated `user_id` foreign keys.
 - Stage 6F aligns future write paths so new rows populate denormalized `user_id` and `tax_year` where the schema supports them.
-- `tax_slips.user_id` remains a separate backfill gap: live rows have `profile_id` and `tax_year`, but existing rows still need `user_id` backfill before any `tax_slips.user_id` `NOT NULL` or user_id-only RLS consolidation.
+- `tax_slips.user_id` was separately backfilled and verified after Stage 6F.
+- Stage 6D1 read-only monitoring passed its final go/no-go SQL summary.
 
 ## Target State
 
@@ -53,7 +57,7 @@ This document codifies TaxAgent.ai's canonical ownership model and the current/t
   - `slip_extractions` stays `user_id`-owned.
   - `slip_corrections` stays `user_id` plus `extraction_id` owned.
 - Stage 6C completed additive alignment for profile-owned tables.
-- Stage 6D `NOT NULL` constraints should wait until backups and prechecks pass.
+- Stage 6D2 `NOT NULL` constraints should wait until the Stage 6D2 plan is reviewed and the user manually approves SQL.
 - RLS consolidation, if any, should happen after additive backfills, app write-path updates, and verification that no new null `user_id`/`tax_year` rows are being created.
 
 ## What Not To Change Yet
@@ -66,8 +70,8 @@ This document codifies TaxAgent.ai's canonical ownership model and the current/t
 - Do not replace `tax_calculations` with `tax_returns`.
 - Do not run production SQL automatically.
 - Do not create migrations during documentation-only work.
-- Do not apply Stage 6D `NOT NULL` constraints before backups/prechecks pass.
-- Do not change `tax_slips` RLS or add `tax_slips.user_id` `NOT NULL` as part of Stage 6C.
+- Do not apply Stage 6D2 `NOT NULL` constraints without reviewed SQL and human approval.
+- Do not change `tax_slips` RLS or consolidate to user_id-only RLS as part of Stage 6D2.
 
 ## Supabase Safety
 
