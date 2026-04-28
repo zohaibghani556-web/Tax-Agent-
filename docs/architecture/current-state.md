@@ -1,6 +1,6 @@
 # Current State
 
-This document records the verified production state for TaxAgent.ai as of Stage 6A docs. It is intended to keep Claude Code, Codex, and any future AI worker aligned before making changes.
+This document records the verified production state for TaxAgent.ai through Stage 6D1. It is intended to keep Claude Code, Codex, and any future AI worker aligned before making changes.
 
 ## Live In Production
 
@@ -17,6 +17,8 @@ This document records the verified production state for TaxAgent.ai as of Stage 
 - T2202 Box A, Box B, and Box C mapping is fixed.
 - `tax-data.ts` with the `profile_id` path is the production canonical persistence path.
 - Stage 6C is complete: `tax_calculations`, `deductions_credits`, `chat_messages`, `business_income`, and `rental_income` now have nullable `user_id` and `tax_year`, backfilled from `tax_profiles`, with validated `user_id` foreign keys.
+- Stage 6F is complete: future writes populate denormalized `user_id` and `tax_year` where active write paths support them, and `tax_slips.user_id` was backfilled and verified.
+- Stage 6D1 is complete: live smoke testing and the read-only go/no-go SQL summary passed for null ownership, `user_id` mismatch, `tax_year` mismatch, orphaned `profile_id`, unvalidated FKs, and dangling FKs.
 
 ## Stable
 
@@ -34,8 +36,8 @@ This document records the verified production state for TaxAgent.ai as of Stage 
 
 - `slip-store.ts` is not production-safe yet.
 - CRA XSD schemas exist, but they are not wired into active extraction or validation.
-- More ownership alignment is still needed for some profile-owned tables before hard constraints are added.
-- `tax_slips.user_id` still needs a separate backfill before any `NOT NULL` constraint or user_id-only RLS consolidation.
+- Stage 6D2 `NOT NULL` constraint planning is not applied yet.
+- `business_income` and `rental_income` exist and have aligned ownership columns, but no active UI/API write path has been found.
 
 ## Intentionally Postponed
 
@@ -46,8 +48,8 @@ This document records the verified production state for TaxAgent.ai as of Stage 
 - Do not make `tax_slips` `user_id`-primary.
 - Do not replace `tax_calculations` with `tax_returns`.
 - Do not run production SQL automatically.
-- Do not add Stage 6D `NOT NULL` constraints until backups and prechecks pass.
-- Do not change `tax_slips` RLS or add `tax_slips.user_id` `NOT NULL` until the separate `tax_slips` backfill is applied and future writes are verified.
+- Do not add Stage 6D2 `NOT NULL` constraints until the Stage 6D2 plan is reviewed and the user manually approves SQL.
+- Do not change `tax_slips` RLS or consolidate to user_id-only RLS as part of Stage 6D2.
 
 ## Tax Truth Boundaries
 
