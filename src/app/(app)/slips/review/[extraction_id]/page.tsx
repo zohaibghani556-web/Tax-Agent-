@@ -30,6 +30,13 @@ import { addCsrfHeader } from '@/lib/csrf-client';
 import { createClient } from '@/lib/supabase/client';
 import { getSlips, upsertSlips } from '@/lib/supabase/tax-data';
 import { upsertSlipInList } from '@/lib/slips/slip-dedup';
+import {
+  getIssuerFieldKey,
+  hasReviewValueChanged,
+  isBlankReviewValue,
+  sanitizeReviewFieldValues,
+  validateReviewFieldValues,
+} from '@/lib/slips/review-values';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -153,6 +160,7 @@ function FieldRow({
   originalValue,
   currentValue,
   isLowConfidence,
+  fieldError,
   onChange,
 }: {
   fieldKey: string;
@@ -162,23 +170,27 @@ function FieldRow({
   originalValue: number | string | undefined;
   currentValue: number | string;
   isLowConfidence: boolean;
+  fieldError?: string;
   onChange: (key: string, value: number | string) => void;
 }) {
-  const hasChanged =
-    currentValue !== originalValue &&
-    !(originalValue === undefined && (currentValue === 0 || currentValue === ''));
+  const hasChanged = hasReviewValueChanged(originalValue, currentValue);
+  const hasIssue = isLowConfidence || !!fieldError;
 
   return (
     <div
       className="space-y-1 p-3 rounded-xl transition-colors"
       style={{
-        background: isLowConfidence
+        background: fieldError
+          ? 'rgba(239,68,68,0.08)'
+          : isLowConfidence
           ? 'rgba(245,158,11,0.07)'
           : hasChanged
           ? 'rgba(16,185,129,0.05)'
           : 'transparent',
         border: `1px solid ${
-          isLowConfidence
+          fieldError
+            ? 'rgba(239,68,68,0.35)'
+            : isLowConfidence
             ? 'rgba(245,158,11,0.25)'
             : hasChanged
             ? 'rgba(16,185,129,0.20)'
@@ -190,9 +202,9 @@ function FieldRow({
         <Label
           htmlFor={`field-${fieldKey}`}
           className="text-xs leading-none"
-          style={{ color: isLowConfidence ? '#F59E0B' : 'rgba(255,255,255,0.50)' }}
+          style={{ color: fieldError ? '#FCA5A5' : isLowConfidence ? '#F59E0B' : 'rgba(255,255,255,0.50)' }}
         >
-          {isLowConfidence && <AlertTriangle className="inline h-3 w-3 mr-0.5 mb-0.5" />}
+          {hasIssue && <AlertTriangle className="inline h-3 w-3 mr-0.5 mb-0.5" />}
           {label}
           {required && <span className="text-red-400 ml-1">*</span>}
         </Label>
@@ -211,10 +223,16 @@ function FieldRow({
         value={currentValue}
         onChange={(e) => {
           const raw = e.target.value;
-          // Use raw === '' guard so intentionally cleared fields stay 0 rather
-          // than silently coercing NaN (garbage input) to 0. Empty → 0 is still
-          // the right UI default since fieldValues is Record<string, number|string>.
-          onChange(fieldKey, valueType === 'number' ? (raw === '' ? 0 : (parseFloat(raw) || 0)) : raw);
+          if (valueType !== 'number') {
+            onChange(fieldKey, raw);
+            return;
+          }
+          if (raw === '') {
+            onChange(fieldKey, '');
+            return;
+          }
+          const parsed = parseFloat(raw);
+          onChange(fieldKey, Number.isFinite(parsed) ? parsed : '');
         }}
         step={valueType === 'number' ? '0.01' : undefined}
         min={valueType === 'number' ? '0' : undefined}
@@ -225,6 +243,7 @@ function FieldRow({
           color: 'white',
         }}
       />
+      {fieldError && <p className="text-[11px] text-red-300">{fieldError}</p>}
     </div>
   );
 }
@@ -239,6 +258,7 @@ export default function SlipReviewPage() {
   const [extraction, setExtraction] = useState<ExtractionReview | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [fieldValues, setFieldValues] = useState<Record<string, number | string>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [showDoc, setShowDoc] = useState(false); // mobile doc toggle
 
@@ -262,6 +282,12 @@ export default function SlipReviewPage() {
 
   const handleFieldChange = useCallback((key: string, value: number | string) => {
     setFieldValues((prev) => ({ ...prev, [key]: value }));
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   }, []);
 
   // ── Save (with or without corrections) ────────────────────────────────────
@@ -271,23 +297,36 @@ export default function SlipReviewPage() {
       if (!extraction) return;
       setSaving(true);
 
+      const issues = validateReviewFieldValues(extraction.slipType, fieldValues);
+      if (issues.length > 0) {
+        setFieldErrors(Object.fromEntries(issues.map((issue) => [issue.field, issue.message])));
+        toast.error('Review required fields before saving this slip.');
+        setSaving(false);
+        return;
+      }
+
+      const correctedBoxes = sanitizeReviewFieldValues(extraction.slipType, fieldValues);
+
       // Compute field-level diffs
       const corrections: CorrectionEntry[] = [];
       if (!skipCorrections) {
         const original = extraction.boxes ?? {};
-        for (const [key, newVal] of Object.entries(fieldValues)) {
+        const reviewFields = SLIP_FIELDS[extraction.slipType] ?? [];
+        for (const field of reviewFields) {
+          const key = field.key;
+          const newVal = fieldValues[key] ?? '';
           const origVal = original[key];
           const origStr = origVal !== undefined ? String(origVal) : null;
           const newStr = String(newVal);
-          if (origStr !== newStr) {
+          if (hasReviewValueChanged(origVal, newVal)) {
             corrections.push({ fieldName: key, originalValue: origStr, correctedValue: newStr });
           }
         }
       }
 
       // Derive issuerName from the boxes (issuerName or institutionName)
-      const issuerName =
-        String(fieldValues['issuerName'] ?? fieldValues['institutionName'] ?? '');
+      const issuerKey = getIssuerFieldKey(extraction.slipType);
+      const issuerName = String(correctedBoxes[issuerKey] ?? '');
 
       try {
         const res = await fetch(
@@ -300,7 +339,7 @@ export default function SlipReviewPage() {
               slipType: extraction.slipType,
               issuerName,
               taxYear: 2025,
-              correctedBoxes: fieldValues,
+              correctedBoxes,
               corrections,
             }),
           }),
@@ -329,7 +368,7 @@ export default function SlipReviewPage() {
               existing,
               extraction.slipType,
               issuerName,
-              fieldValues,
+              correctedBoxes,
               'ocr',
               meta,
             );
@@ -396,14 +435,15 @@ export default function SlipReviewPage() {
   const isHighConfidence = confidence >= CONFIDENCE_THRESHOLD;
   const lowConfSet = new Set(lowConfidenceFields);
   const fields = SLIP_FIELDS[slipType] ?? [];
+  const flagByField = new Map(extraction!.flags.map((flag) => [flag.field, flag]));
+  const hasBlockingFlags = extraction!.flags.some((flag) => flag.reason !== 'low_confidence');
   const slipIcon = SLIP_ICONS[slipType] ?? '📄';
   const slipLabel = SLIP_TYPE_LABELS[slipType] ?? slipType;
 
   // Count fields the user has edited vs original extraction
-  const editedCount = Object.entries(fieldValues).filter(([key, val]) => {
-    const orig = extraction!.boxes[key];
-    return orig !== undefined && String(val) !== String(orig);
-  }).length;
+  const editedCount = fields.filter((field) =>
+    hasReviewValueChanged(extraction!.boxes[field.key], fieldValues[field.key] ?? ''),
+  ).length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6">
@@ -548,28 +588,38 @@ export default function SlipReviewPage() {
             </p>
           ) : (
             <div className="space-y-2">
-              {fields.map((field) => (
-                <FieldRow
-                  key={field.key}
-                  fieldKey={field.key}
-                  label={field.label}
-                  valueType={field.valueType}
-                  required={field.required}
-                  originalValue={extraction!.boxes[field.key]}
-                  currentValue={
-                    fieldValues[field.key] ??
-                    (field.valueType === 'number' ? 0 : '')
-                  }
-                  isLowConfidence={lowConfSet.has(field.key)}
-                  onChange={handleFieldChange}
-                />
-              ))}
+              {fields.map((field) => {
+                const currentValue = fieldValues[field.key] ?? '';
+                const flag = flagByField.get(field.key);
+                const originalFlagError =
+                  flag?.reason !== 'low_confidence' && isBlankReviewValue(currentValue)
+                    ? flag?.message
+                    : undefined;
+                const shouldHighlightFlag =
+                  lowConfSet.has(field.key)
+                  || (flag?.reason !== 'low_confidence' && isBlankReviewValue(currentValue));
+
+                return (
+                  <FieldRow
+                    key={field.key}
+                    fieldKey={field.key}
+                    label={field.label}
+                    valueType={field.valueType}
+                    required={field.required}
+                    originalValue={extraction!.boxes[field.key]}
+                    currentValue={currentValue}
+                    isLowConfidence={shouldHighlightFlag}
+                    fieldError={fieldErrors[field.key] ?? originalFlagError}
+                    onChange={handleFieldChange}
+                  />
+                );
+              })}
             </div>
           )}
 
           {/* ── CTA buttons ──────────────────────────────────────────── */}
           <div className="pt-2 space-y-3">
-            {isHighConfidence && editedCount === 0 ? (
+            {isHighConfidence && editedCount === 0 && !hasBlockingFlags ? (
               // No changes + high confidence → "Looks good" path
               <Button
                 onClick={() => save(true)}

@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { extractionId, slipType, issuerName, taxYear, correctedBoxes, corrections } = body;
+  const { extractionId, slipType, correctedBoxes, corrections } = body;
 
   if (!extractionId || !UUID_RE.test(extractionId)) {
     return NextResponse.json({ error: 'Invalid extractionId' }, { status: 400 });
@@ -128,12 +128,11 @@ export async function POST(req: NextRequest) {
     log('warn', 'corrections.mark_reviewed_failed', { reason: updateErr.message });
   }
 
-  // Step 3 (old: upsert tax_slips via profile_id) was removed.
-  // Persistence to tax_slips is now owned exclusively by createSlip() in
-  // the review page client, which writes via user_id (unified store path).
-  // Keeping the write here created a duplicate row per review save because
-  // the old path used profile_id and the new path uses user_id — two rows,
-  // same slip, doubled income in the tax engine.
+  // Step 3 (old: upsert tax_slips from this API route) stays removed.
+  // Persistence to tax_slips is owned by the review page client through the
+  // canonical profile-based tax-data.ts path. Keeping a second write here
+  // created duplicate rows per review save — same slip, doubled income in
+  // the tax engine.
 
   return NextResponse.json({ ok: true });
 }

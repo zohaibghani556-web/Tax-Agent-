@@ -20,8 +20,9 @@ import {
   PIPELINE_TO_ENGINE_TYPE,
   isExtractable,
 } from './schemas';
+import { SLIP_FIELDS } from '@/lib/slips/slip-fields';
+import { getIssuerFieldKey, isBlankReviewValue } from '@/lib/slips/review-values';
 import type {
-  ClassifiableSlipType,
   ExtractableSlipType,
   ClassificationResult,
   ExtractionResult,
@@ -336,11 +337,13 @@ async function extractFields(
 // Stage 3 — Validation
 // ---------------------------------------------------------------------------
 
-function validateExtraction(
+export function validateExtraction(
   extraction: ExtractionResult,
   slipType: ExtractableSlipType,
 ): ValidationResult {
   const flags: ValidationFlag[] = [];
+  const engineSlipType = PIPELINE_TO_ENGINE_TYPE[slipType];
+  const requiredFields = (SLIP_FIELDS[engineSlipType] ?? []).filter((field) => field.required);
 
   // Check per-field confidence
   for (const [key, field] of Object.entries(extraction.fields)) {
@@ -362,6 +365,31 @@ function validateExtraction(
       message: `Issuer name confidence ${(extraction.metadata.issuerName.confidence * 100).toFixed(0)}%`,
       extractedValue: extraction.metadata.issuerName.value,
     });
+  }
+
+  for (const field of requiredFields) {
+    const issuerKey = getIssuerFieldKey(engineSlipType);
+    if (field.key === issuerKey) {
+      if (isBlankReviewValue(extraction.metadata.issuerName.value)) {
+        flags.push({
+          field: field.key,
+          reason: 'missing_required',
+          message: `${field.label} was not extracted. Review the source document and enter it before saving.`,
+          extractedValue: extraction.metadata.issuerName.value,
+        });
+      }
+      continue;
+    }
+
+    const extractedValue = extraction.fields[field.key]?.value;
+    if (isBlankReviewValue(extractedValue)) {
+      flags.push({
+        field: field.key,
+        reason: 'missing_required',
+        message: `${field.label} was not extracted. Review the source document and enter it before saving.`,
+        extractedValue,
+      });
+    }
   }
 
   // Zod parse the raw extraction against the schema to catch type errors

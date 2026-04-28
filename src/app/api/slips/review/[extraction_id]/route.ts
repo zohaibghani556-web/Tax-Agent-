@@ -15,6 +15,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { log } from '@/lib/logger';
+import { buildReviewFieldValues } from '@/lib/slips/review-values';
+import type { ExtractionResult } from '@/lib/extraction/types';
 
 const SIGNED_URL_EXPIRY_SECONDS = 600; // 10 minutes
 
@@ -44,7 +46,7 @@ export async function GET(
   const { data: extraction, error: fetchError } = await supabase
     .from('slip_extractions')
     .select(
-      'id, slip_type_detected, classification_confidence, status, boxes, validation_errors, created_at, reviewed_by_user_at, document_storage_path, file_hash',
+      'id, slip_type_detected, classification_confidence, status, extraction_result, boxes, validation_errors, created_at, reviewed_by_user_at, document_storage_path, file_hash',
     )
     .eq('id', extraction_id)
     .single();
@@ -78,13 +80,19 @@ export async function GET(
     reason: string;
     message: string;
   }>) ?? [];
+  const extractionResult = extraction.extraction_result as ExtractionResult | null;
+  const reviewBoxes = buildReviewFieldValues(
+    extraction.slip_type_detected as string,
+    (extraction.boxes as Record<string, number | string> | null) ?? {},
+    extractionResult?.metadata?.issuerName?.value ?? null,
+  );
 
   return NextResponse.json({
     id: extraction.id,
     slipType: extraction.slip_type_detected,
     confidence: extraction.classification_confidence,
     status: extraction.status,
-    boxes: extraction.boxes ?? {},
+    boxes: reviewBoxes,
     flags: rawFlags,
     lowConfidenceFields: rawFlags
       .filter((f) => f.reason === 'low_confidence')
