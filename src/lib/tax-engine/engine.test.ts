@@ -320,6 +320,66 @@ describe('calculateTaxReturn — single, age 28, T4 + T5, RRSP, rent', () => {
   });
 });
 
+// ── RRSP contribution receipts ────────────────────────────────────────────────
+
+describe('calculateTaxReturn — RRSP receipt slips', () => {
+  it('includes uploaded RRSP-Receipt amounts in line 20800 and net income', () => {
+    const receiptSlips: TaxSlip[] = [
+      ...slips,
+      {
+        type: 'RRSP-Receipt',
+        data: {
+          issuerName: 'Bank',
+          amount: 7000,
+          planType: 'RRSP',
+        },
+      },
+    ];
+    const receiptDeductions: DeductionsCreditsInput = {
+      ...deductions,
+      rrspContributions: 0,
+      rrspContributionRoom: 0,
+      medicalExpenses: [],
+      donations: [],
+      rentPaid: 0,
+    };
+
+    const result = calculateTaxReturn(profile, receiptSlips, [], [], receiptDeductions);
+
+    expect(result.lineByLine[20800]).toBe(7000);
+    expect(result.netIncome).toBe(result.totalIncome - 7000);
+    expect(result.lineByLine[23600]).toBe(result.totalIncome - 7000);
+  });
+
+  it('uses uploaded RRSP-Receipt amounts when checking available room', () => {
+    const receiptSlips: TaxSlip[] = [
+      ...slips,
+      {
+        type: 'RRSP-Receipt',
+        data: {
+          issuerName: 'Bank',
+          amount: 12000,
+          planType: 'RRSP',
+        },
+      },
+    ];
+    const receiptDeductions: DeductionsCreditsInput = {
+      ...deductions,
+      rrspContributions: 0,
+      rrspContributionRoom: 10000,
+      medicalExpenses: [],
+      donations: [],
+      rentPaid: 0,
+    };
+
+    const result = calculateTaxReturn(profile, receiptSlips, [], [], receiptDeductions);
+
+    expect(result.lineByLine[20800]).toBe(10000);
+    expect(result.warnings.some((w) => w.line === 20800 && w.severity === 'warning')).toBe(true);
+    expect(result.edgeCaseFlags.some((flag) => flag.code === 'RRSP_OVER_CONTRIBUTION')).toBe(true);
+  });
+});
+
 // ── Edge case: zero income ─────────────────────────────────────────────────────
 
 describe('calculateTaxReturn — zero income', () => {

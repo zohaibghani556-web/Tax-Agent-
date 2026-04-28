@@ -2,6 +2,7 @@
  * Tests for client-side slip list deduplication.
  *
  * Covers:
+ *   - isExactSlipDuplicate: detection by id/sourceExtractionId/type+fileHash
  *   - isLogicalT2202Duplicate: detection of logical T2202 duplicates
  *   - upsertSlipInList: replace vs append behaviour
  *   - dedupeSlipList: full-list normalization (safety net before DB writes)
@@ -15,7 +16,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { isLogicalT2202Duplicate, upsertSlipInList, dedupeSlipList } from './slip-dedup';
+import { isExactSlipDuplicate, isLogicalT2202Duplicate, upsertSlipInList, dedupeSlipList } from './slip-dedup';
 import type { SavedSlip } from '@/lib/supabase/tax-data';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -33,6 +34,50 @@ const makeT2202 = (
     ...rest,
   };
 };
+
+// ── isExactSlipDuplicate ─────────────────────────────────────────────────────
+
+describe('isExactSlipDuplicate', () => {
+  const t4: SavedSlip = {
+    id: 'row-1',
+    type: 'T4',
+    issuerName: 'Employer',
+    data: { box14: 50000, box22: 8000 },
+    enteredAt: '2026-04-28T00:00:00.000Z',
+    source: 'ocr',
+    fileHash: 'hash-1',
+    sourceExtractionId: 'extraction-1',
+  };
+
+  it('matches by row id', () => {
+    expect(isExactSlipDuplicate(t4, 'T4', { id: 'row-1' })).toBe(true);
+  });
+
+  it('matches by sourceExtractionId across same extraction lineage', () => {
+    expect(isExactSlipDuplicate(t4, 'T4', { sourceExtractionId: 'extraction-1' })).toBe(true);
+  });
+
+  it('matches by same slip type and fileHash', () => {
+    expect(isExactSlipDuplicate(t4, 'T4', { fileHash: 'hash-1' })).toBe(true);
+  });
+
+  it('does not match by fileHash when slip type differs', () => {
+    expect(isExactSlipDuplicate(t4, 'T4A', { fileHash: 'hash-1' })).toBe(false);
+  });
+
+  it('does not match manual rows without identity metadata', () => {
+    const manual: SavedSlip = {
+      id: 'manual-row',
+      type: 'T4',
+      issuerName: 'Employer',
+      data: { box14: 50000, box22: 8000 },
+      enteredAt: '2026-04-28T00:00:00.000Z',
+      source: 'manual',
+    };
+
+    expect(isExactSlipDuplicate(manual, 'T4')).toBe(false);
+  });
+});
 
 // ── isLogicalT2202Duplicate ───────────────────────────────────────────────────
 
@@ -157,7 +202,7 @@ describe('upsertSlipInList', () => {
     expect(updated[0].data['boxC']).toBe(7); // updated value
   });
 
-  it('non-T2202 slips are always appended (multiple T4s allowed)', () => {
+  it('manual non-T2202 slips are appended (multiple T4s allowed)', () => {
     const t4a: SavedSlip = {
       id: crypto.randomUUID(),
       type: 'T4',
@@ -169,6 +214,34 @@ describe('upsertSlipInList', () => {
 
     const updated = upsertSlipInList(list, 'T4', 'Employer B', { box14: 30000, box22: 4000 });
     expect(updated).toHaveLength(2);
+  });
+
+  it('replaces an exact duplicate T4 when OCR fileHash matches', () => {
+    const existing: SavedSlip = {
+      id: 'existing-t4',
+      type: 'T4',
+      issuerName: 'Employer',
+      data: { box14: 50000, box22: 8000 },
+      enteredAt: '2026-04-27T00:00:00.000Z',
+      source: 'ocr',
+      fileHash: 'same-hash',
+      sourceExtractionId: 'old-extraction',
+    };
+
+    const updated = upsertSlipInList(
+      [existing],
+      'T4',
+      'Employer',
+      { box14: 50000, box22: 8000 },
+      'ocr',
+      { fileHash: 'same-hash', sourceExtractionId: 'new-extraction' },
+    );
+
+    expect(updated).toHaveLength(1);
+    expect(updated[0].id).toBe('existing-t4');
+    expect(updated[0].source).toBe('ocr');
+    expect(updated[0].fileHash).toBe('same-hash');
+    expect(updated[0].sourceExtractionId).toBe('new-extraction');
   });
 
   it('source is attached to newly appended slip', () => {
@@ -294,7 +367,7 @@ describe('dedupeSlipList', () => {
     expect(afterSecond[0].id).toBe(afterFirst[0].id); // Same DB row preserved.
   });
 
-  it('non-T2202 slips are untouched (two T4s from different employers kept)', () => {
+  it('manual non-T2202 slips are untouched (two T4s from different employers kept)', () => {
     const t4a: SavedSlip = {
       id: 'e1',
       type: 'T4',
@@ -311,6 +384,64 @@ describe('dedupeSlipList', () => {
     };
 
     expect(dedupeSlipList([t4a, t4b])).toHaveLength(2);
+  });
+
+  it('collapses exact duplicate T4 OCR uploads by fileHash', () => {
+    const original: SavedSlip = {
+      id: 't4-original',
+      type: 'T4',
+      issuerName: 'Employer',
+      data: { box14: 50000, box22: 8000 },
+      enteredAt: '2026-04-27T00:00:00.000Z',
+      source: 'ocr',
+      fileHash: 'same-t4-hash',
+      sourceExtractionId: 'extraction-a',
+    };
+    const duplicate: SavedSlip = {
+      id: 't4-duplicate',
+      type: 'T4',
+      issuerName: 'Employer',
+      data: { box14: 50000, box22: 8000 },
+      enteredAt: '2026-04-28T00:00:00.000Z',
+      source: 'ocr',
+      fileHash: 'same-t4-hash',
+      sourceExtractionId: 'extraction-b',
+    };
+
+    const result = dedupeSlipList([original, duplicate]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('t4-duplicate');
+    expect(result[0].fileHash).toBe('same-t4-hash');
+  });
+
+  it('collapses exact duplicate T4 OCR uploads by sourceExtractionId', () => {
+    const original: SavedSlip = {
+      id: 't4-original',
+      type: 'T4',
+      issuerName: 'Employer',
+      data: { box14: 50000, box22: 8000 },
+      enteredAt: '2026-04-27T00:00:00.000Z',
+      source: 'ocr',
+      fileHash: null,
+      sourceExtractionId: 'same-extraction',
+    };
+    const duplicate: SavedSlip = {
+      id: 't4-duplicate',
+      type: 'T4',
+      issuerName: 'Employer',
+      data: { box14: 50000, box22: 8000 },
+      enteredAt: '2026-04-28T00:00:00.000Z',
+      source: 'ocr',
+      fileHash: null,
+      sourceExtractionId: 'same-extraction',
+    };
+
+    const result = dedupeSlipList([original, duplicate]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('t4-duplicate');
+    expect(result[0].sourceExtractionId).toBe('same-extraction');
   });
 
   it('prefers slip with fileHash over one without', () => {
