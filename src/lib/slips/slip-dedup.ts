@@ -1,10 +1,10 @@
 /**
  * TaxAgent.ai — Client-side slip list deduplication helpers.
  *
- * The in-memory slip list used by My Slips must not accumulate logical
- * duplicates when the user re-submits the same slip (e.g. edits and saves
- * the existing T2202 rather than adding a new one). These helpers detect
- * logical duplicates so the caller can replace rather than append.
+ * The in-memory slip list used by My Slips must not accumulate duplicates when
+ * the user re-submits the same slip. Strong OCR lineage signals are used for
+ * all slip types; T2202 also has a narrow logical duplicate rule because the
+ * historical bug created duplicates before OCR metadata was reliable.
  *
  * Pure functions — no side effects, no Supabase calls. DB-level dedup is
  * handled by the unique indexes in 20260427000001_align_tax_slips_to_live.sql
@@ -12,6 +12,42 @@
  */
 
 import type { SavedSlip } from '@/lib/supabase/tax-data';
+
+/**
+ * Returns true when `candidate` is an exact duplicate of the slip being added.
+ *
+ * Strong identity signals only:
+ *   1. Same row id.
+ *   2. Same source_extraction_id.
+ *   3. Same slip type and file_hash.
+ *
+ * This intentionally does not collapse two manual T4s that happen to have the
+ * same issuer and box values. That case should be reviewed or warned about,
+ * not silently deduplicated.
+ */
+export function isExactSlipDuplicate(
+  candidate: SavedSlip,
+  type: string,
+  meta?: { id?: string | null; fileHash?: string | null; sourceExtractionId?: string | null },
+): boolean {
+  if (meta?.id && candidate.id === meta.id) return true;
+  if (
+    meta?.sourceExtractionId
+    && candidate.sourceExtractionId
+    && candidate.sourceExtractionId === meta.sourceExtractionId
+  ) {
+    return true;
+  }
+  if (
+    meta?.fileHash
+    && candidate.fileHash
+    && candidate.type === type
+    && candidate.fileHash === meta.fileHash
+  ) {
+    return true;
+  }
+  return false;
+}
 
 /**
  * Returns true when `candidate` is a logical duplicate of the slip being
@@ -26,8 +62,8 @@ import type { SavedSlip } from '@/lib/supabase/tax-data';
  *   3. Identical boxA (tuition) values when both are non-zero.
  *      If either is zero the amount check is skipped.
  *
- * Non-T2202 slips always return false — other slip types allow multiple rows
- * (e.g. two T4s from two employers at the same company).
+ * Non-T2202 slips always return false — they are only deduplicated by the
+ * strong identity signals in isExactSlipDuplicate().
  */
 export function isLogicalT2202Duplicate(
   candidate: SavedSlip,
@@ -75,7 +111,8 @@ export function upsertSlipInList(
   meta?: { fileHash?: string | null; sourceExtractionId?: string | null },
 ): SavedSlip[] {
   const dupIdx = slips.findIndex((s) =>
-    isLogicalT2202Duplicate(s, type, issuerName, data),
+    isExactSlipDuplicate(s, type, meta)
+    || isLogicalT2202Duplicate(s, type, issuerName, data),
   );
 
   if (dupIdx !== -1) {
@@ -112,9 +149,13 @@ export function upsertSlipInList(
 // ── dedupeSlipList ────────────────────────────────────────────────────────────
 
 /**
- * Scan a full slip list and collapse logical T2202 duplicates to a single row,
- * keeping the most complete version. Non-T2202 slips are unaffected — multiple
- * T4s from different employers are legitimate and are left unchanged.
+ * Scan a full slip list and collapse duplicates to a single row, keeping the
+ * most complete version.
+ *
+ * All slip types are deduplicated on strong identity signals: same row id,
+ * same sourceExtractionId, or same slip type + fileHash. T2202 also gets the
+ * historical logical duplicate rule above. Non-T2202 manual rows without OCR
+ * metadata are left unchanged because multiple T4s can be legitimate.
  *
  * This is the safety net called inside upsertSlips() before every DB write,
  * and during page init when loading from Supabase or localStorage. Any
@@ -129,13 +170,13 @@ export function dedupeSlipList(slips: SavedSlip[]): SavedSlip[] {
   const result: SavedSlip[] = [];
 
   for (const candidate of slips) {
-    if (candidate.type !== 'T2202') {
-      result.push(candidate);
-      continue;
-    }
-
     const existingIdx = result.findIndex((s) =>
-      isLogicalT2202Duplicate(s, candidate.type, candidate.issuerName, candidate.data),
+      isExactSlipDuplicate(s, candidate.type, {
+        id: candidate.id,
+        fileHash: candidate.fileHash,
+        sourceExtractionId: candidate.sourceExtractionId,
+      })
+      || isLogicalT2202Duplicate(s, candidate.type, candidate.issuerName, candidate.data),
     );
 
     if (existingIdx === -1) {

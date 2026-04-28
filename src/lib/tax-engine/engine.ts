@@ -409,6 +409,14 @@ export function calculateTaxReturn(
   const mergedDeductions: DeductionsCreditsInput = rrspFromReceipts > 0
     ? { ...deductions, rrspContributions: roundCRA(deductions.rrspContributions + rrspFromReceipts) }
     : deductions;
+  const rrspRoomToUse = mergedDeductions.rrspContributionRoom > 0
+    ? mergedDeductions.rrspContributionRoom
+    : RRSP.maxContribution;
+  const rrspDeductionLine = roundCRA(Math.min(
+    mergedDeductions.rrspContributions,
+    rrspRoomToUse,
+    RRSP.maxContribution
+  ));
 
   const totalMedicalExpenses = roundCRA(
     mergedDeductions.medicalExpenses.reduce((sum, e) => sum + e.amount, 0)
@@ -849,20 +857,25 @@ export function calculateTaxReturn(
 
   // Only warn when the user explicitly entered their room — if room is 0 (not entered),
   // calculateNetIncome falls back to the annual max, so there is no over-contribution.
-  if (deductions.rrspContributionRoom > 0 && deductions.rrspContributions > deductions.rrspContributionRoom) {
+  if (
+    mergedDeductions.rrspContributionRoom > 0
+    && mergedDeductions.rrspContributions > mergedDeductions.rrspContributionRoom
+  ) {
     warnings.push({
       severity: 'warning',
       message:
-        `RRSP contributions ($${deductions.rrspContributions}) exceed available room ` +
-        `($${deductions.rrspContributionRoom}). Only $${deductions.rrspContributionRoom} deducted.`,
+        `RRSP contributions ($${mergedDeductions.rrspContributions}) exceed available room ` +
+        `($${mergedDeductions.rrspContributionRoom}). Only $${mergedDeductions.rrspContributionRoom} deducted.`,
       line: CRA_LINES.rrspDeduction,
       action: 'Withdraw the excess before the over-contribution penalty applies (ITA s.204.1).',
     });
-    const overContribution = roundCRA(deductions.rrspContributions - deductions.rrspContributionRoom);
+    const overContribution = roundCRA(
+      mergedDeductions.rrspContributions - mergedDeductions.rrspContributionRoom
+    );
     edgeCaseFlags.push({
       type: 'error',
       code: 'RRSP_OVER_CONTRIBUTION',
-      message: `RRSP over-contribution detected: $${overContribution.toFixed(2)} contributed beyond your available room of $${deductions.rrspContributionRoom.toFixed(2)}.`,
+      message: `RRSP over-contribution detected: $${overContribution.toFixed(2)} contributed beyond your available room of $${mergedDeductions.rrspContributionRoom.toFixed(2)}.`,
       affectedAmount: overContribution,
       resolution: 'Withdraw the excess contribution as soon as possible — a 1% per month penalty applies on the excess above the $2,000 buffer. File Form T1-OVP to report the over-contribution.',
     });
@@ -895,12 +908,6 @@ export function calculateTaxReturn(
   // Capital gains computed separately here for lineByLine exposure.
   // The same calculation runs inside aggregateTotalIncome — results are identical.
   const cgLineResult = calculateCapitalGains(t5008Slips, t3Slips);
-
-  const rrspDeductionLine = Math.min(
-    deductions.rrspContributions,
-    deductions.rrspContributionRoom,
-    RRSP.maxContribution
-  );
 
   const lineByLine: Record<number, number> = {
     [CRA_LINES.employmentIncome]:    roundCRA(t4Slips.reduce((sum, s) => sum + s.box14, 0)),

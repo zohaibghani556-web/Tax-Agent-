@@ -23,18 +23,26 @@ import { createClient } from '@/lib/supabase/client';
 import { validateTaxReturn } from '@/lib/tax-engine/validator';
 import { calculateInstalments } from '@/lib/tax-engine/federal/instalments';
 import { optimizePensionSplit } from '@/lib/tax-engine/federal/pension-split-optimizer';
-import type { TaxProfile, TaxSlip, DeductionsCreditsInput, TaxCalculationResult } from '@/lib/tax-engine/types';
+import type { TaxProfile, TaxSlip, TaxCalculationResult } from '@/lib/tax-engine/types';
 import type { ValidationResult } from '@/lib/tax-engine/validator';
 import { addCsrfHeader } from '@/lib/csrf-client';
 import { toast } from 'sonner';
 import {
   getSlips as getDbSlips,
   getDeductions as getDbDeductions,
+  getTaxProfile,
   saveCalculationResult,
+  upsertDeductions,
 } from '@/lib/supabase/tax-data';
-import type { SavedSlip as DbSavedSlip } from '@/lib/supabase/tax-data';
-import { toTaxSlip, listSlipsByUserAndTaxYear } from '@/lib/supabase/slip-store';
-import type { UnifiedSlip, TaxSlipType } from '@/lib/supabase/slip-store';
+import type { SavedSlip } from '@/lib/supabase/tax-data';
+import {
+  DEFAULT_CALCULATOR_USER_DEDUCTIONS,
+  buildCalculatorDeductions,
+  buildCalculatorProfile,
+  savedSlipToTaxSlip,
+  type CalculatorUserDeductions as UserDeductions,
+} from '@/lib/calculator/calculation-input';
+import { dedupeSlipList } from '@/lib/slips/slip-dedup';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -46,148 +54,6 @@ function formatCad(n: number, d = 2): string {
 }
 
 function pct(n: number) { return `${(n * 100).toFixed(2)}%`; }
-
-function makeDeductions(overrides: Partial<DeductionsCreditsInput> = {}): DeductionsCreditsInput {
-  return {
-    rrspContributions: 0,
-    rrspContributionRoom: 0,
-    fhsaContributions: 0,
-    unionDues: 0,
-    childcareExpenses: 0,
-    movingExpenses: 0,
-    supportPaymentsMade: 0,
-    carryingCharges: 0,
-    studentLoanInterest: 0,
-    medicalExpenses: [],
-    donations: [],
-    rentPaid: 0,
-    propertyTaxPaid: 0,
-    studentResidence: false,
-    tuitionCarryforward: 0,
-    capitalLossCarryforward: 0,
-    nonCapitalLossCarryforward: 0,
-    donationCarryforward: 0,
-    politicalContributions: 0,
-    digitalNewsSubscription: 0,
-    hasDisabilityCredit: false,
-    homeBuyersEligible: false,
-    homeAccessibilityExpenses: 0,
-    ...overrides,
-  };
-}
-
-interface SavedSlip {
-  id: string;
-  type: string;
-  issuerName: string;
-  data: Record<string, number | string>;
-  enteredAt: string;
-}
-
-function savedToTaxSlip(s: SavedSlip): TaxSlip | null {
-  // Bridge the local SavedSlip shape to UnifiedSlip so toTaxSlip() can
-  // apply typeof-safe 0 defaults at the engine boundary (never Number() || 0).
-  const unified: UnifiedSlip = {
-    id: s.id,
-    userId: '',
-    taxYear: 2025,
-    slipType: s.type as TaxSlipType,
-    issuerName: s.issuerName,
-    sourceMethod: 'manual',
-    slipStatus: 'active',
-    boxes: s.data as Record<string, number | string | null>,
-    fieldProvenance: {},
-    rawExtractedData: null,
-    unmappedFields: null,
-    missingRequired: [],
-    fileHash: null,
-    originalFilename: null,
-    schemaVersion: null,
-    importedAt: null,
-    extractionModel: null,
-    extractionModelVersion: null,
-    needsReview: false,
-    sourceExtractionId: null,
-    createdAt: s.enteredAt,
-    updatedAt: s.enteredAt,
-  };
-  return toTaxSlip(unified);
-}
-
-function unifiedToSavedSlip(u: UnifiedSlip): SavedSlip {
-  return {
-    id: u.id,
-    type: u.slipType,
-    issuerName: u.issuerName,
-    data: u.boxes as Record<string, number | string>,
-    enteredAt: u.createdAt,
-  };
-}
-
-interface UserDeductions {
-  // Deductions (reduce taxable income)
-  rrspContributions: number;
-  rrspContributionRoom: number;
-  rentPaid: number;
-  propertyTaxPaid: number;
-  childcareExpenses: number;
-  movingExpenses: number;
-  supportPaymentsMade: number;
-  instalmentsPaid: number;
-  // Credits (reduce tax payable)
-  medicalExpenses: number;
-  charitableDonations: number;
-  studentLoanInterest: number;
-  unionDues: number;
-  tuitionCarryforward: number;
-  digitalNewsSubscription: number;
-  homeAccessibilityExpenses: number;
-  // Personal situation
-  hasSpouseOrCL: boolean;
-  spouseNetIncome: number;
-  hasEligibleDependant: boolean;
-  eligibleDependantNetIncome: number;
-  caregiverForDependant18Plus: boolean;
-  caregiverDependantNetIncome: number;
-  // One-tap toggles
-  hasDisabilityCredit: boolean;
-  homeBuyersEligible: boolean;
-  volunteerFirefighter: boolean;
-  searchAndRescue: boolean;
-  // Canada Training Credit
-  canadaTrainingCreditRoom: number;
-  trainingFeesForCTC: number;
-}
-
-const DEFAULT_USER_DEDUCTIONS: UserDeductions = {
-  rrspContributions: 0,
-  rrspContributionRoom: 0,
-  rentPaid: 0,
-  propertyTaxPaid: 0,
-  childcareExpenses: 0,
-  movingExpenses: 0,
-  supportPaymentsMade: 0,
-  instalmentsPaid: 0,
-  medicalExpenses: 0,
-  charitableDonations: 0,
-  studentLoanInterest: 0,
-  unionDues: 0,
-  tuitionCarryforward: 0,
-  digitalNewsSubscription: 0,
-  homeAccessibilityExpenses: 0,
-  hasSpouseOrCL: false,
-  spouseNetIncome: 0,
-  hasEligibleDependant: false,
-  eligibleDependantNetIncome: 0,
-  caregiverForDependant18Plus: false,
-  caregiverDependantNetIncome: 0,
-  hasDisabilityCredit: false,
-  homeBuyersEligible: false,
-  volunteerFirefighter: false,
-  searchAndRescue: false,
-  canadaTrainingCreditRoom: 0,
-  trainingFeesForCTC: 0,
-};
 
 // ── Components ────────────────────────────────────────────────────────────────
 
@@ -454,7 +320,9 @@ export default function CalculatorPage() {
   const [savedSlips, setSavedSlips] = useState<SavedSlip[]>([]);
   const [profileName, setProfileName] = useState('');
   const [userId, setUserId] = useState('');
-  const [userDeductions, setUserDeductions] = useState<UserDeductions>(DEFAULT_USER_DEDUCTIONS);
+  const [taxProfile, setTaxProfile] = useState<TaxProfile | null>(null);
+  const [assessmentComplete, setAssessmentComplete] = useState(false);
+  const [userDeductions, setUserDeductions] = useState<UserDeductions>(DEFAULT_CALCULATOR_USER_DEDUCTIONS);
   const [deductionsOpen, setDeductionsOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -480,25 +348,19 @@ export default function CalculatorPage() {
       const name = (data.user?.user_metadata?.full_name as string | undefined)
         ?? data.user?.email?.split('@')[0]
         ?? 'Taxpayer';
-      setProfileName(name);
-      setUserId(uid);
+      const assessmentDone = !!localStorage.getItem('taxagent_assessment_done');
+      setAssessmentComplete(assessmentDone);
+      const dbProfile = uid ? await getTaxProfile(uid) : null;
+      setTaxProfile(dbProfile);
+      setProfileName(dbProfile?.legalName || name);
 
-      // Load slips: unified store → old path fallback → localStorage
+      // Load slips: canonical profile-id path first, then localStorage fallback.
       let loadedSlips: SavedSlip[] = [];
       if (uid) {
-        try {
-          const unified = await listSlipsByUserAndTaxYear(supabase, uid, 2025, ['active', 'needs_review']);
-          if (unified.length > 0) {
-            loadedSlips = unified.map(unifiedToSavedSlip);
-            localStorage.setItem('taxagent_slips', JSON.stringify(loadedSlips));
-          }
-        } catch {
-          // Unified store unavailable — fall back to old path so the calculator stays usable.
-          const dbSlips = await getDbSlips(uid, 2025);
-          if (dbSlips.length > 0) {
-            loadedSlips = dbSlips;
-            localStorage.setItem('taxagent_slips', JSON.stringify(dbSlips));
-          }
+        const dbSlips = await getDbSlips(uid, 2025);
+        if (dbSlips.length > 0) {
+          loadedSlips = dbSlips;
+          localStorage.setItem('taxagent_slips', JSON.stringify(dbSlips));
         }
       }
       if (loadedSlips.length === 0) {
@@ -507,10 +369,14 @@ export default function CalculatorPage() {
           try { loadedSlips = JSON.parse(rawSlips) as SavedSlip[]; } catch { /* ignore */ }
         }
       }
+      loadedSlips = dedupeSlipList(loadedSlips);
+      if (loadedSlips.length > 0) {
+        localStorage.setItem('taxagent_slips', JSON.stringify(loadedSlips));
+      }
       setSavedSlips(loadedSlips);
 
       // Load deductions: localStorage (primary) merged with Supabase for supported fields
-      let merged: UserDeductions = { ...DEFAULT_USER_DEDUCTIONS };
+      let merged: UserDeductions = { ...DEFAULT_CALCULATOR_USER_DEDUCTIONS };
       const rawDeductions = localStorage.getItem('taxagent_deductions');
       if (rawDeductions) {
         try { merged = { ...merged, ...(JSON.parse(rawDeductions) as Partial<UserDeductions>) }; } catch { /* ignore */ }
@@ -518,29 +384,30 @@ export default function CalculatorPage() {
       if (uid) {
         const dbDed = await getDbDeductions(uid, 2025);
         if (dbDed) {
-          // DB wins for numeric fields; localStorage wins for booleans/toggles not in DB
+          // DB wins for supported persisted fields, including explicit zero/false clears.
           merged = {
             ...merged,
-            rrspContributions: dbDed.rrspContributions || merged.rrspContributions,
-            rrspContributionRoom: dbDed.rrspContributionRoom || merged.rrspContributionRoom,
-            rentPaid: dbDed.rentPaid || merged.rentPaid,
-            propertyTaxPaid: dbDed.propertyTaxPaid || merged.propertyTaxPaid,
-            childcareExpenses: dbDed.childcareExpenses || merged.childcareExpenses,
-            movingExpenses: dbDed.movingExpenses || merged.movingExpenses,
-            supportPaymentsMade: dbDed.supportPaymentsMade || merged.supportPaymentsMade,
-            medicalExpenses: dbDed.medicalExpenses || merged.medicalExpenses,
-            charitableDonations: dbDed.charitableDonations || merged.charitableDonations,
-            studentLoanInterest: dbDed.studentLoanInterest || merged.studentLoanInterest,
-            unionDues: dbDed.unionDues || merged.unionDues,
-            tuitionCarryforward: dbDed.tuitionCarryforward || merged.tuitionCarryforward,
-            digitalNewsSubscription: dbDed.digitalNewsSubscription || merged.digitalNewsSubscription,
-            homeAccessibilityExpenses: dbDed.homeAccessibilityExpenses || merged.homeAccessibilityExpenses,
-            hasDisabilityCredit: dbDed.hasDisabilityCredit || merged.hasDisabilityCredit,
-            homeBuyersEligible: dbDed.homeBuyersEligible || merged.homeBuyersEligible,
+            rrspContributions: dbDed.rrspContributions,
+            rrspContributionRoom: dbDed.rrspContributionRoom,
+            rentPaid: dbDed.rentPaid,
+            propertyTaxPaid: dbDed.propertyTaxPaid,
+            childcareExpenses: dbDed.childcareExpenses,
+            movingExpenses: dbDed.movingExpenses,
+            supportPaymentsMade: dbDed.supportPaymentsMade,
+            medicalExpenses: dbDed.medicalExpenses,
+            charitableDonations: dbDed.charitableDonations,
+            studentLoanInterest: dbDed.studentLoanInterest,
+            unionDues: dbDed.unionDues,
+            tuitionCarryforward: dbDed.tuitionCarryforward,
+            digitalNewsSubscription: dbDed.digitalNewsSubscription,
+            homeAccessibilityExpenses: dbDed.homeAccessibilityExpenses,
+            hasDisabilityCredit: dbDed.hasDisabilityCredit,
+            homeBuyersEligible: dbDed.homeBuyersEligible,
           };
         }
       }
       setUserDeductions(merged);
+      setUserId(uid);
 
       const prevResult = localStorage.getItem('taxagent_calc_result');
       if (prevResult) {
@@ -564,61 +431,22 @@ export default function CalculatorPage() {
     setUserDeductions((prev) => ({ ...prev, [key]: value }));
   }
 
-  function buildDeductions(): DeductionsCreditsInput {
-    return makeDeductions({
-      rrspContributions: userDeductions.rrspContributions,
-      rentPaid: userDeductions.rentPaid,
-      propertyTaxPaid: userDeductions.propertyTaxPaid,
-      childcareExpenses: userDeductions.childcareExpenses,
-      movingExpenses: userDeductions.movingExpenses,
-      supportPaymentsMade: userDeductions.supportPaymentsMade,
-      instalmentsPaid: userDeductions.instalmentsPaid,
-      medicalExpenses: userDeductions.medicalExpenses > 0
-        ? [{ description: 'Medical expenses', amount: userDeductions.medicalExpenses, forWhom: 'self' as const }]
-        : [],
-      donations: userDeductions.charitableDonations > 0
-        ? [{ recipientName: 'Charitable donations', amount: userDeductions.charitableDonations, type: 'cash' as const, eligibleForProvincial: true }]
-        : [],
-      studentLoanInterest: userDeductions.studentLoanInterest,
-      unionDues: userDeductions.unionDues,
-      tuitionCarryforward: userDeductions.tuitionCarryforward,
-      digitalNewsSubscription: userDeductions.digitalNewsSubscription,
-      homeAccessibilityExpenses: userDeductions.homeAccessibilityExpenses,
-      hasSpouseOrCL: userDeductions.hasSpouseOrCL,
-      spouseNetIncome: userDeductions.spouseNetIncome,
-      hasEligibleDependant: userDeductions.hasEligibleDependant,
-      eligibleDependantNetIncome: userDeductions.eligibleDependantNetIncome,
-      caregiverForDependant18Plus: userDeductions.caregiverForDependant18Plus,
-      caregiverDependantNetIncome: userDeductions.caregiverDependantNetIncome,
-      hasDisabilityCredit: userDeductions.hasDisabilityCredit,
-      homeBuyersEligible: userDeductions.homeBuyersEligible,
-      volunteerFirefighter: userDeductions.volunteerFirefighter,
-      searchAndRescue: userDeductions.searchAndRescue,
-      canadaTrainingCreditRoom: userDeductions.canadaTrainingCreditRoom,
-      trainingFeesForCTC: userDeductions.trainingFeesForCTC,
-    });
+  function buildDeductions() {
+    return buildCalculatorDeductions(userDeductions);
   }
 
   async function runCalc() {
     setLoading(true);
     setError(null);
 
-    const profile: TaxProfile = {
-      id: userId || 'local-user',
-      userId: userId || 'local-user',
-      taxYear: 2025,
-      legalName: profileName || 'Taxpayer',
-      dateOfBirth: '1990-01-01',
-      maritalStatus: 'single',
-      province: 'ON',
-      residencyStatus: 'citizen',
-      dependants: [],
-      assessmentComplete: !!localStorage.getItem('taxagent_assessment_done'),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const slips: TaxSlip[] = savedSlips.map(savedToTaxSlip).filter((s): s is TaxSlip => s !== null);
+    const profile = buildCalculatorProfile({
+      userId,
+      profileName,
+      taxProfile,
+      assessmentComplete,
+    });
+    const slips = savedSlips.map(savedSlipToTaxSlip).filter((s): s is TaxSlip => s !== null);
+    const deductions = buildDeductions();
 
     try {
       const res = await fetch('/api/calculate', addCsrfHeader({
@@ -629,7 +457,7 @@ export default function CalculatorPage() {
           slips,
           business: [],
           rental: [],
-          deductions: buildDeductions(),
+          deductions,
         }),
       }));
       if (!res.ok) throw new Error();
@@ -643,6 +471,7 @@ export default function CalculatorPage() {
       setIsPreliminary(false);
       // Save to Supabase (append-only history)
       if (userId) {
+        await upsertDeductions(userId, 2025, userDeductions);
         await saveCalculationResult(userId, 2025, data);
         setLastSaved(new Date());
         toast.success('Calculation complete — results saved', { duration: 2000 });
@@ -692,26 +521,22 @@ export default function CalculatorPage() {
   const hasSlips = savedSlips.length > 0;
 
   // currentProfile must be declared before validation useMemo to avoid TDZ during SSR
-  const currentProfile: TaxProfile = {
-    id: userId || 'local',
-    userId: userId || 'local',
-    taxYear: 2025,
-    legalName: profileName,
-    dateOfBirth: '1990-01-01',
-    maritalStatus: 'single',
-    province: 'ON',
-    residencyStatus: 'citizen',
-    dependants: [],
-    assessmentComplete: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  const currentProfile = buildCalculatorProfile({
+    userId,
+    profileName,
+    taxProfile,
+    assessmentComplete,
+  });
 
   // Compute validation result reactively whenever slips or deductions change
   const validation = useMemo(
-    () => validateTaxReturn(currentProfile, savedSlips.map(savedToTaxSlip).filter((s): s is TaxSlip => s !== null), buildDeductions()),
+    () => validateTaxReturn(
+      currentProfile,
+      savedSlips.map(savedSlipToTaxSlip).filter((s): s is TaxSlip => s !== null),
+      buildDeductions(),
+    ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [savedSlips, userDeductions, profileName]
+    [savedSlips, userDeductions, profileName, taxProfile, assessmentComplete]
   );
 
   return (
