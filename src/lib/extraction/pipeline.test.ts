@@ -8,6 +8,8 @@ import {
   normalizeLegacyBoxKey,
   normalizeLegacyJsonExtraction,
   shouldRunFocusedExtractionRetry,
+  shouldRunLegacyJsonFallback,
+  shouldUseLegacyJsonPrimary,
   validateExtraction,
 } from './pipeline';
 import type { ExtractionResult } from './types';
@@ -27,9 +29,13 @@ describe('validateExtraction', () => {
   it('flags omitted required OCR fields as missing_required', () => {
     const result = validateExtraction(extraction(), 't4');
 
-    expect(result.valid).toBe(true);
+    expect(result.valid).toBe(false);
     expect(result.flags).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({
+          field: 'boxes',
+          reason: 'blank_extraction',
+        }),
         expect.objectContaining({
           field: 'box14',
           reason: 'missing_required',
@@ -49,6 +55,20 @@ describe('validateExtraction', () => {
     );
 
     expect(result.flags.some((flag) => flag.field === 'box14')).toBe(false);
+  });
+
+  it('marks blank T4A extraction invalid even though T4A boxes are optional', () => {
+    const result = validateExtraction(extraction(), 't4a');
+
+    expect(result.valid).toBe(false);
+    expect(result.flags).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: 'boxes',
+          reason: 'blank_extraction',
+        }),
+      ]),
+    );
   });
 
   it('maps missing T2202 issuer metadata to institutionName', () => {
@@ -119,14 +139,47 @@ describe('shouldRunFocusedExtractionRetry', () => {
 });
 
 describe('buildLegacyJsonFallbackPrompt', () => {
-  it('restores the old explicit T4 JSON extraction instructions', () => {
+  it('builds explicit JSON extraction instructions for T4 fields', () => {
     const prompt = buildLegacyJsonFallbackPrompt('t4');
 
     expect(prompt).toContain('Return ONLY valid JSON');
-    expect(prompt).toContain('Extract box14');
+    expect(prompt).toContain('box14');
     expect(prompt).toContain('box22');
     expect(prompt).toContain('lowConfidenceFields');
     expect(prompt).not.toContain('output schema');
+  });
+
+  it('builds explicit JSON extraction instructions for T4A fields', () => {
+    const prompt = buildLegacyJsonFallbackPrompt('t4a');
+
+    expect(prompt).toContain('T4A');
+    expect(prompt).toContain('Return ONLY valid JSON');
+    expect(prompt).toContain('box016');
+    expect(prompt).toContain('box105');
+    expect(prompt).toContain('lowConfidenceFields');
+  });
+});
+
+describe('shouldUseLegacyJsonPrimary', () => {
+  it('uses the legacy JSON path first for visually fragile slip types', () => {
+    expect(shouldUseLegacyJsonPrimary('t4')).toBe(true);
+    expect(shouldUseLegacyJsonPrimary('t4a')).toBe(true);
+    expect(shouldUseLegacyJsonPrimary('t2202')).toBe(false);
+  });
+});
+
+describe('shouldRunLegacyJsonFallback', () => {
+  it('falls back for blank T4A extractions', () => {
+    expect(shouldRunLegacyJsonFallback('t4a', extraction())).toBe(true);
+  });
+
+  it('does not require T4A box016 when another configured box was extracted', () => {
+    expect(
+      shouldRunLegacyJsonFallback(
+        't4a',
+        extraction({ fields: { box105: { value: 500, confidence: 0.9 } } }),
+      ),
+    ).toBe(false);
   });
 });
 
@@ -137,6 +190,14 @@ describe('normalizeLegacyJsonExtraction', () => {
     expect(normalizeLegacyBoxKey('incomeTaxDeducted', 't4')).toBe('box22');
     expect(normalizeLegacyBoxKey('CPP2 contributions', 't4')).toBe('box16A');
     expect(normalizeLegacyBoxKey('not a T4 box', 't4')).toBeNull();
+  });
+
+  it('normalizes common T4A box key aliases and zero-padded box numbers', () => {
+    expect(normalizeLegacyBoxKey('Box 016', 't4a')).toBe('box016');
+    expect(normalizeLegacyBoxKey('16', 't4a')).toBe('box016');
+    expect(normalizeLegacyBoxKey('taxWithheld', 't4a')).toBe('box022');
+    expect(normalizeLegacyBoxKey('scholarship', 't4a')).toBe('box105');
+    expect(normalizeLegacyBoxKey('not a T4A box', 't4a')).toBeNull();
   });
 
   it('normalizes legacy T4 JSON boxes into extraction fields', () => {
@@ -163,6 +224,33 @@ describe('normalizeLegacyJsonExtraction', () => {
     expect(result.fields.box22?.value).toBe(14280);
     expect(result.fields.box22?.confidence).toBe(0.6);
     expect(result.fields.box45?.value).toBe('1');
+    expect(result.fields.unsupported).toBeUndefined();
+  });
+
+  it('normalizes legacy T4A JSON boxes into extraction fields', () => {
+    const result = normalizeLegacyJsonExtraction(
+      {
+        issuerName: 'Payer Inc.',
+        taxYear: 2025,
+        confidence: 0.82,
+        lowConfidenceFields: ['taxWithheld'],
+        boxes: {
+          '16': '$10,000.00',
+          taxWithheld: 1200,
+          scholarship: 500,
+          unsupported: 123,
+        },
+      },
+      't4a',
+    );
+
+    expect(result.metadata.issuerName.value).toBe('Payer Inc.');
+    expect(result.metadata.taxYear.value).toBe(2025);
+    expect(result.fields.box016?.value).toBe(10000);
+    expect(result.fields.box016?.confidence).toBe(0.82);
+    expect(result.fields.box022?.value).toBe(1200);
+    expect(result.fields.box022?.confidence).toBe(0.6);
+    expect(result.fields.box105?.value).toBe(500);
     expect(result.fields.unsupported).toBeUndefined();
   });
 
