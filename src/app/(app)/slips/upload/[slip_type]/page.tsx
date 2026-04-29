@@ -141,6 +141,14 @@ export default function SlipUploadPage() {
       }
 
       const result = (await res.json()) as OcrResult;
+      const hasBlankExtraction = result.flags.some((flag) => flag.reason === 'blank_extraction');
+      if (hasBlankExtraction) {
+        setState({
+          phase: 'error',
+          message: 'We could not read any usable boxes from this slip. Try a clearer file or enter it manually.',
+        });
+        return;
+      }
 
       if (!result.extractionId) {
         // Extraction succeeded but wasn't persisted (e.g. storage error)

@@ -54,6 +54,7 @@ const CLASSIFICATION_REQUEST_TIMEOUT_MS = 20_000;
 const EXTRACTION_REQUEST_TIMEOUT_MS = 60_000;
 const FOCUSED_EXTRACTION_RETRY_TIMEOUT_MS = 30_000;
 const LEGACY_JSON_FALLBACK_TIMEOUT_MS = 45_000;
+const LEGACY_JSON_PRIMARY_SLIP_TYPES = new Set<ExtractableSlipType>(['t4', 't4a']);
 
 // ---------------------------------------------------------------------------
 // Anthropic client (singleton, reuses connection pool)
@@ -339,16 +340,23 @@ FOCUSED T4 RETRY:
 }
 
 export function buildLegacyJsonFallbackPrompt(slipType: ExtractableSlipType): string {
-  if (slipType !== 't4') {
-    return buildExtractionPrompt(slipType);
-  }
+  const engineSlipType = PIPELINE_TO_ENGINE_TYPE[slipType];
+  const label = SLIP_TYPE_LABELS[slipType];
+  const fields = SLIP_FIELDS[engineSlipType] ?? [];
+  const boxLines = fields
+    .filter((field) => field.key !== getIssuerFieldKey(engineSlipType))
+    .map((field) =>
+      `- ${field.key}: ${field.label} (${field.valueType}${field.required ? ', required' : ''})`,
+    )
+    .join('\n');
+  const issuerKey = getIssuerFieldKey(engineSlipType);
 
-  return `You are a Canadian tax document specialist. Your job is to read a Canadian T4 slip and extract the financial data a CPA needs to file a T1 return.
+  return `You are a Canadian tax document specialist. Your job is to read a ${label} and extract the financial data needed for human-reviewed T1 preparation.
 
 Return ONLY valid JSON - no markdown, no explanation - with this exact shape:
 {
-  "slipType": "T4",
-  "issuerName": "<employer name, empty string if not visible>",
+  "slipType": "${engineSlipType}",
+  "${issuerKey}": "<issuer, payer, employer, financial institution, or school name; empty string if not visible>",
   "taxYear": <number, e.g. 2025>,
   "boxes": { "<boxKey>": <value> },
   "summary": "<one plain-English sentence summarizing the key financial figures>",
@@ -356,15 +364,18 @@ Return ONLY valid JSON - no markdown, no explanation - with this exact shape:
   "lowConfidenceFields": ["<boxKey>", ...]
 }
 
-T4 EXTRACTION RULES:
-- Extract box14 (employment income - main salary), box16 (CPP employee contributions), box16A (CPP2 contributions, often 0), box17 (QPP contributions), box18 (EI premiums), box20 (RPP contributions), box22 (income tax deducted), box24 (EI insurable earnings), box26 (CPP/QPP pensionable earnings), box40 (taxable allowances and benefits), box42 (employment commissions), box44 (union dues), box45 (dental benefits code as a string), box46 (charitable donations), box52 (pension adjustment), box55 (PPIP premiums), and box85 (employee health premiums).
-- Box keys must be exact: "box14", "box22", "box16A", etc.
+FIELDS TO EXTRACT:
+${boxLines || '- No box fields are configured for this slip type.'}
+
+EXTRACTION RULES:
+- Box keys should use the exact configured keys above whenever possible.
+- If the document prints only a box number, map it to the matching configured key above.
 - Read numbered boxes directly from the slip. Use the box number beside the amount, not visual order.
 - Numeric boxes should be JSON numbers. If a value is printed with commas or a dollar sign, convert it to a number in JSON.
 - Use 0 only when the box explicitly prints 0 or 0.00.
 - If a numbered box is blank, absent, cut off, or unreadable, omit that box from "boxes".
 - Do not calculate, infer, or copy values from a different numbered box.
-- Put uncertain but visible values in "boxes" and list their keys in "lowConfidenceFields".`;
+- Put uncertain but visible values in "boxes" and list their keys in "lowConfidenceFields".${buildSlipTypeHints(slipType)}`;
 }
 
 export function shouldRunFocusedExtractionRetry(
@@ -372,6 +383,36 @@ export function shouldRunFocusedExtractionRetry(
   extraction: ExtractionResult,
 ): boolean {
   return slipType === 't4' && isBlankReviewValue(extraction.fields.box14?.value);
+}
+
+export function shouldUseLegacyJsonPrimary(slipType: ExtractableSlipType): boolean {
+  return LEGACY_JSON_PRIMARY_SLIP_TYPES.has(slipType);
+}
+
+export function shouldRunLegacyJsonFallback(
+  slipType: ExtractableSlipType,
+  extraction: ExtractionResult,
+): boolean {
+  const engineSlipType = PIPELINE_TO_ENGINE_TYPE[slipType];
+  const fieldDefs = SLIP_FIELDS[engineSlipType] ?? [];
+  const issuerKey = getIssuerFieldKey(engineSlipType);
+  const fieldByKey = new Map(fieldDefs.map((field) => [field.key, field]));
+  const extractedBoxCount = Object.entries(extraction.fields).filter(([key, field]) =>
+    key !== issuerKey &&
+    fieldByKey.has(key) &&
+    !isBlankReviewValue(field.value),
+  ).length;
+
+  if (extractedBoxCount === 0) return true;
+
+  const missingRequiredBox = fieldDefs.some((field) =>
+    field.required &&
+    field.key !== issuerKey &&
+    isBlankReviewValue(extraction.fields[field.key]?.value),
+  );
+  if (missingRequiredBox) return true;
+
+  return false;
 }
 
 export function mergeExtractionResults(
@@ -483,24 +524,68 @@ const T4_FIELD_ALIASES: Record<string, string> = {
   privatehealthpremium: 'box85',
   healthpremiums: 'box85',
 };
-const T4_FIELD_KEYS = new Set((SLIP_FIELDS.T4 ?? []).map((field) => field.key));
 
-export function normalizeLegacyBoxKey(key: string, slipType: ExtractableSlipType): string | null {
-  if (slipType !== 't4') return key;
+const T4A_FIELD_ALIASES: Record<string, string> = {
+  pensionincome: 'box016',
+  pensionorsuperannuation: 'box016',
+  superannuation: 'box016',
+  lumpsumpayments: 'box018',
+  selfemployedcommissions: 'box020',
+  incometaxdeducted: 'box022',
+  taxdeducted: 'box022',
+  taxwithheld: 'box022',
+  annuities: 'box024',
+  otherincome: 'box028',
+  feesforservices: 'box048',
+  scholarships: 'box105',
+  scholarship: 'box105',
+  bursaries: 'box105',
+  bursary: 'box105',
+  fellowship: 'box105',
+  fellowships: 'box105',
+  respaccumulatedincome: 'box135',
+  respincome: 'box135',
+};
 
-  const compact = key
+const FIELD_ALIASES_BY_ENGINE_TYPE: Record<string, Record<string, string>> = {
+  T4: T4_FIELD_ALIASES,
+  T4A: T4A_FIELD_ALIASES,
+};
+
+function compactFieldKey(key: string): string {
+  return key
     .trim()
     .replace(/^boxes\./i, '')
-    .replace(/^box[\s:_-]*/i, '')
     .replace(/[^a-zA-Z0-9]/g, '')
     .toLowerCase();
+}
+
+function buildFieldKeyMap(engineSlipType: string): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const field of SLIP_FIELDS[engineSlipType] ?? []) {
+    const compact = compactFieldKey(field.key);
+    map.set(compact, field.key);
+
+    if (compact.startsWith('box')) {
+      const stripped = compact.slice(3);
+      const withoutLeadingZeros = stripped.replace(/^0+/, '') || '0';
+      map.set(stripped, field.key);
+      map.set(withoutLeadingZeros, field.key);
+      map.set(`box${withoutLeadingZeros}`, field.key);
+    }
+  }
+  return map;
+}
+
+export function normalizeLegacyBoxKey(key: string, slipType: ExtractableSlipType): string | null {
+  const engineSlipType = PIPELINE_TO_ENGINE_TYPE[slipType];
+  const compact = compactFieldKey(key);
 
   if (!compact) return null;
-  const alias = T4_FIELD_ALIASES[compact];
+  const alias = FIELD_ALIASES_BY_ENGINE_TYPE[engineSlipType]?.[compact];
   if (alias) return alias;
 
-  const boxKey = `box${compact}`;
-  return T4_FIELD_KEYS.has(boxKey) ? boxKey : null;
+  return buildFieldKeyMap(engineSlipType).get(compact) ?? null;
 }
 
 function parseJsonObjectFromText(rawText: string): Record<string, unknown> {
@@ -533,7 +618,11 @@ export function normalizeLegacyJsonExtraction(
   const fieldDefs = SLIP_FIELDS[engineSlipType] ?? [];
   const fieldByKey = new Map(fieldDefs.map((field) => [field.key, field]));
   const baseConfidence = parsed.confidence ?? 0.75;
-  const lowConfidenceFields = new Set(parsed.lowConfidenceFields ?? []);
+  const lowConfidenceFields = new Set(
+    (parsed.lowConfidenceFields ?? [])
+      .map((key) => normalizeLegacyBoxKey(key, slipType))
+      .filter((key): key is string => key !== null),
+  );
   const fields: Record<string, ExtractedField<number | string>> = {};
 
   for (const [rawKey, value] of Object.entries(parsed.boxes ?? {})) {
@@ -592,7 +681,7 @@ async function extractLegacyJsonFallback(
               role: 'user',
               content: [
                 docBlock,
-                { type: 'text', text: 'Extract this T4 using the requested JSON object.' },
+                { type: 'text', text: 'Extract this tax slip using the requested JSON object.' },
               ],
             },
           ],
@@ -688,6 +777,21 @@ export function validateExtraction(
   const flags: ValidationFlag[] = [];
   const engineSlipType = PIPELINE_TO_ENGINE_TYPE[slipType];
   const requiredFields = (SLIP_FIELDS[engineSlipType] ?? []).filter((field) => field.required);
+  const issuerKey = getIssuerFieldKey(engineSlipType);
+  const fieldDefs = SLIP_FIELDS[engineSlipType] ?? [];
+  const extractedBoxCount = Object.entries(extraction.fields).filter(([key, field]) =>
+    key !== issuerKey &&
+    fieldDefs.some((fieldDef) => fieldDef.key === key) &&
+    !isBlankReviewValue(field.value),
+  ).length;
+
+  if (extractedBoxCount === 0) {
+    flags.push({
+      field: 'boxes',
+      reason: 'blank_extraction',
+      message: `No usable ${engineSlipType} boxes were extracted. Try a clearer document or enter the slip manually.`,
+    });
+  }
 
   // Check per-field confidence
   for (const [key, field] of Object.entries(extraction.fields)) {
@@ -712,7 +816,6 @@ export function validateExtraction(
   }
 
   for (const field of requiredFields) {
-    const issuerKey = getIssuerFieldKey(engineSlipType);
     if (field.key === issuerKey) {
       if (isBlankReviewValue(extraction.metadata.issuerName.value)) {
         flags.push({
@@ -755,7 +858,7 @@ export function validateExtraction(
   }
 
   return {
-    valid: flags.filter((f) => f.reason === 'zod_error').length === 0,
+    valid: flags.filter((f) => f.reason === 'zod_error' || f.reason === 'blank_extraction').length === 0,
     flags,
   };
 }
@@ -909,22 +1012,21 @@ export async function extractSlip(options: ExtractSlipOptions): Promise<Pipeline
   let extraction: ExtractionResult;
   let extractionRaw: unknown = null;
   let extractionUsage = { input: 0, output: 0 };
-  let legacyJsonPrimaryRaw: unknown = null;
   let focusedRetryRaw: unknown = null;
   let legacyJsonFallbackRaw: unknown = null;
 
   try {
-    const stage2 = extractableType === 't4'
+    const useLegacyJsonPrimary = shouldUseLegacyJsonPrimary(extractableType);
+    const stage2 = useLegacyJsonPrimary
       ? await extractLegacyJsonFallback(base64, mediaType, extractableType)
       : await extractFields(base64, mediaType, extractableType);
     extraction = stage2.result;
     extractionRaw = stage2.raw;
     extractionUsage = stage2.usage;
-    legacyJsonPrimaryRaw = extractableType === 't4' ? stage2.raw : null;
 
     log('info', 'extraction.fields', {
       slipType: extractableType,
-      strategy: extractableType === 't4' ? 'legacy_json_primary' : 'structured',
+      strategy: useLegacyJsonPrimary ? 'legacy_json_primary' : 'structured',
       fieldCount: Object.keys(extraction.fields).length,
     });
 
@@ -968,14 +1070,20 @@ export async function extractSlip(options: ExtractSlipOptions): Promise<Pipeline
       }
     }
 
-    if (!legacyJsonPrimaryRaw && shouldRunFocusedExtractionRetry(extractableType, extraction)) {
+    if (shouldRunLegacyJsonFallback(extractableType, extraction)) {
       log('warn', 'extraction.legacy_json_fallback.start', {
         slipType: extractableType,
-        reason: 'structured_extraction_still_missing_box14',
+        reason: useLegacyJsonPrimary
+          ? 'legacy_json_primary_still_blank'
+          : 'structured_extraction_blank_or_missing_required',
       });
 
       try {
-        const fallback = await extractLegacyJsonFallback(base64, mediaType, extractableType);
+        const fallback = useLegacyJsonPrimary
+          ? await extractFields(base64, mediaType, extractableType, {
+              label: 'structured_fallback',
+            })
+          : await extractLegacyJsonFallback(base64, mediaType, extractableType);
         legacyJsonFallbackRaw = fallback.raw;
         extractionUsage = {
           input: extractionUsage.input + fallback.usage.input,
@@ -988,10 +1096,11 @@ export async function extractSlip(options: ExtractSlipOptions): Promise<Pipeline
 
         log('info', 'extraction.legacy_json_fallback.complete', {
           slipType: extractableType,
+          strategy: useLegacyJsonPrimary ? 'structured_fallback' : 'legacy_json_fallback',
           beforeCount,
           fallbackCount: Object.keys(fallback.result.fields).length,
           afterCount,
-          recoveredBox14: !isBlankReviewValue(extraction.fields.box14?.value),
+          blankAfterFallback: shouldRunLegacyJsonFallback(extractableType, extraction),
         });
       } catch (fallbackErr) {
         log('warn', 'extraction.legacy_json_fallback.error', {

@@ -63,7 +63,7 @@ export interface ExtractionResult {
 
 export interface ValidationFlag {
   field: string;
-  reason: 'low_confidence' | 'zod_error' | 'missing_required';
+  reason: 'low_confidence' | 'zod_error' | 'missing_required' | 'blank_extraction';
   message: string;
   extractedValue?: unknown;
 }
