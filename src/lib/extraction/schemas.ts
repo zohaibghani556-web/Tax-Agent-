@@ -30,6 +30,15 @@ const numericField = (description?: string) => {
   return (description ? schema.describe(description) : schema).optional();
 };
 
+/** Required nullable numeric field for focused retry passes. */
+const nullableNumericField = (description?: string) => {
+  const schema = z.object({
+    value: z.number().nullable(),
+    confidence: z.number(),
+  });
+  return description ? schema.describe(description) : schema;
+};
+
 /** String field with extraction confidence */
 const stringField = (description?: string) => {
   const schema = z.object({
@@ -37,6 +46,15 @@ const stringField = (description?: string) => {
     confidence: z.number(),
   });
   return (description ? schema.describe(description) : schema).optional();
+};
+
+/** Required nullable string field for focused retry passes. */
+const nullableStringField = (description?: string) => {
+  const schema = z.object({
+    value: z.string().nullable(),
+    confidence: z.number(),
+  });
+  return description ? schema.describe(description) : schema;
 };
 
 /** Required string field with extraction confidence */
@@ -110,6 +128,35 @@ export const T4ExtractionSchema = z.object({
   box52: numericField('T4 Box 52 - Pension adjustment.'),
   box55: numericField('T4 Box 55 - PPIP premiums.'),
   box85: numericField('T4 Box 85 - Employee-paid private health premiums.'),
+});
+
+/**
+ * T4 focused retry schema.
+ *
+ * The first-pass schema keeps boxes optional so the model can omit boxes that
+ * are not printed. If the first pass returns a blank T4, this stricter schema
+ * forces the model to make an explicit value-or-null decision for every common
+ * T4 box instead of silently omitting the whole slip.
+ */
+export const T4FocusedExtractionSchema = z.object({
+  metadata: metadataSchema,
+  box14: nullableNumericField('T4 Box 14 - Employment income. Use null only if the box is not visible or blank.'),
+  box16: nullableNumericField('T4 Box 16 - Employee CPP contributions. Use null only if the box is not visible or blank.'),
+  box16A: nullableNumericField('T4 Box 16A - Employee second CPP contributions. Use null only if the box is not visible or blank.'),
+  box17: nullableNumericField('T4 Box 17 - Employee QPP contributions. Use null only if the box is not visible or blank.'),
+  box18: nullableNumericField('T4 Box 18 - Employee EI premiums. Use null only if the box is not visible or blank.'),
+  box20: nullableNumericField('T4 Box 20 - RPP contributions. Use null only if the box is not visible or blank.'),
+  box22: nullableNumericField('T4 Box 22 - Income tax deducted. Use null only if the box is not visible or blank.'),
+  box24: nullableNumericField('T4 Box 24 - EI insurable earnings. Use null only if the box is not visible or blank.'),
+  box26: nullableNumericField('T4 Box 26 - CPP or QPP pensionable earnings. Use null only if the box is not visible or blank.'),
+  box40: nullableNumericField('T4 Box 40 - Other taxable allowances and benefits. Use null only if the box is not visible or blank.'),
+  box42: nullableNumericField('T4 Box 42 - Employment commissions. Use null only if the box is not visible or blank.'),
+  box44: nullableNumericField('T4 Box 44 - Union dues. Use null only if the box is not visible or blank.'),
+  box45: nullableStringField('T4 Box 45 - Employer-offered dental benefits code. Keep the printed code string, or null if not visible or blank.'),
+  box46: nullableNumericField('T4 Box 46 - Charitable donations. Use null only if the box is not visible or blank.'),
+  box52: nullableNumericField('T4 Box 52 - Pension adjustment. Use null only if the box is not visible or blank.'),
+  box55: nullableNumericField('T4 Box 55 - PPIP premiums. Use null only if the box is not visible or blank.'),
+  box85: nullableNumericField('T4 Box 85 - Employee-paid private health premiums. Use null only if the box is not visible or blank.'),
 });
 
 /**

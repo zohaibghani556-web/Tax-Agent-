@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildFocusedExtractionPrompt,
   buildExtractionPrompt,
   isRetryableExtractionError,
+  mergeExtractionResults,
+  shouldRunFocusedExtractionRetry,
   validateExtraction,
 } from './pipeline';
 import type { ExtractionResult } from './types';
@@ -79,6 +82,57 @@ describe('buildExtractionPrompt', () => {
     expect(prompt).toContain('box22: Box 22, income tax deducted');
     expect(prompt).toContain('Use the box number beside each amount');
     expect(prompt).toContain('Use 0 only when the slip explicitly prints 0 or 0.00');
+  });
+});
+
+describe('buildFocusedExtractionPrompt', () => {
+  it('adds T4 retry instructions that force value-or-null review', () => {
+    const prompt = buildFocusedExtractionPrompt('t4');
+
+    expect(prompt).toContain('FOCUSED T4 RETRY');
+    expect(prompt).toContain('previous extraction pass did not extract Box 14');
+    expect(prompt).toContain('Use null only when that exact numbered box is blank');
+    expect(prompt).toContain('Do not calculate, infer, or copy values');
+  });
+});
+
+describe('shouldRunFocusedExtractionRetry', () => {
+  it('retries T4 extraction when box14 is blank', () => {
+    expect(shouldRunFocusedExtractionRetry('t4', extraction())).toBe(true);
+  });
+
+  it('does not retry T4 extraction when box14 is explicit zero', () => {
+    expect(
+      shouldRunFocusedExtractionRetry(
+        't4',
+        extraction({ fields: { box14: { value: 0, confidence: 0.99 } } }),
+      ),
+    ).toBe(false);
+  });
+
+  it('does not retry non-T4 extraction', () => {
+    expect(shouldRunFocusedExtractionRetry('t2202', extraction())).toBe(false);
+  });
+});
+
+describe('mergeExtractionResults', () => {
+  it('fills missing fields from retry while preserving primary values', () => {
+    const merged = mergeExtractionResults(
+      extraction({
+        fields: {
+          box22: { value: 1000, confidence: 0.8 },
+        },
+      }),
+      extraction({
+        fields: {
+          box14: { value: 50000, confidence: 0.7 },
+          box22: { value: 9999, confidence: 0.99 },
+        },
+      }),
+    );
+
+    expect(merged.fields.box14?.value).toBe(50000);
+    expect(merged.fields.box22?.value).toBe(1000);
   });
 });
 

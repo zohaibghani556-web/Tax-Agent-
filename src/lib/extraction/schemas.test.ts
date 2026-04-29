@@ -11,6 +11,7 @@ import { z } from 'zod/v4';
 import {
   ClassificationSchema,
   T4ExtractionSchema,
+  T4FocusedExtractionSchema,
   T4AExtractionSchema,
   T5ExtractionSchema,
   T5008ExtractionSchema,
@@ -146,6 +147,46 @@ describe('T4ExtractionSchema', () => {
     expect(jsonSchema.properties?.box14?.description).toContain('T4 Box 14 - Employment income');
     expect(jsonSchema.properties?.box22?.description).toContain('T4 Box 22 - Income tax deducted');
     expect(jsonSchema.properties?.box45?.description).toContain('Keep this as the printed code string');
+  });
+});
+
+describe('T4FocusedExtractionSchema', () => {
+  it('requires explicit value-or-null decisions for common T4 boxes', () => {
+    const result = T4FocusedExtractionSchema.safeParse({
+      metadata: validMetadata,
+      box14: { value: null, confidence: 0 },
+      box16: { value: null, confidence: 0 },
+      box16A: { value: null, confidence: 0 },
+      box17: { value: null, confidence: 0 },
+      box18: { value: null, confidence: 0 },
+      box20: { value: null, confidence: 0 },
+      box22: { value: 4200, confidence: 0.7 },
+      box24: { value: null, confidence: 0 },
+      box26: { value: null, confidence: 0 },
+      box40: { value: null, confidence: 0 },
+      box42: { value: null, confidence: 0 },
+      box44: { value: null, confidence: 0 },
+      box45: { value: null, confidence: 0 },
+      box46: { value: null, confidence: 0 },
+      box52: { value: null, confidence: 0 },
+      box55: { value: null, confidence: 0 },
+      box85: { value: null, confidence: 0 },
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.box14.value).toBeNull();
+      expect(result.data.box22.value).toBe(4200);
+    }
+  });
+
+  it('rejects omitted T4 box decisions in the focused retry schema', () => {
+    const result = T4FocusedExtractionSchema.safeParse({
+      metadata: validMetadata,
+      box14: { value: 72400, confidence: 0.9 },
+    });
+
+    expect(result.success).toBe(false);
   });
 });
 

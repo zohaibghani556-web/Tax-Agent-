@@ -34,7 +34,7 @@ const SLIP_ICONS: Record<string, string> = {
 };
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const OCR_CLIENT_TIMEOUT_MS = 75_000;
+const OCR_CLIENT_TIMEOUT_MS = 95_000;
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -301,7 +301,7 @@ export default function SlipUploadPage() {
           </Button>
 
           <p className="text-xs text-center" style={{ color: 'rgba(255,255,255,0.30)' }}>
-            Usually takes under a minute. Every readable box will be extracted automatically.
+            Usually takes under 90 seconds. Every readable box will be extracted automatically.
           </p>
         </div>
       )}

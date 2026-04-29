@@ -18,10 +18,12 @@ import {
   EXTRACTION_SCHEMAS,
   SLIP_TYPE_LABELS,
   PIPELINE_TO_ENGINE_TYPE,
+  T4FocusedExtractionSchema,
   isExtractable,
 } from './schemas';
 import { SLIP_FIELDS } from '@/lib/slips/slip-fields';
 import { getIssuerFieldKey, isBlankReviewValue } from '@/lib/slips/review-values';
+import type { ZodType } from 'zod/v4';
 import type {
   ExtractableSlipType,
   ClassificationResult,
@@ -50,6 +52,7 @@ const MAX_RETRIES = 2;
 const BASE_RETRY_DELAY_MS = 1000;
 const CLASSIFICATION_REQUEST_TIMEOUT_MS = 20_000;
 const EXTRACTION_REQUEST_TIMEOUT_MS = 60_000;
+const FOCUSED_EXTRACTION_RETRY_TIMEOUT_MS = 30_000;
 
 // ---------------------------------------------------------------------------
 // Anthropic client (singleton, reuses connection pool)
@@ -319,18 +322,89 @@ RULES:
 - Do NOT guess amounts that aren't printed — omit the field instead.${buildSlipTypeHints(slipType)}`;
 }
 
+export function buildFocusedExtractionPrompt(slipType: ExtractableSlipType): string {
+  if (slipType !== 't4') {
+    return buildExtractionPrompt(slipType);
+  }
+
+  return `${buildExtractionPrompt(slipType)}
+
+FOCUSED T4 RETRY:
+- A previous extraction pass did not extract Box 14 or returned a blank T4.
+- Inspect the document visually again and evaluate every T4 box in the output schema.
+- For each numbered T4 box, output the printed value if it is visible, even when confidence is low.
+- Use null only when that exact numbered box is blank, absent, cut off, or unreadable.
+- Do not calculate, infer, or copy values from a different numbered box.`;
+}
+
+export function shouldRunFocusedExtractionRetry(
+  slipType: ExtractableSlipType,
+  extraction: ExtractionResult,
+): boolean {
+  return slipType === 't4' && isBlankReviewValue(extraction.fields.box14?.value);
+}
+
+export function mergeExtractionResults(
+  primary: ExtractionResult,
+  retry: ExtractionResult,
+): ExtractionResult {
+  return {
+    metadata: {
+      issuerName: isBlankReviewValue(primary.metadata.issuerName.value)
+        ? retry.metadata.issuerName
+        : primary.metadata.issuerName,
+      taxYear: isBlankReviewValue(primary.metadata.taxYear.value)
+        ? retry.metadata.taxYear
+        : primary.metadata.taxYear,
+    },
+    fields: {
+      ...retry.fields,
+      ...primary.fields,
+    },
+  };
+}
+
+function normalizeParsedExtraction(parsed: Record<string, unknown>): ExtractionResult {
+  const metadata = parsed.metadata as ExtractionResult['metadata'];
+  const fields: Record<string, ExtractedField> = {};
+
+  for (const [key, val] of Object.entries(parsed)) {
+    if (key === 'metadata' || val == null) continue;
+    const field = val as ExtractedField;
+    if (
+      typeof field === 'object' &&
+      'value' in field &&
+      'confidence' in field &&
+      !isBlankReviewValue(field.value)
+    ) {
+      fields[key] = field;
+    }
+  }
+
+  return { metadata, fields };
+}
+
+interface ExtractFieldsOptions {
+  schema?: ZodType;
+  systemPrompt?: string;
+  userPrompt?: string;
+  timeout?: number;
+  label?: string;
+}
+
 async function extractFields(
   base64: string,
   mediaType: string,
   slipType: ExtractableSlipType,
+  options: ExtractFieldsOptions = {},
 ): Promise<{ result: ExtractionResult; raw: unknown; usage: { input: number; output: number } }> {
   const client = getClient();
   const docBlock = buildDocumentBlock(base64, mediaType);
-  const schema = EXTRACTION_SCHEMAS[slipType];
+  const schema = options.schema ?? EXTRACTION_SCHEMAS[slipType];
 
   const requestOptions = buildAnthropicRequestOptions(
     mediaType,
-    EXTRACTION_REQUEST_TIMEOUT_MS,
+    options.timeout ?? EXTRACTION_REQUEST_TIMEOUT_MS,
   );
 
   const response = await withRetry(
@@ -340,13 +414,13 @@ async function extractFields(
           model: EXTRACTION_MODEL,
           max_tokens: 4096,
           temperature: 0,
-          system: buildExtractionPrompt(slipType),
+          system: options.systemPrompt ?? buildExtractionPrompt(slipType),
           messages: [
             {
               role: 'user',
               content: [
                 docBlock,
-                { type: 'text', text: 'Extract all fields from this tax slip.' },
+                { type: 'text', text: options.userPrompt ?? 'Extract all fields from this tax slip.' },
               ],
             },
           ],
@@ -356,26 +430,14 @@ async function extractFields(
         },
         requestOptions,
       ),
-    'extraction',
+    options.label ?? 'extraction',
   );
 
   const rawText = response.content[0].type === 'text' ? response.content[0].text : '{}';
   const parsed = JSON.parse(rawText) as Record<string, unknown>;
 
-  // Separate metadata from box fields
-  const metadata = parsed.metadata as ExtractionResult['metadata'];
-  const fields: Record<string, ExtractedField> = {};
-
-  for (const [key, val] of Object.entries(parsed)) {
-    if (key === 'metadata' || val == null) continue;
-    const field = val as ExtractedField;
-    if (typeof field === 'object' && 'value' in field && 'confidence' in field) {
-      fields[key] = field;
-    }
-  }
-
   return {
-    result: { metadata, fields },
+    result: normalizeParsedExtraction(parsed),
     raw: { model: EXTRACTION_MODEL, response: rawText },
     usage: {
       input: response.usage.input_tokens,
@@ -616,6 +678,7 @@ export async function extractSlip(options: ExtractSlipOptions): Promise<Pipeline
   let extraction: ExtractionResult;
   let extractionRaw: unknown = null;
   let extractionUsage = { input: 0, output: 0 };
+  let focusedRetryRaw: unknown = null;
 
   try {
     const stage2 = await extractFields(base64, mediaType, extractableType);
@@ -627,6 +690,46 @@ export async function extractSlip(options: ExtractSlipOptions): Promise<Pipeline
       slipType: extractableType,
       fieldCount: Object.keys(extraction.fields).length,
     });
+
+    if (shouldRunFocusedExtractionRetry(extractableType, extraction)) {
+      log('warn', 'extraction.focused_retry.start', {
+        slipType: extractableType,
+        reason: 'missing_required_box14',
+      });
+
+      try {
+        const retry = await extractFields(base64, mediaType, extractableType, {
+          schema: T4FocusedExtractionSchema,
+          systemPrompt: buildFocusedExtractionPrompt(extractableType),
+          userPrompt: 'Re-read this T4 and complete the focused value-or-null schema for every numbered box.',
+          timeout: FOCUSED_EXTRACTION_RETRY_TIMEOUT_MS,
+          label: 'focused_retry',
+        });
+
+        focusedRetryRaw = retry.raw;
+        extractionUsage = {
+          input: extractionUsage.input + retry.usage.input,
+          output: extractionUsage.output + retry.usage.output,
+        };
+
+        const beforeCount = Object.keys(extraction.fields).length;
+        extraction = mergeExtractionResults(extraction, retry.result);
+        const afterCount = Object.keys(extraction.fields).length;
+
+        log('info', 'extraction.focused_retry.complete', {
+          slipType: extractableType,
+          beforeCount,
+          retryCount: Object.keys(retry.result.fields).length,
+          afterCount,
+          recoveredBox14: !isBlankReviewValue(extraction.fields.box14?.value),
+        });
+      } catch (retryErr) {
+        log('warn', 'extraction.focused_retry.error', {
+          message: (retryErr as Error).message,
+          slipType: extractableType,
+        });
+      }
+    }
   } catch (err) {
     log('error', 'extraction.extraction.error', {
       message: (err as Error).message,
@@ -685,7 +788,9 @@ export async function extractSlip(options: ExtractSlipOptions): Promise<Pipeline
     summary,
     rawModelResponses: {
       classification: classificationRaw,
-      extraction: extractionRaw,
+      extraction: focusedRetryRaw
+        ? { primary: extractionRaw, focusedRetry: focusedRetryRaw }
+        : extractionRaw,
     },
     usage: {
       classificationInputTokens: classificationUsage.input,
