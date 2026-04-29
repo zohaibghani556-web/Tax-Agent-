@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { validateExtraction } from './pipeline';
+import {
+  buildExtractionPrompt,
+  isRetryableExtractionError,
+  validateExtraction,
+} from './pipeline';
 import type { ExtractionResult } from './types';
 
 function extraction(overrides: Partial<ExtractionResult> = {}): ExtractionResult {
@@ -63,5 +67,28 @@ describe('validateExtraction', () => {
         }),
       ]),
     );
+  });
+});
+
+describe('buildExtractionPrompt', () => {
+  it('adds explicit T4 numbered-box guidance', () => {
+    const prompt = buildExtractionPrompt('t4');
+
+    expect(prompt).toContain('T4 CRITICAL FIELD MAPPING');
+    expect(prompt).toContain('box14: Box 14, employment income');
+    expect(prompt).toContain('box22: Box 22, income tax deducted');
+    expect(prompt).toContain('Use the box number beside each amount');
+    expect(prompt).toContain('Use 0 only when the slip explicitly prints 0 or 0.00');
+  });
+});
+
+describe('isRetryableExtractionError', () => {
+  it('does not retry request timeouts', () => {
+    expect(isRetryableExtractionError(new Error('Request timed out.'))).toBe(false);
+  });
+
+  it('retries transient API capacity errors', () => {
+    expect(isRetryableExtractionError(new Error('529 overloaded'))).toBe(true);
+    expect(isRetryableExtractionError(new Error('503 Service Unavailable'))).toBe(true);
   });
 });

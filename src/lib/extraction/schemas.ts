@@ -22,37 +22,45 @@ import type { ClassifiableSlipType, ExtractableSlipType } from './types';
 // ---------------------------------------------------------------------------
 
 /** Numeric field with extraction confidence */
-const numericField = () =>
-  z.object({
+const numericField = (description?: string) => {
+  const schema = z.object({
     value: z.number(),
     confidence: z.number(),
-  }).optional();
+  });
+  return (description ? schema.describe(description) : schema).optional();
+};
 
 /** String field with extraction confidence */
-const stringField = () =>
-  z.object({
-    value: z.string(),
-    confidence: z.number(),
-  }).optional();
-
-/** Required string field with extraction confidence */
-const requiredStringField = () =>
-  z.object({
+const stringField = (description?: string) => {
+  const schema = z.object({
     value: z.string(),
     confidence: z.number(),
   });
+  return (description ? schema.describe(description) : schema).optional();
+};
+
+/** Required string field with extraction confidence */
+const requiredStringField = (description?: string) => {
+  const schema = z.object({
+    value: z.string(),
+    confidence: z.number(),
+  });
+  return description ? schema.describe(description) : schema;
+};
 
 /** Required numeric field with extraction confidence */
-const requiredNumericField = () =>
-  z.object({
+const requiredNumericField = (description?: string) => {
+  const schema = z.object({
     value: z.number(),
     confidence: z.number(),
   });
+  return description ? schema.describe(description) : schema;
+};
 
 /** Slip metadata — present on every extraction */
 const metadataSchema = z.object({
-  issuerName: requiredStringField(),
-  taxYear: requiredNumericField(),
+  issuerName: requiredStringField('Name of the employer, payer, issuer, or institution printed on the slip.'),
+  taxYear: requiredNumericField('Tax year printed on the slip. Use the printed year only.'),
 });
 
 // ---------------------------------------------------------------------------
@@ -85,23 +93,23 @@ export type ClassificationOutput = z.infer<typeof ClassificationSchema>;
  */
 export const T4ExtractionSchema = z.object({
   metadata: metadataSchema,
-  box14: numericField(),  // Employment income
-  box16: numericField(),  // CPP contributions
-  box16A: numericField(), // CPP2 contributions
-  box17: numericField(),  // QPP contributions
-  box18: numericField(),  // EI premiums
-  box20: numericField(),  // RPP contributions
-  box22: numericField(),  // Income tax deducted
-  box24: numericField(),  // EI insurable earnings
-  box26: numericField(),  // CPP/QPP pensionable earnings
-  box40: numericField(),  // Other taxable allowances and benefits
-  box42: numericField(),  // Employment commissions
-  box44: numericField(),  // Union dues
-  box45: stringField(),   // Employer-offered dental benefits code (1–5)
-  box46: numericField(),  // Charitable donations
-  box52: numericField(),  // Pension adjustment
-  box55: numericField(),  // PPIP premiums
-  box85: numericField(),  // Employee health premiums
+  box14: numericField('T4 Box 14 - Employment income. This is required when printed on the slip.'),
+  box16: numericField('T4 Box 16 - Employee CPP contributions.'),
+  box16A: numericField('T4 Box 16A - Employee second CPP contributions.'),
+  box17: numericField('T4 Box 17 - Employee QPP contributions.'),
+  box18: numericField('T4 Box 18 - Employee EI premiums.'),
+  box20: numericField('T4 Box 20 - RPP contributions.'),
+  box22: numericField('T4 Box 22 - Income tax deducted.'),
+  box24: numericField('T4 Box 24 - EI insurable earnings.'),
+  box26: numericField('T4 Box 26 - CPP or QPP pensionable earnings.'),
+  box40: numericField('T4 Box 40 - Other taxable allowances and benefits.'),
+  box42: numericField('T4 Box 42 - Employment commissions.'),
+  box44: numericField('T4 Box 44 - Union dues.'),
+  box45: stringField('T4 Box 45 - Employer-offered dental benefits code. Keep this as the printed code string.'),
+  box46: numericField('T4 Box 46 - Charitable donations.'),
+  box52: numericField('T4 Box 52 - Pension adjustment.'),
+  box55: numericField('T4 Box 55 - PPIP premiums.'),
+  box85: numericField('T4 Box 85 - Employee-paid private health premiums.'),
 });
 
 /**

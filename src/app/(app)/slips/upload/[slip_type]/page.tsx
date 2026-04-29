@@ -34,6 +34,7 @@ const SLIP_ICONS: Record<string, string> = {
 };
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const OCR_CLIENT_TIMEOUT_MS = 75_000;
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -124,10 +125,13 @@ export default function SlipUploadPage() {
       : undefined;
     if (knownType) fd.append('slipType', knownType);
 
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), OCR_CLIENT_TIMEOUT_MS);
+
     try {
       const res = await fetch(
         '/api/ocr',
-        addCsrfHeader({ method: 'POST', body: fd }),
+        addCsrfHeader({ method: 'POST', body: fd, signal: controller.signal }),
       );
 
       if (!res.ok) {
@@ -146,8 +150,13 @@ export default function SlipUploadPage() {
       }
 
       setState({ phase: 'done', extractionId: result.extractionId });
-    } catch {
-      setState({ phase: 'error', message: 'Network error. Please try again.' });
+    } catch (err) {
+      const message = (err as Error).name === 'AbortError'
+        ? 'Reading took too long. Try a clearer image/PDF or enter the slip manually.'
+        : 'Network error. Please try again.';
+      setState({ phase: 'error', message });
+    } finally {
+      window.clearTimeout(timeoutId);
     }
   }
 
@@ -292,7 +301,7 @@ export default function SlipUploadPage() {
           </Button>
 
           <p className="text-xs text-center" style={{ color: 'rgba(255,255,255,0.30)' }}>
-            Takes about 5–10 seconds. Every box will be extracted automatically.
+            Usually takes under a minute. Every readable box will be extracted automatically.
           </p>
         </div>
       )}
