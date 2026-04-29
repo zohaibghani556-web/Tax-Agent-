@@ -48,6 +48,8 @@ const CLASSIFICATION_CONFIDENCE_THRESHOLD = 0.70;
 
 const MAX_RETRIES = 2;
 const BASE_RETRY_DELAY_MS = 1000;
+const CLASSIFICATION_REQUEST_TIMEOUT_MS = 20_000;
+const EXTRACTION_REQUEST_TIMEOUT_MS = 60_000;
 
 // ---------------------------------------------------------------------------
 // Anthropic client (singleton, reuses connection pool)
@@ -76,11 +78,7 @@ async function withRetry<T>(
       return await fn();
     } catch (err) {
       lastError = err as Error;
-      const isRetryable =
-        lastError.message?.includes('overloaded') ||
-        lastError.message?.includes('529') ||
-        lastError.message?.includes('500') ||
-        lastError.message?.includes('timeout');
+      const isRetryable = isRetryableExtractionError(lastError);
 
       if (!isRetryable || attempt === MAX_RETRIES) {
         throw lastError;
@@ -96,6 +94,17 @@ async function withRetry<T>(
     }
   }
   throw lastError;
+}
+
+export function isRetryableExtractionError(error: Error): boolean {
+  const message = (error.message ?? '').toLowerCase();
+  return (
+    message.includes('overloaded') ||
+    message.includes('529') ||
+    message.includes('500') ||
+    message.includes('502') ||
+    message.includes('503')
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -128,6 +137,19 @@ function buildDocumentBlock(
       media_type: mediaType as ImageMediaType,
       data: base64,
     },
+  };
+}
+
+function buildAnthropicRequestOptions(
+  mediaType: string,
+  timeout: number,
+): Anthropic.RequestOptions {
+  return {
+    ...(mediaType === 'application/pdf'
+      ? { headers: { 'anthropic-beta': 'pdfs-2024-09-25' } }
+      : {}),
+    timeout,
+    maxRetries: 0,
   };
 }
 
@@ -173,10 +195,10 @@ async function classifyDocument(
   const client = getClient();
   const docBlock = buildDocumentBlock(base64, mediaType);
 
-  const requestOptions =
-    mediaType === 'application/pdf'
-      ? { headers: { 'anthropic-beta': 'pdfs-2024-09-25' } }
-      : undefined;
+  const requestOptions = buildAnthropicRequestOptions(
+    mediaType,
+    CLASSIFICATION_REQUEST_TIMEOUT_MS,
+  );
 
   const response = await withRetry(
     () =>
@@ -226,8 +248,37 @@ async function classifyDocument(
  * These correct recurring model errors where box labels on physical documents
  * differ from schema field names or appear in unexpected visual positions.
  */
-function buildSlipTypeHints(slipType: ExtractableSlipType): string {
+export function buildSlipTypeHints(slipType: ExtractableSlipType): string {
   switch (slipType) {
+    case 't4':
+      return `
+
+T4 CRITICAL FIELD MAPPING — read before extracting:
+- Read the numbered T4 boxes directly from the slip. Use the box number beside each amount, not visual order.
+- metadata.issuerName: employer name printed on the slip.
+- metadata.taxYear: tax year printed on the slip.
+- box14: Box 14, employment income. This is the primary required T4 amount.
+- box16: Box 16, employee CPP contributions.
+- box16A: Box 16A, employee second CPP contributions.
+- box17: Box 17, employee QPP contributions.
+- box18: Box 18, employee EI premiums.
+- box20: Box 20, RPP contributions.
+- box22: Box 22, income tax deducted.
+- box24: Box 24, EI insurable earnings.
+- box26: Box 26, CPP/QPP pensionable earnings.
+- box40: Box 40, other taxable allowances and benefits.
+- box42: Box 42, employment commissions.
+- box44: Box 44, union dues.
+- box45: Box 45, employer-offered dental benefits code. Keep the printed code as a string.
+- box46: Box 46, charitable donations.
+- box52: Box 52, pension adjustment.
+- box55: Box 55, PPIP premiums.
+- box85: Box 85, employee-paid private health premiums.
+
+VALIDATION RULES:
+- Do not use a value from an unnumbered total or another slip section unless it is clearly attached to that exact T4 box number.
+- If a numbered box is blank or absent, omit that field. Use 0 only when the slip explicitly prints 0 or 0.00.
+- If you can see Box 14 but cannot read it confidently, still extract the best visible value with a low confidence score instead of omitting every T4 box.`;
     case 't2202':
       // T2202 field mapping errors are the #1 source of bad extractions:
       // Claude frequently puts the tuition dollar amount into boxC (full-time months)
@@ -249,7 +300,7 @@ VALIDATION RULES:
   }
 }
 
-function buildExtractionPrompt(slipType: ExtractableSlipType): string {
+export function buildExtractionPrompt(slipType: ExtractableSlipType): string {
   const label = SLIP_TYPE_LABELS[slipType];
   return `You are a Canadian tax document data extractor. This document is a ${label}.
 
@@ -264,7 +315,7 @@ RULES:
 - For metadata.issuerName: the employer, institution, or payer name printed on the slip
 - For metadata.taxYear: the tax year printed on the slip (default 2025 if not visible)
 - If a field is not present on the document, omit it (leave as null/undefined)
-- All monetary values must be positive numbers (not strings). Use 0 for explicitly printed zeros.
+- All monetary values must be non-negative numbers (not strings). Use 0 for explicitly printed zeros.
 - Do NOT guess amounts that aren't printed — omit the field instead.${buildSlipTypeHints(slipType)}`;
 }
 
@@ -277,10 +328,10 @@ async function extractFields(
   const docBlock = buildDocumentBlock(base64, mediaType);
   const schema = EXTRACTION_SCHEMAS[slipType];
 
-  const requestOptions =
-    mediaType === 'application/pdf'
-      ? { headers: { 'anthropic-beta': 'pdfs-2024-09-25' } }
-      : undefined;
+  const requestOptions = buildAnthropicRequestOptions(
+    mediaType,
+    EXTRACTION_REQUEST_TIMEOUT_MS,
+  );
 
   const response = await withRetry(
     () =>

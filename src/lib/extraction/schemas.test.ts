@@ -7,6 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { z } from 'zod/v4';
 import {
   ClassificationSchema,
   T4ExtractionSchema,
@@ -135,6 +136,16 @@ describe('T4ExtractionSchema', () => {
       box14: { value: '72400', confidence: 0.9 },
     });
     expect(result.success).toBe(false);
+  });
+
+  it('includes box-level descriptions for structured extraction guidance', () => {
+    const jsonSchema = z.toJSONSchema(T4ExtractionSchema) as {
+      properties?: Record<string, { description?: string }>;
+    };
+
+    expect(jsonSchema.properties?.box14?.description).toContain('T4 Box 14 - Employment income');
+    expect(jsonSchema.properties?.box22?.description).toContain('T4 Box 22 - Income tax deducted');
+    expect(jsonSchema.properties?.box45?.description).toContain('Keep this as the printed code string');
   });
 });
 
