@@ -5,6 +5,7 @@ import {
   buildLegacyJsonFallbackPrompt,
   isRetryableExtractionError,
   mergeExtractionResults,
+  normalizeLegacyBoxKey,
   normalizeLegacyJsonExtraction,
   shouldRunFocusedExtractionRetry,
   validateExtraction,
@@ -130,6 +131,14 @@ describe('buildLegacyJsonFallbackPrompt', () => {
 });
 
 describe('normalizeLegacyJsonExtraction', () => {
+  it('normalizes common T4 box key aliases', () => {
+    expect(normalizeLegacyBoxKey('14', 't4')).toBe('box14');
+    expect(normalizeLegacyBoxKey('Box 22', 't4')).toBe('box22');
+    expect(normalizeLegacyBoxKey('incomeTaxDeducted', 't4')).toBe('box22');
+    expect(normalizeLegacyBoxKey('CPP2 contributions', 't4')).toBe('box16A');
+    expect(normalizeLegacyBoxKey('not a T4 box', 't4')).toBeNull();
+  });
+
   it('normalizes legacy T4 JSON boxes into extraction fields', () => {
     const result = normalizeLegacyJsonExtraction(
       {
@@ -138,9 +147,9 @@ describe('normalizeLegacyJsonExtraction', () => {
         confidence: 0.82,
         lowConfidenceFields: ['box22'],
         boxes: {
-          box14: '$72,400.00',
-          box22: 14280,
-          box45: '1',
+          '14': '$72,400.00',
+          incomeTaxDeducted: 14280,
+          'Box 45': '1',
           unsupported: 123,
         },
       },
