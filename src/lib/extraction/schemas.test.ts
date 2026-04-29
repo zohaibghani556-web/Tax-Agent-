@@ -231,18 +231,20 @@ describe('T5ExtractionSchema', () => {
 // ---------------------------------------------------------------------------
 
 describe('T5008ExtractionSchema', () => {
-  it('parses T5008 with string fields for box15 and box16', () => {
+  it('parses T5008 with app-layer box keys', () => {
     const result = T5008ExtractionSchema.safeParse({
       metadata: validMetadata,
       box15: strField('SHR'),
       box16: strField('AAPL - Apple Inc'),
       box20: field(6200),
       box21: field(8500),
+      box22: field(100),
     });
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.box15?.value).toBe('SHR');
       expect(result.data.box16?.value).toBe('AAPL - Apple Inc');
+      expect(result.data.box22?.value).toBe(100);
     }
   });
 });
@@ -337,8 +339,8 @@ describe('T4RSPExtractionSchema', () => {
   it('parses T4RSP', () => {
     const result = T4RSPExtractionSchema.safeParse({
       metadata: validMetadata,
-      box22: field(10000),
-      box30: field(2000),
+      box20: field(10000),
+      box22: field(2000),
     });
     expect(result.success).toBe(true);
   });

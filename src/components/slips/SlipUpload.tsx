@@ -12,6 +12,7 @@ import {
   SLIP_TYPE_LABELS,
   mergeOcrValues,
 } from '@/lib/slips/slip-fields';
+import { BLANK_EXTRACTION_MESSAGE, hasBlankExtractionFlag } from '@/lib/slips/ocr-result';
 import { addCsrfHeader } from '@/lib/csrf-client';
 import type { OcrResult } from '@/app/api/ocr/route';
 
@@ -117,11 +118,15 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
         return;
       }
       const result = (await res.json()) as OcrResult;
+      if (hasBlankExtractionFlag(result.flags)) {
+        setUploadState({ status: 'error', message: BLANK_EXTRACTION_MESSAGE });
+        return;
+      }
       const knownTypes = Object.keys(SLIP_TYPE_LABELS);
       const type = knownTypes.includes(result.slipType) ? result.slipType : 'T4';
       setSelectedType(type);
       const issuerKey = type === 'T2202' ? 'institutionName' : 'issuerName';
-      setFormValues(mergeOcrValues(type, { ...result.boxes, [issuerKey]: result.issuerName }));
+      setFormValues(mergeOcrValues(type, { ...(result.boxes ?? {}), [issuerKey]: result.issuerName }));
       setUploadState({ status: 'extracted', result });
     } catch {
       setUploadState({ status: 'error', message: 'Network error. Please try again.' });
