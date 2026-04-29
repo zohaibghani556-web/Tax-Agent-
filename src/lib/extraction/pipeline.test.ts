@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   buildFocusedExtractionPrompt,
   buildExtractionPrompt,
+  buildLegacyJsonFallbackPrompt,
   isRetryableExtractionError,
   mergeExtractionResults,
+  normalizeLegacyJsonExtraction,
   shouldRunFocusedExtractionRetry,
   validateExtraction,
 } from './pipeline';
@@ -112,6 +114,62 @@ describe('shouldRunFocusedExtractionRetry', () => {
 
   it('does not retry non-T4 extraction', () => {
     expect(shouldRunFocusedExtractionRetry('t2202', extraction())).toBe(false);
+  });
+});
+
+describe('buildLegacyJsonFallbackPrompt', () => {
+  it('restores the old explicit T4 JSON extraction instructions', () => {
+    const prompt = buildLegacyJsonFallbackPrompt('t4');
+
+    expect(prompt).toContain('Return ONLY valid JSON');
+    expect(prompt).toContain('Extract box14');
+    expect(prompt).toContain('box22');
+    expect(prompt).toContain('lowConfidenceFields');
+    expect(prompt).not.toContain('output schema');
+  });
+});
+
+describe('normalizeLegacyJsonExtraction', () => {
+  it('normalizes legacy T4 JSON boxes into extraction fields', () => {
+    const result = normalizeLegacyJsonExtraction(
+      {
+        issuerName: 'Employer Inc.',
+        taxYear: 2025,
+        confidence: 0.82,
+        lowConfidenceFields: ['box22'],
+        boxes: {
+          box14: '$72,400.00',
+          box22: 14280,
+          box45: '1',
+          unsupported: 123,
+        },
+      },
+      't4',
+    );
+
+    expect(result.metadata.issuerName.value).toBe('Employer Inc.');
+    expect(result.metadata.taxYear.value).toBe(2025);
+    expect(result.fields.box14?.value).toBe(72400);
+    expect(result.fields.box14?.confidence).toBe(0.82);
+    expect(result.fields.box22?.value).toBe(14280);
+    expect(result.fields.box22?.confidence).toBe(0.6);
+    expect(result.fields.box45?.value).toBe('1');
+    expect(result.fields.unsupported).toBeUndefined();
+  });
+
+  it('drops blank and unparsable legacy numeric boxes', () => {
+    const result = normalizeLegacyJsonExtraction(
+      {
+        boxes: {
+          box14: '',
+          box22: 'not readable',
+        },
+      },
+      't4',
+    );
+
+    expect(result.fields.box14).toBeUndefined();
+    expect(result.fields.box22).toBeUndefined();
   });
 });
 
