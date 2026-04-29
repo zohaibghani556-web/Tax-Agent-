@@ -20,6 +20,7 @@ export const SLIP_FIELDS: Record<string, SlipFieldDef[]> = {
     { key: 'box14', label: 'Box 14 — Employment Income', valueType: 'number', required: true },
     { key: 'box16', label: 'Box 16 — Employee CPP Contributions', valueType: 'number', required: false },
     { key: 'box16A', label: 'Box 16A — Employee CPP2 Contributions', valueType: 'number', required: false },
+    { key: 'box17', label: 'Box 17 — Employee QPP Contributions', valueType: 'number', required: false },
     { key: 'box18', label: 'Box 18 — Employee EI Premiums', valueType: 'number', required: false },
     { key: 'box20', label: 'Box 20 — RPP Contributions', valueType: 'number', required: false },
     { key: 'box22', label: 'Box 22 — Income Tax Deducted', valueType: 'number', required: false },
@@ -31,6 +32,7 @@ export const SLIP_FIELDS: Record<string, SlipFieldDef[]> = {
     { key: 'box45', label: 'Box 45 — Dental Benefits Code (1–5)', valueType: 'text', required: false, placeholder: '1' },
     { key: 'box46', label: 'Box 46 — Charitable Donations', valueType: 'number', required: false },
     { key: 'box52', label: 'Box 52 — Pension Adjustment', valueType: 'number', required: false },
+    { key: 'box55', label: 'Box 55 — PPIP Premiums', valueType: 'number', required: false },
     { key: 'box85', label: 'Box 85 — Employee-Paid Private Health Premiums (ON)', valueType: 'number', required: false },
   ],
   T5: [
@@ -62,6 +64,8 @@ export const SLIP_FIELDS: Record<string, SlipFieldDef[]> = {
     { key: 'box25', label: 'Box 25 — Foreign Non-Business Income', valueType: 'number', required: false },
     { key: 'box26', label: 'Box 26 — Other Income', valueType: 'number', required: false },
     { key: 'box32', label: 'Box 32 — Taxable Other Dividends', valueType: 'number', required: false },
+    { key: 'box33', label: 'Box 33 — Actual Non-Eligible Dividends', valueType: 'number', required: false },
+    { key: 'box36', label: 'Box 36 — Foreign Business Tax Paid', valueType: 'number', required: false },
     { key: 'box37', label: 'Box 37 — Foreign Non-Business Tax Paid', valueType: 'number', required: false },
     { key: 'box49', label: 'Box 49 — Interest', valueType: 'number', required: false },
     { key: 'box50', label: 'Box 50 — Other Investment Income', valueType: 'number', required: false },
@@ -76,7 +80,9 @@ export const SLIP_FIELDS: Record<string, SlipFieldDef[]> = {
     { key: 'box028', label: 'Box 028 — Other Income', valueType: 'number', required: false },
     { key: 'box048', label: 'Box 048 — Fees for Services (line 28000)', valueType: 'number', required: false },
     { key: 'box105', label: 'Box 105 — Scholarships / Bursaries / Fellowships', valueType: 'number', required: false },
-    { key: 'box135', label: 'Box 135 — RESP Accumulated Income', valueType: 'number', required: false },
+    { key: 'box122', label: 'Box 122 — RESP Accumulated Income', valueType: 'number', required: false },
+    { key: 'box130', label: 'Box 130 — RESP Educational Assistance', valueType: 'number', required: false },
+    { key: 'box135', label: 'Box 135 — RESP Income (Designated)', valueType: 'number', required: false },
   ],
   T2202: [
     { key: 'institutionName', label: 'Educational Institution Name', valueType: 'text', required: true },
@@ -85,10 +91,12 @@ export const SLIP_FIELDS: Record<string, SlipFieldDef[]> = {
     { key: 'boxC', label: 'Box C — Full-Time Months Enrolled', valueType: 'number', required: false, placeholder: '0' },
   ],
   T4E: [
+    { key: 'issuerName', label: 'Payer Name', valueType: 'text', required: false },
     { key: 'box14', label: 'Box 14 — Total EI Benefits Paid', valueType: 'number', required: true },
     { key: 'box22', label: 'Box 22 — Income Tax Deducted', valueType: 'number', required: false },
   ],
   T5007: [
+    { key: 'issuerName', label: 'Payer Name', valueType: 'text', required: false },
     { key: 'box10', label: 'Box 10 — Social Assistance Payments', valueType: 'number', required: true },
   ],
   T4AP: [
@@ -117,6 +125,7 @@ export const SLIP_FIELDS: Record<string, SlipFieldDef[]> = {
     { key: 'issuerName', label: 'Financial Institution (e.g. TD, Wealthsimple)', valueType: 'text', required: true },
     { key: 'amount', label: 'Contribution Amount', valueType: 'number', required: true },
     { key: 'planType', label: 'Plan Type (RRSP or SPOUSAL-RRSP)', valueType: 'text', required: false, placeholder: 'RRSP' },
+    { key: 'dateOfContribution', label: 'Contribution Date', valueType: 'text', required: false, placeholder: 'YYYY-MM-DD' },
   ],
 
   T4FHSA: [

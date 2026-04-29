@@ -190,6 +190,7 @@ export const T5ExtractionSchema = z.object({
   box14: numericField(), // Other income
   box15: numericField(), // Foreign income
   box16: numericField(), // Foreign tax paid
+  box18: numericField(), // Capital gains dividends
   box24: numericField(), // Actual eligible dividends
   box25: numericField(), // Taxable eligible dividends
   box26: numericField(), // Eligible dividend tax credit
@@ -203,10 +204,9 @@ export const T5008ExtractionSchema = z.object({
   metadata: metadataSchema,
   box15: stringField(),   // Type code (e.g. "SHR")
   box16: stringField(),   // Security description
-  box17: numericField(),  // Quantity
   box20: numericField(),  // Cost or book value (ACB)
   box21: numericField(),  // Proceeds of disposition
-  box22: stringField(),   // Recipient type code
+  box22: numericField(),  // Quantity
 });
 
 /**

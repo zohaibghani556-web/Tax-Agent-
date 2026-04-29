@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SLIP_TYPE_LABELS } from '@/lib/slips/slip-fields';
+import { BLANK_EXTRACTION_MESSAGE, hasBlankExtractionFlag } from '@/lib/slips/ocr-result';
 import { addCsrfHeader } from '@/lib/csrf-client';
 import type { OcrResult } from '@/app/api/ocr/route';
 
@@ -141,11 +142,10 @@ export default function SlipUploadPage() {
       }
 
       const result = (await res.json()) as OcrResult;
-      const hasBlankExtraction = result.flags.some((flag) => flag.reason === 'blank_extraction');
-      if (hasBlankExtraction) {
+      if (hasBlankExtractionFlag(result.flags)) {
         setState({
           phase: 'error',
-          message: 'We could not read any usable boxes from this slip. Try a clearer file or enter it manually.',
+          message: BLANK_EXTRACTION_MESSAGE,
         });
         return;
       }
