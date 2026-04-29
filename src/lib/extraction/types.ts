@@ -54,7 +54,7 @@ export interface SlipMetadata {
  */
 export interface ExtractionResult {
   metadata: SlipMetadata;
-  fields: Record<string, ExtractedField>;
+  fields: Record<string, ExtractedField<number | string>>;
 }
 
 // ---------------------------------------------------------------------------
