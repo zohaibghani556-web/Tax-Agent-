@@ -424,6 +424,85 @@ interface LegacyJsonExtractionOutput {
   lowConfidenceFields?: string[];
 }
 
+const T4_FIELD_ALIASES: Record<string, string> = {
+  '14': 'box14',
+  employmentincome: 'box14',
+  employment: 'box14',
+  salary: 'box14',
+  '16': 'box16',
+  cppcontributions: 'box16',
+  cppemployeecontributions: 'box16',
+  employeecppcontributions: 'box16',
+  cpp: 'box16',
+  '16a': 'box16A',
+  cpp2contributions: 'box16A',
+  cppsecondcontributions: 'box16A',
+  '17': 'box17',
+  qppcontributions: 'box17',
+  qpp: 'box17',
+  '18': 'box18',
+  eipremiums: 'box18',
+  employeeeipremiums: 'box18',
+  ei: 'box18',
+  '20': 'box20',
+  rppcontributions: 'box20',
+  pensionplancontributions: 'box20',
+  '22': 'box22',
+  incometaxdeducted: 'box22',
+  taxdeducted: 'box22',
+  taxwithheld: 'box22',
+  incometaxwithheld: 'box22',
+  '24': 'box24',
+  eiinsurableearnings: 'box24',
+  insurableearnings: 'box24',
+  '26': 'box26',
+  cppqpppensionableearnings: 'box26',
+  pensionableearnings: 'box26',
+  '40': 'box40',
+  taxableallowancesandbenefits: 'box40',
+  otherallowancesandbenefits: 'box40',
+  otherbenefits: 'box40',
+  '42': 'box42',
+  employmentcommissions: 'box42',
+  commissions: 'box42',
+  '44': 'box44',
+  uniondues: 'box44',
+  '45': 'box45',
+  dentalbenefitscode: 'box45',
+  dentalcode: 'box45',
+  '46': 'box46',
+  charitabledonations: 'box46',
+  donations: 'box46',
+  '52': 'box52',
+  pensionadjustment: 'box52',
+  '55': 'box55',
+  ppippremiums: 'box55',
+  ppip: 'box55',
+  '85': 'box85',
+  employeehealthpremiums: 'box85',
+  privatehealthpremium: 'box85',
+  healthpremiums: 'box85',
+};
+const T4_FIELD_KEYS = new Set((SLIP_FIELDS.T4 ?? []).map((field) => field.key));
+
+export function normalizeLegacyBoxKey(key: string, slipType: ExtractableSlipType): string | null {
+  if (slipType !== 't4') return key;
+
+  const compact = key
+    .trim()
+    .replace(/^boxes\./i, '')
+    .replace(/^box[\s:_-]*/i, '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toLowerCase();
+
+  if (!compact) return null;
+  const alias = T4_FIELD_ALIASES[compact];
+  if (alias) return alias;
+
+  const boxKey = `box${compact}`;
+  return T4_FIELD_KEYS.has(boxKey) ? boxKey : null;
+}
+
 function parseJsonObjectFromText(rawText: string): Record<string, unknown> {
   const jsonMatch = rawText.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
@@ -457,7 +536,10 @@ export function normalizeLegacyJsonExtraction(
   const lowConfidenceFields = new Set(parsed.lowConfidenceFields ?? []);
   const fields: Record<string, ExtractedField<number | string>> = {};
 
-  for (const [key, value] of Object.entries(parsed.boxes ?? {})) {
+  for (const [rawKey, value] of Object.entries(parsed.boxes ?? {})) {
+    const key = normalizeLegacyBoxKey(rawKey, slipType);
+    if (!key) continue;
+
     const fieldDef = fieldByKey.get(key);
     if (!fieldDef) continue;
 
@@ -827,17 +909,22 @@ export async function extractSlip(options: ExtractSlipOptions): Promise<Pipeline
   let extraction: ExtractionResult;
   let extractionRaw: unknown = null;
   let extractionUsage = { input: 0, output: 0 };
+  let legacyJsonPrimaryRaw: unknown = null;
   let focusedRetryRaw: unknown = null;
   let legacyJsonFallbackRaw: unknown = null;
 
   try {
-    const stage2 = await extractFields(base64, mediaType, extractableType);
+    const stage2 = extractableType === 't4'
+      ? await extractLegacyJsonFallback(base64, mediaType, extractableType)
+      : await extractFields(base64, mediaType, extractableType);
     extraction = stage2.result;
     extractionRaw = stage2.raw;
     extractionUsage = stage2.usage;
+    legacyJsonPrimaryRaw = extractableType === 't4' ? stage2.raw : null;
 
     log('info', 'extraction.fields', {
       slipType: extractableType,
+      strategy: extractableType === 't4' ? 'legacy_json_primary' : 'structured',
       fieldCount: Object.keys(extraction.fields).length,
     });
 
@@ -881,7 +968,7 @@ export async function extractSlip(options: ExtractSlipOptions): Promise<Pipeline
       }
     }
 
-    if (shouldRunFocusedExtractionRetry(extractableType, extraction)) {
+    if (!legacyJsonPrimaryRaw && shouldRunFocusedExtractionRetry(extractableType, extraction)) {
       log('warn', 'extraction.legacy_json_fallback.start', {
         slipType: extractableType,
         reason: 'structured_extraction_still_missing_box14',
