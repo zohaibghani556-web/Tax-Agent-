@@ -63,6 +63,10 @@ export function buildOcrEvalReport(fixtures: OcrEvalFixture[]): OcrEvalReport {
 }
 
 export function variantFromFixtureId(fixtureId: string): string {
+  if (fixtureId.endsWith('-phone-screenshot-png')) return 'phone-screenshot';
+  if (fixtureId.endsWith('-rotated-png')) return 'rotated';
+  if (fixtureId.endsWith('-low-contrast-jpeg')) return 'low-contrast';
+  if (fixtureId.endsWith('-compressed-jpeg')) return 'compressed';
   if (fixtureId.endsWith('-duplicate-copy')) return 'duplicate-copy';
   if (fixtureId.endsWith('-sparse')) return 'sparse';
   if (fixtureId.endsWith('-dense')) return 'dense';

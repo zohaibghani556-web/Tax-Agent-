@@ -8,6 +8,10 @@ describe('ocr-eval-report', () => {
     expect(variantFromFixtureId('cra-synthetic-t4-sparse')).toBe('sparse');
     expect(variantFromFixtureId('cra-synthetic-t4-dense')).toBe('dense');
     expect(variantFromFixtureId('cra-synthetic-t4-duplicate-copy')).toBe('duplicate-copy');
+    expect(variantFromFixtureId('cra-synthetic-t4-clean-phone-screenshot-png')).toBe('phone-screenshot');
+    expect(variantFromFixtureId('cra-synthetic-t4-clean-rotated-png')).toBe('rotated');
+    expect(variantFromFixtureId('cra-synthetic-t4-clean-low-contrast-jpeg')).toBe('low-contrast');
+    expect(variantFromFixtureId('cra-synthetic-t4-clean-compressed-jpeg')).toBe('compressed');
     expect(variantFromFixtureId('private-t4-real')).toBe('unknown');
   });
 
