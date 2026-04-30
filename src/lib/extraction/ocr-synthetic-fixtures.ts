@@ -3,7 +3,11 @@ import { PIPELINE_TO_ENGINE_TYPE } from './schemas';
 import type { ExtractableSlipType } from './types';
 import type { OcrEvalExpected, OcrEvalValue } from './ocr-eval';
 
-export type OcrSyntheticVariant = 'clean-pdf';
+export type OcrSyntheticVariant =
+  | 'clean-pdf'
+  | 'sparse-pdf'
+  | 'dense-pdf'
+  | 'duplicate-copy-pdf';
 
 export interface OcrSyntheticFixtureCase {
   id: string;
@@ -39,6 +43,66 @@ export const OCR_SYNTHETIC_FIXTURE_CASES: OcrSyntheticFixtureCase[] = [
     },
   },
   {
+    id: 'cra-synthetic-t4-sparse',
+    slipType: 't4',
+    variant: 'sparse-pdf',
+    description: 'Sparse synthetic T4 with only primary employment income printed.',
+    expected: {
+      issuerName: 'Sparse Payroll Inc.',
+      taxYear: 2025,
+      boxes: {
+        box14: 18500,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t4-dense',
+    slipType: 't4',
+    variant: 'dense-pdf',
+    description: 'Dense synthetic T4 with every app-supported T4 box printed.',
+    expected: {
+      issuerName: 'Dense Payroll Inc.',
+      taxYear: 2025,
+      boxes: {
+        box14: 88000,
+        box16: 4034.1,
+        box16A: 188,
+        box17: 0,
+        box18: 1049.12,
+        box20: 4200,
+        box22: 16450,
+        box24: 63200,
+        box26: 68500,
+        box40: 900,
+        box42: 3500,
+        box44: 540,
+        box45: '1',
+        box46: 250,
+        box52: 5900,
+        box55: 0,
+        box85: 720,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t4-duplicate-copy',
+    slipType: 't4',
+    variant: 'duplicate-copy-pdf',
+    description: 'Synthetic T4 with the same printed copy repeated on one page.',
+    expected: {
+      issuerName: 'Duplicate Payroll Inc.',
+      taxYear: 2025,
+      boxes: {
+        box14: 41000,
+        box16: 2300,
+        box18: 670,
+        box22: 5200,
+        box24: 41000,
+        box26: 41000,
+      },
+    },
+  },
+  {
     id: 'cra-synthetic-t4a-clean',
     slipType: 't4a',
     variant: 'clean-pdf',
@@ -49,6 +113,56 @@ export const OCR_SYNTHETIC_FIXTURE_CASES: OcrSyntheticFixtureCase[] = [
       boxes: {
         box022: 125,
         box105: 2030,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t4a-sparse',
+    slipType: 't4a',
+    variant: 'sparse-pdf',
+    description: 'Sparse synthetic T4A with only scholarship income printed.',
+    expected: {
+      issuerName: 'Sparse University',
+      taxYear: 2025,
+      boxes: {
+        box105: 1500,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t4a-dense',
+    slipType: 't4a',
+    variant: 'dense-pdf',
+    description: 'Dense synthetic T4A with every app-supported T4A box printed.',
+    expected: {
+      issuerName: 'Dense Payer Inc.',
+      taxYear: 2025,
+      boxes: {
+        box016: 1200,
+        box018: 300,
+        box020: 450,
+        box022: 125,
+        box024: 250,
+        box028: 800,
+        box048: 2100,
+        box105: 2030,
+        box122: 100,
+        box130: 750,
+        box135: 90,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t4a-duplicate-copy',
+    slipType: 't4a',
+    variant: 'duplicate-copy-pdf',
+    description: 'Synthetic T4A with the same printed copy repeated on one page.',
+    expected: {
+      issuerName: 'Duplicate University',
+      taxYear: 2025,
+      boxes: {
+        box022: 180,
+        box105: 2400,
       },
     },
   },
@@ -64,6 +178,34 @@ export const OCR_SYNTHETIC_FIXTURE_CASES: OcrSyntheticFixtureCase[] = [
         boxA: 6200,
         boxB: 0,
         boxC: 8,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t2202-sparse',
+    slipType: 't2202',
+    variant: 'sparse-pdf',
+    description: 'Sparse synthetic T2202 with tuition printed and enrolment months omitted.',
+    expected: {
+      issuerName: 'Sparse College',
+      taxYear: 2025,
+      boxes: {
+        boxA: 3250,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t2202-duplicate-copy',
+    slipType: 't2202',
+    variant: 'duplicate-copy-pdf',
+    description: 'Synthetic T2202 with the same printed copy repeated on one page.',
+    expected: {
+      issuerName: 'Duplicate College',
+      taxYear: 2025,
+      boxes: {
+        boxA: 7100,
+        boxB: 2,
+        boxC: 6,
       },
     },
   },
@@ -112,23 +254,44 @@ export function buildOcrSyntheticFixtureOutput(
 
 function renderSyntheticSlipPdf(fixtureCase: OcrSyntheticFixtureCase): Buffer {
   const engineType = PIPELINE_TO_ENGINE_TYPE[fixtureCase.slipType];
+  const printedBoxLines = Object.entries(fixtureCase.expected.boxes).map(
+    ([key, value]) => `${formatBoxLabel(key)}: ${formatOcrValue(value)}`,
+  );
   const lines = [
     'TaxAgent.ai private OCR synthetic fixture',
     `Slip type: ${engineType}`,
     `Fixture id: ${fixtureCase.id}`,
+    `Variant: ${fixtureCase.variant}`,
     `Description: ${fixtureCase.description}`,
     `Issuer name: ${fixtureCase.expected.issuerName}`,
     `Tax year: ${fixtureCase.expected.taxYear}`,
     '',
     'Printed boxes:',
-    ...Object.entries(fixtureCase.expected.boxes).map(
-      ([key, value]) => `${formatBoxLabel(key)}: ${formatOcrValue(value)}`,
-    ),
+    ...printedBoxLines,
+    ...duplicateCopyLines(fixtureCase, printedBoxLines),
     '',
     'This file contains fake data for local OCR benchmarking only.',
   ];
 
   return buildSimpleTextPdf(lines);
+}
+
+function duplicateCopyLines(
+  fixtureCase: OcrSyntheticFixtureCase,
+  printedBoxLines: string[],
+): string[] {
+  if (fixtureCase.variant !== 'duplicate-copy-pdf') {
+    return [];
+  }
+
+  return [
+    '',
+    'Second copy of the same slip:',
+    `Slip type: ${PIPELINE_TO_ENGINE_TYPE[fixtureCase.slipType]}`,
+    `Issuer name: ${fixtureCase.expected.issuerName}`,
+    `Tax year: ${fixtureCase.expected.taxYear}`,
+    ...printedBoxLines,
+  ];
 }
 
 function formatBoxLabel(key: string): string {
