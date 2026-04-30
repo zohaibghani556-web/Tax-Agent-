@@ -5,6 +5,7 @@ import * as path from 'path';
 import { extractSlip } from '../src/lib/extraction';
 import { isExtractable } from '../src/lib/extraction/schemas';
 import { buildOcrEvalFixtureFromPipelineResult } from '../src/lib/extraction/ocr-fixture';
+import { loadLocalEnv } from './lib/load-local-env';
 import type { ExtractableSlipType } from '../src/lib/extraction/types';
 import type { OcrEvalExpected } from '../src/lib/extraction/ocr-eval';
 
@@ -132,6 +133,7 @@ function readExpected(expectedPath: string): OcrEvalExpected {
 }
 
 async function main(): Promise<void> {
+  loadLocalEnv();
   const args = parseArgs(process.argv.slice(2));
   assertPrivateOutput(args.outputPath, args.allowPublicOutput);
 

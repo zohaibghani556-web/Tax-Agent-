@@ -10,6 +10,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "capture:ocr-fixture": "tsx scripts/capture-ocr-fixture.ts",
+    "capture:ocr-synthetic-fixtures": "tsx scripts/capture-ocr-synthetic-fixtures.ts",
     "eval:ocr": "tsx scripts/run-ocr-fixture-eval.ts",
     "gen:ocr-image-variants": "tsx scripts/generate-ocr-image-variants.ts",
     "gen:ocr-synthetic-fixtures": "tsx scripts/generate-ocr-synthetic-fixtures.ts",
