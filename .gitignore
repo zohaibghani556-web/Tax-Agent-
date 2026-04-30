@@ -37,3 +37,7 @@ yarn-error.log*
 # Testing
 /coverage
 .aider*
+
+# Private OCR eval material - never commit real tax slips or user documents
+/ocr-fixtures/private/
+/src/lib/extraction/fixtures/ocr-eval/private/
