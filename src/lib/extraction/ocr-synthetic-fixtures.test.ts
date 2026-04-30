@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { EXTRACTION_SCHEMAS } from './schemas';
 import {
   OCR_SYNTHETIC_FIXTURE_CASES,
   buildOcrSyntheticFixtureOutput,
@@ -8,16 +9,25 @@ import {
 import type { OcrSyntheticFixtureCase } from './ocr-synthetic-fixtures';
 
 describe('ocr-synthetic-fixtures', () => {
-  it('defines synthetic variants for the first OCR quality priority slips', () => {
+  it('defines at least one synthetic source fixture for every extractable slip', () => {
     expect(new Set(OCR_SYNTHETIC_FIXTURE_CASES.map((fixtureCase) => fixtureCase.slipType))).toEqual(
-      new Set(['t4', 't4a', 't2202']),
+      new Set(Object.keys(EXTRACTION_SCHEMAS)),
     );
-    expect(OCR_SYNTHETIC_FIXTURE_CASES.length).toBeGreaterThan(3);
 
     for (const fixtureCase of OCR_SYNTHETIC_FIXTURE_CASES) {
       expect(() => validateOcrSyntheticFixtureCase(fixtureCase)).not.toThrow();
       expect(Object.keys(fixtureCase.expected.boxes).length).toBeGreaterThan(0);
     }
+  });
+
+  it('defines one clean source fixture for every extractable slip', () => {
+    const cleanSlips = new Set(
+      OCR_SYNTHETIC_FIXTURE_CASES
+        .filter((fixtureCase) => fixtureCase.variant === 'clean-pdf')
+        .map((fixtureCase) => fixtureCase.slipType),
+    );
+
+    expect(cleanSlips).toEqual(new Set(Object.keys(EXTRACTION_SCHEMAS)));
   });
 
   it('covers sparse, dense, and duplicate-copy conditions where applicable', () => {
