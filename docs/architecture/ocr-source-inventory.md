@@ -60,6 +60,16 @@ The XSDs are already present under `scripts/cra-xsds/`. They should be used for:
 
 They should not be expected to fix OCR blank reads or visual box confusion. OCR must first read the visual document correctly; XSD validation then checks whether the result is structurally valid.
 
+The current safe offline check is:
+
+```bash
+npm run report:ocr-xsd
+```
+
+This command reads the generated CRA XSD box maps and compares them with the
+app-supported OCR/review fields. It does not run extraction, write to Supabase,
+apply SQL, or wire XSD validation into production uploads.
+
 ## Non-Goals For This Stage
 
 - No SQL or production Supabase work.
