@@ -11,7 +11,9 @@ function formatList(values: string[]): string {
 function formatEntry(entry: OcrXsdFieldInventoryEntry): string[] {
   return [
     `${entry.engineType} (${entry.slipType})`,
+    `  XSD/app map: ${entry.hasAnyXsdBoxMap ? 'yes' : 'no'} (${entry.xsdMapSource})`,
     `  generated XSD map: ${entry.hasGeneratedXsdBoxMap ? 'yes' : 'no'}`,
+    `  supplemental XSD map: ${entry.hasSupplementalXsdBoxMap ? 'yes' : 'no'}`,
     `  XSD files: ${entry.xsdFiles.join(', ')}`,
     `  XSD mapped fields: ${entry.xsdFieldCount}`,
     `  app supported boxes: ${entry.appSupportedBoxKeys.length}`,
@@ -25,6 +27,7 @@ const report = buildOcrXsdFieldInventoryReport();
 
 console.log('OCR XSD field inventory report');
 console.log(`Generated XSD box-map coverage: ${report.generatedCoverageCount}/${report.totalSlipCount} supported slips`);
+console.log(`Generated + supplemental XSD/app coverage: ${report.mappedCoverageCount}/${report.totalSlipCount} supported slips`);
 console.log('');
 
 for (const entry of report.entries) {
