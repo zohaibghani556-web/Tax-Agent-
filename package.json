@@ -14,6 +14,7 @@
     "gen:ocr-image-variants": "tsx scripts/generate-ocr-image-variants.ts",
     "gen:ocr-synthetic-fixtures": "tsx scripts/generate-ocr-synthetic-fixtures.ts",
     "report:ocr": "tsx scripts/report-ocr-fixtures.ts",
+    "report:ocr-xsd": "tsx scripts/report-ocr-xsd-inventory.ts",
     "gen:slip-types": "tsx scripts/generate-slip-types.ts"
   },
   "dependencies": {
