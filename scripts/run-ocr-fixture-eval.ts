@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   evaluateOcrFixtures,
+  normalizeOcrEvalFixturePayload,
   summarizeOcrEvalResults,
 } from '../src/lib/extraction/ocr-eval';
 import type { OcrEvalFixture, OcrEvalResult } from '../src/lib/extraction/ocr-eval';
@@ -15,8 +16,7 @@ const DEFAULT_FIXTURE_DIR = path.resolve(
 
 function readFixtureFile(filePath: string): OcrEvalFixture[] {
   const raw = fs.readFileSync(filePath, 'utf8');
-  const parsed = JSON.parse(raw) as OcrEvalFixture[] | { fixtures: OcrEvalFixture[] };
-  return Array.isArray(parsed) ? parsed : parsed.fixtures;
+  return normalizeOcrEvalFixturePayload(JSON.parse(raw) as unknown);
 }
 
 function loadFixtures(targetPath: string): OcrEvalFixture[] {
