@@ -25,6 +25,7 @@ Results:
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Synthetic PDFs | 22 | 22/22 | 100.0% | 84/84 | 0 / 0 / 0 |
 | Synthetic images | 56 | 56/56 | 100.0% | 168/168 | 0 / 0 / 0 |
+| Recursive private captured corpus | 81 | 81/81 | 100.0% | 264/264 | 0 / 0 / 0 |
 
 Notes:
 
@@ -37,3 +38,5 @@ Notes:
 - These fixtures are intentionally simple synthetic documents. The next quality
   gate is official-layout/private-user fixture coverage with the same report
   commands.
+- `npm run report:ocr -- ocr-fixtures/private/captured` now loads nested
+  captured fixture folders recursively.
