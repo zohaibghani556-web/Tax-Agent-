@@ -61,10 +61,21 @@ and matching expected JSON files to `ocr-fixtures/private/expected/cra-synthetic
 The current generator covers clean, sparse-box, dense-box, and duplicate-copy PDF
 conditions for the first priority slips where those conditions apply.
 
-2. For official-layout variants, download the official CRA fillable PDF or use an official CRA sample page.
-3. Create a fake-value source document.
-4. Save the expected boxes as JSON under `ocr-fixtures/private/expected/`.
-5. Capture OCR output:
+2. Generate the first synthetic image variants:
+
+```bash
+npm run gen:ocr-image-variants
+```
+
+This writes fake local image sources to `ocr-fixtures/private/source/cra-synthetic-images/`
+and matching expected JSON files to `ocr-fixtures/private/expected/cra-synthetic-images/`.
+The current image generator covers phone-style PNG, rotated PNG, low-contrast
+JPEG, and compressed JPEG conditions for the first priority clean fixtures.
+
+3. For official-layout variants, download the official CRA fillable PDF or use an official CRA sample page.
+4. Create a fake-value source document.
+5. Save the expected boxes as JSON under `ocr-fixtures/private/expected/`.
+6. Capture OCR output:
 
 ```bash
 npm run capture:ocr-fixture -- \
@@ -75,19 +86,19 @@ npm run capture:ocr-fixture -- \
   --id cra-synthetic-t4-clean
 ```
 
-6. Evaluate:
+7. Evaluate:
 
 ```bash
 npm run eval:ocr -- ocr-fixtures/private/captured/cra-synthetic
 ```
 
-7. Report grouped quality metrics:
+8. Report grouped quality metrics:
 
 ```bash
 npm run report:ocr -- ocr-fixtures/private/captured/cra-synthetic
 ```
 
-8. Convert every failure into either a prompt/parser fix or a documented unsupported condition.
+9. Convert every failure into either a prompt/parser fix or a documented unsupported condition.
 
 ## Quality Gates
 
@@ -106,8 +117,8 @@ Before a firm beta, the private fixture corpus should track:
 
 1. Maintain `ocr-source-manifest.ts` as the canonical source map.
 2. Maintain `npm run gen:ocr-synthetic-fixtures` as the local-only starter generator for fake PDFs and expected values.
-3. Add a local-only CRA form download/reference script.
-4. Add degradation generation for image variants.
+3. Maintain `npm run gen:ocr-image-variants` as the local-only starter generator for fake image degradation variants.
+4. Add a local-only CRA form download/reference script.
 5. Maintain `npm run report:ocr` as the local quality report for private eval results.
 6. Add optional OCR engine adapters only after the Anthropic benchmark is stable.
 

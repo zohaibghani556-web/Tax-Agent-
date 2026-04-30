@@ -11,6 +11,7 @@
     "test:run": "vitest run",
     "capture:ocr-fixture": "tsx scripts/capture-ocr-fixture.ts",
     "eval:ocr": "tsx scripts/run-ocr-fixture-eval.ts",
+    "gen:ocr-image-variants": "tsx scripts/generate-ocr-image-variants.ts",
     "gen:ocr-synthetic-fixtures": "tsx scripts/generate-ocr-synthetic-fixtures.ts",
     "report:ocr": "tsx scripts/report-ocr-fixtures.ts",
     "gen:slip-types": "tsx scripts/generate-slip-types.ts"
@@ -50,6 +51,7 @@
     "eslint-config-next": "^15.3.1",
     "fast-xml-parser": "^5.7.1",
     "postcss": "^8.5.3",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.21.0",
     "typescript": "^5",
