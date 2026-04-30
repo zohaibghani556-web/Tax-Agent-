@@ -50,10 +50,19 @@ ocr-fixtures/private/
 
 ## Workflow
 
-1. Download the official CRA fillable PDF or use an official CRA sample page.
-2. Create a fake-value source document.
-3. Save the expected boxes as JSON under `ocr-fixtures/private/expected/`.
-4. Capture OCR output:
+1. Generate the first clean synthetic source PDFs and expected values:
+
+```bash
+npm run gen:ocr-synthetic-fixtures
+```
+
+This writes fake local source PDFs to `ocr-fixtures/private/source/cra-synthetic/`
+and matching expected JSON files to `ocr-fixtures/private/expected/cra-synthetic/`.
+
+2. For official-layout variants, download the official CRA fillable PDF or use an official CRA sample page.
+3. Create a fake-value source document.
+4. Save the expected boxes as JSON under `ocr-fixtures/private/expected/`.
+5. Capture OCR output:
 
 ```bash
 npm run capture:ocr-fixture -- \
@@ -64,13 +73,13 @@ npm run capture:ocr-fixture -- \
   --id cra-synthetic-t4-clean
 ```
 
-5. Evaluate:
+6. Evaluate:
 
 ```bash
 npm run eval:ocr -- ocr-fixtures/private/captured/cra-synthetic
 ```
 
-6. Convert every failure into either a prompt/parser fix or a documented unsupported condition.
+7. Convert every failure into either a prompt/parser fix or a documented unsupported condition.
 
 ## Quality Gates
 
@@ -88,8 +97,8 @@ Before a firm beta, the private fixture corpus should track:
 ## Implementation Sequence
 
 1. Maintain `ocr-source-manifest.ts` as the canonical source map.
-2. Add a local-only CRA form download/reference script.
-3. Add a synthetic expected-value generator for app-supported boxes.
+2. Maintain `npm run gen:ocr-synthetic-fixtures` as the local-only starter generator for clean fake PDFs and expected values.
+3. Add a local-only CRA form download/reference script.
 4. Add degradation generation for image variants.
 5. Add a report command that summarizes private eval results by slip and box.
 6. Add optional OCR engine adapters only after the Anthropic benchmark is stable.

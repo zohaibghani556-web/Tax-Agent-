@@ -11,6 +11,7 @@
     "test:run": "vitest run",
     "capture:ocr-fixture": "tsx scripts/capture-ocr-fixture.ts",
     "eval:ocr": "tsx scripts/run-ocr-fixture-eval.ts",
+    "gen:ocr-synthetic-fixtures": "tsx scripts/generate-ocr-synthetic-fixtures.ts",
     "gen:slip-types": "tsx scripts/generate-slip-types.ts"
   },
   "dependencies": {
