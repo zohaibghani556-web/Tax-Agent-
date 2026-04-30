@@ -50,7 +50,7 @@ ocr-fixtures/private/
 
 ## Workflow
 
-1. Generate the first clean synthetic source PDFs and expected values:
+1. Generate the first synthetic source PDFs and expected values:
 
 ```bash
 npm run gen:ocr-synthetic-fixtures
@@ -58,6 +58,8 @@ npm run gen:ocr-synthetic-fixtures
 
 This writes fake local source PDFs to `ocr-fixtures/private/source/cra-synthetic/`
 and matching expected JSON files to `ocr-fixtures/private/expected/cra-synthetic/`.
+The current generator covers clean, sparse-box, dense-box, and duplicate-copy PDF
+conditions for the first priority slips where those conditions apply.
 
 2. For official-layout variants, download the official CRA fillable PDF or use an official CRA sample page.
 3. Create a fake-value source document.
@@ -97,7 +99,7 @@ Before a firm beta, the private fixture corpus should track:
 ## Implementation Sequence
 
 1. Maintain `ocr-source-manifest.ts` as the canonical source map.
-2. Maintain `npm run gen:ocr-synthetic-fixtures` as the local-only starter generator for clean fake PDFs and expected values.
+2. Maintain `npm run gen:ocr-synthetic-fixtures` as the local-only starter generator for fake PDFs and expected values.
 3. Add a local-only CRA form download/reference script.
 4. Add degradation generation for image variants.
 5. Add a report command that summarizes private eval results by slip and box.
