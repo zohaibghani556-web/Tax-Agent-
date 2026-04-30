@@ -32,16 +32,18 @@ Risk levels:
 | Advanced integrations | Not built | Could increase lock-in after workflow value is proven | Stable export, firm beta feedback, partner/API feasibility | High | Phase 10 | Do not build integrations before wedge/product-market fit |
 | Multi-year chat/profile flow | Partially implicit; many paths still default to 2025 | Future product will need multi-year filing context consistency | Tax year selector, chat API changes, tests, schema constraints | Medium | After T1 workbench flow is stable | Do not hardcode active years in new write paths |
 | Backup posture before hardening | Needs confirmation before Stage 6D2 | Schema hardening should not happen without recovery confidence | Supabase backup status, manual backup, deploy plan | High | Before any production constraint migration | Do not run hardening SQL without backup confirmation |
+| OCR production observability | Read-only SQL bundle drafted for extraction health, correction rate, duplicate signals, lineage, and provenance coverage | OCR must align with Supabase evidence, corrections, duplicate signals, and pilot trust metrics | Existing `slip_extractions`, `slip_corrections`, `tax_slips`, `tax_returns`, recursive fixture reporting | Medium | Before further OCR runtime changes or official-layout expansion | Do not apply SQL, create migrations, or wire XSD validation just to get metrics |
 
 ## Current Priority Order
 
 1. CPA discovery interviews and workflow validation (Phase 0) — start immediately, do not block on hardening.
 2. Stage 6D1 monitoring and final read-only prechecks (in parallel with Phase 0).
 3. Stage 6D2 `NOT NULL` only if prechecks pass.
-4. Tax File Graph MVP with minimal export primitive (Phase 1).
-5. CPA Review Queue (Phase 2).
-6. Source-linked Workpaper (Phase 3).
-7. Missing-item/Exception Engine (Phase 4).
+4. OCR production observability bundle for blank extraction, correction, duplicate, and source-linkage metrics.
+5. Tax File Graph MVP with minimal export primitive (Phase 1).
+6. CPA Review Queue (Phase 2).
+7. Source-linked Workpaper (Phase 3).
+8. Missing-item/Exception Engine (Phase 4).
 
 ## Explicit Delay List
 

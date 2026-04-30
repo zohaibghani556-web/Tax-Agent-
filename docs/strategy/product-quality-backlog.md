@@ -41,7 +41,21 @@ Recommendation: Make this the next product-quality priority before more feature 
 
 ## 2. OCR Quality And Blank Extraction
 
-Status: OCR completed during smoke test but extracted little or blank data.
+Status: Synthetic OCR benchmark is now measurable and passing; real/private and
+official-layout coverage still needs production-aligned observability.
+
+Verified local baseline:
+
+- Public synthetic eval fixtures: 14/14 passed, 42/42 fields.
+- Private synthetic PDF captures: 22/22 passed, 84/84 fields.
+- Private synthetic image captures: 56/56 passed, 168/168 fields.
+- Recursive private captured corpus: 81/81 passed, 264/264 fields.
+
+Remaining risk:
+
+- Synthetic fixtures do not prove real issuer/official-layout performance.
+- Supabase production metrics for blank extraction, corrections, duplicate
+  signals, and source linkage are not yet summarized in a read-only dashboard.
 
 Why it matters:
 
@@ -56,6 +70,11 @@ Scope:
 - Review prompt/schema behavior for T4 extraction.
 - Track extraction quality metrics: field count, confidence, blank-box rate, correction rate.
 - Keep correction memory and source linkage intact.
+- Add read-only OCR observability SQL/docs before any schema changes so OCR
+  quality, `slip_extractions`, `slip_corrections`, and `tax_slips` stay aligned.
+- Use `docs/architecture/ocr-production-observability.md` as the operating
+  checklist for extraction health, field presence, review linkage, correction
+  rate, duplicate signals, and provenance coverage.
 
 What not to do:
 
