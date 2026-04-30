@@ -9,6 +9,7 @@
     "lint": "next lint",
     "test": "vitest",
     "test:run": "vitest run",
+    "eval:ocr": "tsx scripts/run-ocr-fixture-eval.ts",
     "gen:slip-types": "tsx scripts/generate-slip-types.ts"
   },
   "dependencies": {
