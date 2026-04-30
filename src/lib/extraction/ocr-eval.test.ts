@@ -3,6 +3,7 @@ import fixturesJson from './fixtures/ocr-eval/synthetic-supported-slips.json';
 import {
   evaluateOcrFixture,
   evaluateOcrFixtures,
+  normalizeOcrEvalFixturePayload,
   summarizeOcrEvalResults,
 } from './ocr-eval';
 import type { OcrEvalFixture } from './ocr-eval';
@@ -154,5 +155,25 @@ describe('ocr-eval', () => {
     expect(result.status).toBe('fail');
     expect(result.invalidExpectedFields).toEqual(['box999']);
     expect(result.invalidActualFields).toEqual(['box999']);
+  });
+
+  it('normalizes supported fixture file payload shapes', () => {
+    const fixture: OcrEvalFixture = {
+      id: 'single-fixture',
+      slipType: 't4',
+      expected: {
+        boxes: { box14: 50000 },
+      },
+      actual: {
+        boxes: { box14: 50000 },
+      },
+    };
+
+    expect(normalizeOcrEvalFixturePayload(fixture)).toEqual([fixture]);
+    expect(normalizeOcrEvalFixturePayload([fixture])).toEqual([fixture]);
+    expect(normalizeOcrEvalFixturePayload({ fixtures: [fixture] })).toEqual([fixture]);
+    expect(() => normalizeOcrEvalFixturePayload({ fixture })).toThrow(
+      'OCR eval fixture file must contain a fixture',
+    );
   });
 });

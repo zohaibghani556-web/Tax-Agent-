@@ -78,6 +78,37 @@ export interface OcrEvalSummary {
 
 const DEFAULT_NUMERIC_TOLERANCE = 0.01;
 
+function isFixtureRecord(value: unknown): value is OcrEvalFixture {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    'id' in value &&
+    'slipType' in value &&
+    'expected' in value,
+  );
+}
+
+export function normalizeOcrEvalFixturePayload(payload: unknown): OcrEvalFixture[] {
+  if (Array.isArray(payload)) {
+    return payload as OcrEvalFixture[];
+  }
+
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    'fixtures' in payload &&
+    Array.isArray((payload as { fixtures?: unknown }).fixtures)
+  ) {
+    return (payload as { fixtures: OcrEvalFixture[] }).fixtures;
+  }
+
+  if (isFixtureRecord(payload)) {
+    return [payload];
+  }
+
+  throw new Error('OCR eval fixture file must contain a fixture, a fixture array, or { fixtures: [...] }.');
+}
+
 function optionsFor(fixture: OcrEvalFixture): Required<OcrEvalOptions> {
   return {
     numericTolerance: fixture.options?.numericTolerance ?? DEFAULT_NUMERIC_TOLERANCE,
