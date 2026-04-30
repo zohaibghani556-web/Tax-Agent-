@@ -209,6 +209,168 @@ export const OCR_SYNTHETIC_FIXTURE_CASES: OcrSyntheticFixtureCase[] = [
       },
     },
   },
+  {
+    id: 'cra-synthetic-t5-clean',
+    slipType: 't5',
+    variant: 'clean-pdf',
+    description: 'Clean synthetic T5 with interest and dividends.',
+    expected: {
+      issuerName: 'Example Bank',
+      taxYear: 2025,
+      boxes: {
+        box13: 420.5,
+        box24: 600,
+        box25: 828,
+        box26: 127.55,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t5008-clean',
+    slipType: 't5008',
+    variant: 'clean-pdf',
+    description: 'Clean synthetic T5008 securities disposition.',
+    expected: {
+      issuerName: 'Example Brokerage',
+      taxYear: 2025,
+      boxes: {
+        box15: 'SHR',
+        box16: 'ABC Corp',
+        box20: 6200,
+        box21: 8500,
+        box22: 100,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t3-clean',
+    slipType: 't3',
+    variant: 'clean-pdf',
+    description: 'Clean synthetic T3 trust income allocation.',
+    expected: {
+      issuerName: 'Example Trust',
+      taxYear: 2025,
+      boxes: {
+        box21: 1200,
+        box26: 300,
+        box49: 380,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t4e-clean',
+    slipType: 't4e',
+    variant: 'clean-pdf',
+    description: 'Clean synthetic T4E employment insurance benefits.',
+    expected: {
+      issuerName: 'Example Payer',
+      taxYear: 2025,
+      boxes: {
+        box14: 8400,
+        box22: 840,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t5007-clean',
+    slipType: 't5007',
+    variant: 'clean-pdf',
+    description: 'Clean synthetic T5007 benefits statement.',
+    expected: {
+      issuerName: 'Example Benefits Office',
+      taxYear: 2025,
+      boxes: {
+        box10: 12000,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t4ap-clean',
+    slipType: 't4ap',
+    variant: 'clean-pdf',
+    description: 'Clean synthetic T4A(P) CPP benefits.',
+    expected: {
+      issuerName: 'Example Payer',
+      taxYear: 2025,
+      boxes: {
+        box16: 8400,
+        box22: 840,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t4aoas-clean',
+    slipType: 't4aoas',
+    variant: 'clean-pdf',
+    description: 'Clean synthetic T4A(OAS) benefits.',
+    expected: {
+      issuerName: 'Example Payer',
+      taxYear: 2025,
+      boxes: {
+        box18: 7200,
+        box21: 0,
+        box22: 0,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t4rsp-clean',
+    slipType: 't4rsp',
+    variant: 'clean-pdf',
+    description: 'Clean synthetic T4RSP withdrawal.',
+    expected: {
+      issuerName: 'Example Financial',
+      taxYear: 2025,
+      boxes: {
+        box20: 10000,
+        box22: 2000,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t4rif-clean',
+    slipType: 't4rif',
+    variant: 'clean-pdf',
+    description: 'Clean synthetic T4RIF income.',
+    expected: {
+      issuerName: 'Example Financial',
+      taxYear: 2025,
+      boxes: {
+        box16: 15000,
+        box30: 1500,
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-rrsp-receipt-clean',
+    slipType: 'rrsp_receipt',
+    variant: 'clean-pdf',
+    description: 'Clean synthetic RRSP contribution receipt.',
+    expected: {
+      issuerName: 'Example Financial',
+      taxYear: 2025,
+      boxes: {
+        amount: 5000,
+        planType: 'RRSP',
+        dateOfContribution: '2025-01-15',
+      },
+    },
+  },
+  {
+    id: 'cra-synthetic-t4fhsa-clean',
+    slipType: 't4fhsa',
+    variant: 'clean-pdf',
+    description: 'Clean synthetic T4FHSA contribution case.',
+    expected: {
+      issuerName: 'Example Financial',
+      taxYear: 2025,
+      boxes: {
+        box14: 0,
+        box22: 0,
+        box24: 8000,
+      },
+    },
+  },
 ];
 
 export function getOcrSyntheticFixtureCases(

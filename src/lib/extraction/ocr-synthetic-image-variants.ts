@@ -20,6 +20,17 @@ const PRIORITY_BASE_CASE_IDS = [
   'cra-synthetic-t4-clean',
   'cra-synthetic-t4a-clean',
   'cra-synthetic-t2202-clean',
+  'cra-synthetic-t5-clean',
+  'cra-synthetic-t5008-clean',
+  'cra-synthetic-t3-clean',
+  'cra-synthetic-t4e-clean',
+  'cra-synthetic-t5007-clean',
+  'cra-synthetic-t4ap-clean',
+  'cra-synthetic-t4aoas-clean',
+  'cra-synthetic-t4rsp-clean',
+  'cra-synthetic-t4rif-clean',
+  'cra-synthetic-rrsp-receipt-clean',
+  'cra-synthetic-t4fhsa-clean',
 ];
 
 const IMAGE_VARIANTS: Omit<OcrSyntheticImageFixtureCase, 'id' | 'baseCaseId'>[] = [

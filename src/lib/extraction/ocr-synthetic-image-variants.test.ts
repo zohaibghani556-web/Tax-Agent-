@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
+  EXTRACTION_SCHEMAS,
+  PIPELINE_TO_ENGINE_TYPE,
+} from './schemas';
+import {
   OCR_SYNTHETIC_IMAGE_FIXTURE_CASES,
   getBaseSyntheticFixtureCase,
 } from './ocr-synthetic-image-variants';
 
 describe('ocr-synthetic-image-variants', () => {
-  it('defines image degradation variants for the first priority clean fixtures', () => {
-    expect(OCR_SYNTHETIC_IMAGE_FIXTURE_CASES).toHaveLength(12);
+  it('defines image degradation variants for every clean synthetic fixture', () => {
+    expect(OCR_SYNTHETIC_IMAGE_FIXTURE_CASES).toHaveLength(
+      Object.keys(EXTRACTION_SCHEMAS).length * 4,
+    );
 
     const variantsByBase = new Map<string, Set<string>>();
     for (const fixtureCase of OCR_SYNTHETIC_IMAGE_FIXTURE_CASES) {
@@ -24,6 +30,15 @@ describe('ocr-synthetic-image-variants', () => {
     expect(variantsByBase.get('cra-synthetic-t2202-clean')).toEqual(
       new Set(['phone-screenshot-png', 'rotated-png', 'low-contrast-jpeg', 'compressed-jpeg']),
     );
+
+    for (const slipType of Object.keys(EXTRACTION_SCHEMAS)) {
+      const engineType = PIPELINE_TO_ENGINE_TYPE[slipType as keyof typeof PIPELINE_TO_ENGINE_TYPE];
+      const baseCaseId = `cra-synthetic-${slipType.replace('_', '-')}-clean`;
+      const variants = variantsByBase.get(baseCaseId);
+      expect(variants, `${engineType} should have image variants`).toEqual(
+        new Set(['phone-screenshot-png', 'rotated-png', 'low-contrast-jpeg', 'compressed-jpeg']),
+      );
+    }
   });
 
   it('links every image variant to an existing base synthetic fixture', () => {

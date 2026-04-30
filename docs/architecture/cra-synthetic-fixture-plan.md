@@ -58,8 +58,9 @@ npm run gen:ocr-synthetic-fixtures
 
 This writes fake local source PDFs to `ocr-fixtures/private/source/cra-synthetic/`
 and matching expected JSON files to `ocr-fixtures/private/expected/cra-synthetic/`.
-The current generator covers clean, sparse-box, dense-box, and duplicate-copy PDF
-conditions for the first priority slips where those conditions apply.
+The current generator covers one clean source PDF for all 14 extractable slip
+types, plus sparse-box, dense-box, and duplicate-copy PDF conditions for the
+first priority slips where those conditions apply.
 
 2. Generate the first synthetic image variants:
 
@@ -70,7 +71,7 @@ npm run gen:ocr-image-variants
 This writes fake local image sources to `ocr-fixtures/private/source/cra-synthetic-images/`
 and matching expected JSON files to `ocr-fixtures/private/expected/cra-synthetic-images/`.
 The current image generator covers phone-style PNG, rotated PNG, low-contrast
-JPEG, and compressed JPEG conditions for the first priority clean fixtures.
+JPEG, and compressed JPEG conditions for every clean synthetic source fixture.
 
 3. For official-layout variants, download the official CRA fillable PDF or use an official CRA sample page.
 4. Create a fake-value source document.
