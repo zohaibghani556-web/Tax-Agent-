@@ -54,6 +54,9 @@ npm run eval:ocr -- path/to/fixtures.json
 npm run eval:ocr -- path/to/fixture-directory
 ```
 
+Directory targets are loaded recursively, so `ocr-fixtures/private/captured`
+will include nested synthetic/private capture folders.
+
 The command exits non-zero if any fixture fails.
 
 ## Capturing A Private OCR Fixture

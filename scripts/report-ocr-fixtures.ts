@@ -1,37 +1,16 @@
 #!/usr/bin/env tsx
 
-import * as fs from 'fs';
 import * as path from 'path';
-import {
-  normalizeOcrEvalFixturePayload,
-} from '../src/lib/extraction/ocr-eval';
 import {
   buildOcrEvalReport,
 } from '../src/lib/extraction/ocr-eval-report';
-import type { OcrEvalFixture } from '../src/lib/extraction/ocr-eval';
+import { loadOcrEvalFixtures } from './lib/ocr-eval-fixture-loader';
 import type { OcrEvalReportGroup } from '../src/lib/extraction/ocr-eval-report';
 
 const DEFAULT_FIXTURE_DIR = path.resolve(
   process.cwd(),
   'src/lib/extraction/fixtures/ocr-eval',
 );
-
-function readFixtureFile(filePath: string): OcrEvalFixture[] {
-  const raw = fs.readFileSync(filePath, 'utf8');
-  return normalizeOcrEvalFixturePayload(JSON.parse(raw) as unknown);
-}
-
-function loadFixtures(targetPath: string): OcrEvalFixture[] {
-  const stat = fs.statSync(targetPath);
-  if (stat.isFile()) {
-    return readFixtureFile(targetPath);
-  }
-
-  return fs.readdirSync(targetPath)
-    .filter((filename) => filename.endsWith('.json'))
-    .sort()
-    .flatMap((filename) => readFixtureFile(path.join(targetPath, filename)));
-}
 
 function formatPercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
@@ -74,7 +53,7 @@ function formatHeader(): string {
 }
 
 const targetPath = path.resolve(process.argv[2] ?? DEFAULT_FIXTURE_DIR);
-const fixtures = loadFixtures(targetPath);
+const fixtures = loadOcrEvalFixtures(targetPath);
 const report = buildOcrEvalReport(fixtures);
 
 console.log(`OCR fixture report: ${targetPath}`);
