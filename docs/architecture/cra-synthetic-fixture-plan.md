@@ -81,7 +81,13 @@ npm run capture:ocr-fixture -- \
 npm run eval:ocr -- ocr-fixtures/private/captured/cra-synthetic
 ```
 
-7. Convert every failure into either a prompt/parser fix or a documented unsupported condition.
+7. Report grouped quality metrics:
+
+```bash
+npm run report:ocr -- ocr-fixtures/private/captured/cra-synthetic
+```
+
+8. Convert every failure into either a prompt/parser fix or a documented unsupported condition.
 
 ## Quality Gates
 
@@ -102,7 +108,7 @@ Before a firm beta, the private fixture corpus should track:
 2. Maintain `npm run gen:ocr-synthetic-fixtures` as the local-only starter generator for fake PDFs and expected values.
 3. Add a local-only CRA form download/reference script.
 4. Add degradation generation for image variants.
-5. Add a report command that summarizes private eval results by slip and box.
+5. Maintain `npm run report:ocr` as the local quality report for private eval results.
 6. Add optional OCR engine adapters only after the Anthropic benchmark is stable.
 
 ## Safety
