@@ -56,6 +56,44 @@ npm run eval:ocr -- path/to/fixture-directory
 
 The command exits non-zero if any fixture fails.
 
+## Capturing A Private OCR Fixture
+
+Use this only with local redacted documents or private user-approved test files.
+The capture command runs the OCR extraction pipeline locally and writes a
+fixture JSON file. It does not call Supabase, upload to Storage, or persist the
+source document.
+
+First create an expected-values file in an ignored private directory:
+
+```json
+{
+  "issuerName": "Redacted Employer",
+  "taxYear": 2025,
+  "boxes": {
+    "box14": 50000,
+    "box22": 9000
+  }
+}
+```
+
+Then capture the actual OCR output:
+
+```bash
+npm run capture:ocr-fixture -- \
+  --file path/to/redacted-slip.pdf \
+  --slip-type t4 \
+  --expected ocr-fixtures/private/expected/t4-001.json \
+  --out ocr-fixtures/private/captured/t4-001.json \
+  --id private-t4-001
+```
+
+The output path is restricted to ignored private fixture directories by default.
+Evaluate the captured fixture with:
+
+```bash
+npm run eval:ocr -- ocr-fixtures/private/captured/t4-001.json
+```
+
 ## Fixture Shape
 
 Each fixture compares expected values to a captured OCR result:
