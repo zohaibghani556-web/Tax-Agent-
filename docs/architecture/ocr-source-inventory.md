@@ -66,7 +66,8 @@ The current safe offline check is:
 npm run report:ocr-xsd
 ```
 
-This command reads the generated CRA XSD box maps and compares them with the
+This command reads the generated CRA XSD box maps plus report-only supplemental
+maps for supported slips that are not generated yet, then compares them with the
 app-supported OCR/review fields. It does not run extraction, write to Supabase,
 apply SQL, or wire XSD validation into production uploads.
 
