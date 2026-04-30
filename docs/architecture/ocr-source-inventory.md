@@ -49,6 +49,21 @@ The executable source map lives in `src/lib/extraction/ocr-source-manifest.ts` a
 4. Paid service comparisons: OpenAI, Mistral, Google Document AI, and AWS Textract behind local-only adapters.
 5. Production decision only after fixture pass rates and latency/cost are measured.
 
+## Production Alignment
+
+Fixture quality is necessary but not enough for firm readiness. The next OCR
+quality step is a read-only observability bundle over existing Supabase tables:
+
+- `slip_extractions` for blank-box, status, file hash, and model-response
+  quality signals;
+- `slip_corrections` for field-level correction rate;
+- `tax_slips` for reviewed slip linkage, duplicate source detection, and tax
+  engine input coverage;
+- `tax_returns.provenance_records` for source-backed calculation traceability.
+
+Do not add migrations, change RLS, switch to `slip-store.ts`, or wire CRA XSD
+schemas into active extraction just to collect these metrics.
+
 ## XSD Role
 
 The XSDs are already present under `scripts/cra-xsds/`. They should be used for:
