@@ -87,6 +87,18 @@ npm run capture:ocr-fixture -- \
   --id cra-synthetic-t4-clean
 ```
 
+Or capture the generated synthetic corpus in one local-only batch:
+
+```bash
+npm run capture:ocr-synthetic-fixtures -- --set pdf
+npm run capture:ocr-synthetic-fixtures -- --set images --delay-ms 5000
+```
+
+Use `--slip-type`, `--limit`, and `--force` to narrow or recapture the run.
+The batch command stops on the first `extraction_failed` result by default so
+API rate limits do not create a long run of misleading OCR failures. Use
+`--continue-on-failure` only when intentionally collecting failure fixtures.
+
 7. Evaluate:
 
 ```bash
