@@ -351,6 +351,12 @@ export default function SlipReviewPage() {
           return;
         }
 
+        const reviewResult = (await res.json()) as { ok?: boolean; reviewedAt?: string };
+        if (!reviewResult.ok || !reviewResult.reviewedAt) {
+          toast.error('Could not confirm review status. Please refresh and try again.');
+          return;
+        }
+
         // Persist the reviewed slip to tax_slips via the profile-based path
         // (tax-data.ts). The unified slip-store.ts path writes columns that do
         // not exist on the live DB, so createSlip() would fail silently — this
