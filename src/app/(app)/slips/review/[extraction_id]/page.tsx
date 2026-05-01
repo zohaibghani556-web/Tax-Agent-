@@ -27,9 +27,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { SLIP_FIELDS, SLIP_TYPE_LABELS } from '@/lib/slips/slip-fields';
 import { addCsrfHeader } from '@/lib/csrf-client';
-import { createClient } from '@/lib/supabase/client';
-import { getSlips, upsertSlips } from '@/lib/supabase/tax-data';
-import { upsertSlipInList } from '@/lib/slips/slip-dedup';
+import type { SavedSlip } from '@/lib/supabase/tax-data';
 import {
   getIssuerFieldKey,
   hasReviewValueChanged,
@@ -351,39 +349,18 @@ export default function SlipReviewPage() {
           return;
         }
 
-        const reviewResult = (await res.json()) as { ok?: boolean; reviewedAt?: string };
+        const reviewResult = (await res.json()) as {
+          ok?: boolean;
+          reviewedAt?: string;
+          slips?: SavedSlip[];
+        };
         if (!reviewResult.ok || !reviewResult.reviewedAt) {
           toast.error('Could not confirm review status. Please refresh and try again.');
           return;
         }
 
-        // Persist the reviewed slip to tax_slips via the profile-based path
-        // (tax-data.ts). The unified slip-store.ts path writes columns that do
-        // not exist on the live DB, so createSlip() would fail silently — this
-        // was the root cause of file_hash / source_extraction_id being null.
-        try {
-          const supabase = createClient();
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const existing = await getSlips(user.id, 2025);
-            const meta = {
-              fileHash: extraction.fileHash ?? null,
-              sourceExtractionId: extraction.id,
-            };
-            const updated = upsertSlipInList(
-              existing,
-              extraction.slipType,
-              issuerName,
-              correctedBoxes,
-              'ocr',
-              meta,
-            );
-            await upsertSlips(user.id, 2025, updated);
-            // Also write to localStorage so the /slips page picks it up instantly.
-            localStorage.setItem('taxagent_slips', JSON.stringify(updated));
-          }
-        } catch {
-          toast.error('Slip saved but could not write to your account history.');
+        if (Array.isArray(reviewResult.slips)) {
+          localStorage.setItem('taxagent_slips', JSON.stringify(reviewResult.slips));
         }
 
         toast.success(
