@@ -29,8 +29,8 @@ SELECT
   COUNT(*) FILTER (
     WHERE CASE
       WHEN boxes IS NULL THEN true
-      WHEN jsonb_typeof(boxes) <> 'object' THEN true
-      ELSE boxes = '{}'::jsonb
+      WHEN jsonb_typeof(boxes::jsonb) <> 'object' THEN true
+      ELSE boxes::jsonb = '{}'::jsonb
     END
   ) AS blank_boxes_rows,
   ROUND(AVG(classification_confidence)::numeric, 3) AS avg_classification_confidence,
@@ -56,12 +56,12 @@ SELECT
   classification_confidence,
   document_storage_path,
   file_hash,
-  jsonb_typeof(boxes) AS boxes_json_type,
+  jsonb_typeof(boxes::jsonb) AS boxes_json_type,
   CASE
     WHEN boxes IS NULL THEN 0
-    WHEN jsonb_typeof(boxes) = 'object' THEN (
+    WHEN jsonb_typeof(boxes::jsonb) = 'object' THEN (
       SELECT COUNT(*)
-      FROM jsonb_object_keys(boxes)
+      FROM jsonb_object_keys(boxes::jsonb)
     )
     ELSE NULL
   END AS box_count,
@@ -72,8 +72,8 @@ FROM public.slip_extractions
 WHERE status <> 'success'
    OR CASE
      WHEN boxes IS NULL THEN true
-     WHEN jsonb_typeof(boxes) <> 'object' THEN true
-     ELSE boxes = '{}'::jsonb
+     WHEN jsonb_typeof(boxes::jsonb) <> 'object' THEN true
+     ELSE boxes::jsonb = '{}'::jsonb
    END
 ORDER BY created_at DESC
 LIMIT 50;
@@ -90,9 +90,9 @@ WITH extracted_fields AS (
     field.key AS field_name,
     field.value AS field_value
   FROM public.slip_extractions e
-  CROSS JOIN LATERAL jsonb_each_text(e.boxes) AS field(key, value)
+  CROSS JOIN LATERAL jsonb_each_text(e.boxes::jsonb) AS field(key, value)
   WHERE e.boxes IS NOT NULL
-    AND jsonb_typeof(e.boxes) = 'object'
+    AND jsonb_typeof(e.boxes::jsonb) = 'object'
 )
 SELECT
   slip_type_detected,
@@ -242,9 +242,9 @@ WITH logical_keys AS (
     slip_type,
     COALESCE(NULLIF(btrim(lower(issuer_name)), ''), '[missing issuer]') AS issuer_key,
     CASE
-      WHEN slip_type = 'T4' THEN concat_ws('|', boxes->>'box14', boxes->>'box22')
-      WHEN slip_type = 'T4A' THEN concat_ws('|', boxes->>'box016', boxes->>'box022', boxes->>'box048', boxes->>'box105')
-      WHEN slip_type = 'T2202' THEN concat_ws('|', boxes->>'boxA', boxes->>'boxB', boxes->>'boxC')
+      WHEN slip_type = 'T4' THEN concat_ws('|', boxes::jsonb->>'box14', boxes::jsonb->>'box22')
+      WHEN slip_type = 'T4A' THEN concat_ws('|', boxes::jsonb->>'box016', boxes::jsonb->>'box022', boxes::jsonb->>'box048', boxes::jsonb->>'box105')
+      WHEN slip_type = 'T2202' THEN concat_ws('|', boxes::jsonb->>'boxA', boxes::jsonb->>'boxB', boxes::jsonb->>'boxC')
       ELSE NULL
     END AS amount_key,
     source,
@@ -329,9 +329,9 @@ SELECT
   e.classification_confidence,
   CASE
     WHEN e.boxes IS NULL THEN 0
-    WHEN jsonb_typeof(e.boxes) = 'object' THEN (
+    WHEN jsonb_typeof(e.boxes::jsonb) = 'object' THEN (
       SELECT COUNT(*)
-      FROM jsonb_object_keys(e.boxes)
+      FROM jsonb_object_keys(e.boxes::jsonb)
     )
     ELSE NULL
   END AS extracted_box_count,

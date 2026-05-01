@@ -119,13 +119,21 @@ export async function POST(req: NextRequest) {
   }
 
   // --- 2. Mark extraction reviewed ---
-  const { error: updateErr } = await supabase
+  const reviewedAt = new Date().toISOString();
+  const { data: reviewedExtraction, error: updateErr } = await supabase
     .from('slip_extractions')
-    .update({ reviewed_by_user_at: new Date().toISOString() })
-    .eq('id', extractionId);
+    .update({ reviewed_by_user_at: reviewedAt })
+    .eq('id', extractionId)
+    .eq('user_id', user.id)
+    .select('id')
+    .single();
 
-  if (updateErr) {
-    log('warn', 'corrections.mark_reviewed_failed', { reason: updateErr.message });
+  if (updateErr || !reviewedExtraction) {
+    log('warn', 'corrections.mark_reviewed_failed', {
+      extractionId,
+      reason: updateErr?.message ?? 'No extraction row updated',
+    });
+    return NextResponse.json({ error: 'Could not mark extraction reviewed' }, { status: 500 });
   }
 
   // Step 3 (old: upsert tax_slips from this API route) stays removed.
@@ -134,5 +142,5 @@ export async function POST(req: NextRequest) {
   // created duplicate rows per review save — same slip, doubled income in
   // the tax engine.
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, reviewedAt });
 }
