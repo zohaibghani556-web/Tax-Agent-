@@ -141,6 +141,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Could not mark extraction reviewed' }, { status: 500 });
   }
 
+  const { data: verifiedReview, error: verifyReviewErr } = await supabase
+    .from('slip_extractions')
+    .select('id, reviewed_by_user_at')
+    .eq('id', extractionId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (verifyReviewErr || !verifiedReview?.reviewed_by_user_at) {
+    log('warn', 'corrections.review_write_not_visible', {
+      extractionId,
+      reason: verifyReviewErr?.message ?? 'reviewed_by_user_at still null after update',
+    });
+    return NextResponse.json({ error: 'Could not verify extraction review status' }, { status: 500 });
+  }
+
   // --- 3. Persist reviewed OCR slip in the same server-owned flow ---
   if (!SUPPORTED_SLIP_TYPES.has(slipType)) {
     return NextResponse.json({ error: 'Unsupported slip type' }, { status: 400 });
