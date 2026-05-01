@@ -112,6 +112,10 @@ describe('/api/slips/corrections', () => {
       data: { id: BODY.extractionId },
       error: null,
     });
+    const reviewVerify = makeExtractionSelect({
+      data: { id: BODY.extractionId, reviewed_by_user_at: '2026-05-01T00:00:00.000Z' },
+      error: null,
+    });
     const profileSelect = makeProfileSelect({
       data: { id: 'profile-123', tax_year: 2025 },
       error: null,
@@ -126,6 +130,7 @@ describe('/api/slips/corrections', () => {
     mockFrom
       .mockReturnValueOnce(extractionSelect)
       .mockReturnValueOnce(reviewedUpdate)
+      .mockReturnValueOnce(reviewVerify)
       .mockReturnValueOnce(profileSelect)
       .mockReturnValueOnce(taxSlipsSelect)
       .mockReturnValueOnce(taxSlipsDelete)
@@ -197,6 +202,41 @@ describe('/api/slips/corrections', () => {
       expect.objectContaining({
         extractionId: BODY.extractionId,
         reason: 'RLS denied update',
+      }),
+    );
+  });
+
+  it('returns 500 when the reviewed timestamp is not visible after update', async () => {
+    const extractionSelect = makeExtractionSelect({
+      data: { id: BODY.extractionId, user_id: 'user-123', file_hash: 'hash-123' },
+      error: null,
+    });
+    const reviewedUpdate = makeReviewedUpdate({
+      data: { id: BODY.extractionId },
+      error: null,
+    });
+    const reviewVerify = makeExtractionSelect({
+      data: { id: BODY.extractionId, reviewed_by_user_at: null },
+      error: null,
+    });
+
+    mockFrom
+      .mockReturnValueOnce(extractionSelect)
+      .mockReturnValueOnce(reviewedUpdate)
+      .mockReturnValueOnce(reviewVerify);
+
+    const res = await POST(makeRequest(BODY));
+    const json = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(json.error).toBe('Could not verify extraction review status');
+    expect(mockFrom).not.toHaveBeenCalledWith('tax_slips');
+    expect(mockLog).toHaveBeenCalledWith(
+      'warn',
+      'corrections.review_write_not_visible',
+      expect.objectContaining({
+        extractionId: BODY.extractionId,
+        reason: 'reviewed_by_user_at still null after update',
       }),
     );
   });
