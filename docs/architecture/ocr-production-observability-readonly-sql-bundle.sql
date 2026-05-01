@@ -30,7 +30,7 @@ SELECT
     WHERE CASE
       WHEN boxes IS NULL THEN true
       WHEN jsonb_typeof(boxes) <> 'object' THEN true
-      ELSE jsonb_object_length(boxes) = 0
+      ELSE boxes = '{}'::jsonb
     END
   ) AS blank_boxes_rows,
   ROUND(AVG(classification_confidence)::numeric, 3) AS avg_classification_confidence,
@@ -59,7 +59,10 @@ SELECT
   jsonb_typeof(boxes) AS boxes_json_type,
   CASE
     WHEN boxes IS NULL THEN 0
-    WHEN jsonb_typeof(boxes) = 'object' THEN jsonb_object_length(boxes)
+    WHEN jsonb_typeof(boxes) = 'object' THEN (
+      SELECT COUNT(*)
+      FROM jsonb_object_keys(boxes)
+    )
     ELSE NULL
   END AS box_count,
   validation_errors,
@@ -70,7 +73,7 @@ WHERE status <> 'success'
    OR CASE
      WHEN boxes IS NULL THEN true
      WHEN jsonb_typeof(boxes) <> 'object' THEN true
-     ELSE jsonb_object_length(boxes) = 0
+     ELSE boxes = '{}'::jsonb
    END
 ORDER BY created_at DESC
 LIMIT 50;
@@ -326,7 +329,10 @@ SELECT
   e.classification_confidence,
   CASE
     WHEN e.boxes IS NULL THEN 0
-    WHEN jsonb_typeof(e.boxes) = 'object' THEN jsonb_object_length(e.boxes)
+    WHEN jsonb_typeof(e.boxes) = 'object' THEN (
+      SELECT COUNT(*)
+      FROM jsonb_object_keys(e.boxes)
+    )
     ELSE NULL
   END AS extracted_box_count,
   e.file_hash,
