@@ -29,6 +29,8 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { validateCsrfToken } from '@/lib/csrf';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { log } from '@/lib/logger';
+import { upsertSlipInList } from '@/lib/slips/slip-dedup';
+import { SUPPORTED_SLIP_TYPES, type SavedSlip } from '@/lib/supabase/tax-data';
 
 interface CorrectionEntry {
   fieldName: string;
@@ -77,13 +79,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { extractionId, slipType, correctedBoxes, corrections } = body;
+  const { extractionId, slipType, issuerName, taxYear, correctedBoxes, corrections } = body;
 
   if (!extractionId || !UUID_RE.test(extractionId)) {
     return NextResponse.json({ error: 'Invalid extractionId' }, { status: 400 });
   }
   if (typeof slipType !== 'string' || slipType.length === 0) {
     return NextResponse.json({ error: 'slipType required' }, { status: 400 });
+  }
+  if (!Number.isInteger(taxYear)) {
+    return NextResponse.json({ error: 'taxYear required' }, { status: 400 });
   }
   if (!correctedBoxes || typeof correctedBoxes !== 'object') {
     return NextResponse.json({ error: 'correctedBoxes required' }, { status: 400 });
@@ -92,7 +97,7 @@ export async function POST(req: NextRequest) {
   // Verify this extraction belongs to the caller (RLS double-check)
   const { data: extraction, error: fetchErr } = await supabase
     .from('slip_extractions')
-    .select('id, user_id')
+    .select('id, user_id, file_hash')
     .eq('id', extractionId)
     .eq('user_id', user.id)
     .single();
@@ -136,11 +141,105 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Could not mark extraction reviewed' }, { status: 500 });
   }
 
-  // Step 3 (old: upsert tax_slips from this API route) stays removed.
-  // Persistence to tax_slips is owned by the review page client through the
-  // canonical profile-based tax-data.ts path. Keeping a second write here
-  // created duplicate rows per review save — same slip, doubled income in
-  // the tax engine.
+  // --- 3. Persist reviewed OCR slip in the same server-owned flow ---
+  if (!SUPPORTED_SLIP_TYPES.has(slipType)) {
+    return NextResponse.json({ error: 'Unsupported slip type' }, { status: 400 });
+  }
 
-  return NextResponse.json({ ok: true, reviewedAt });
+  const { data: profile, error: profileFetchErr } = await supabase
+    .from('tax_profiles')
+    .select('id, tax_year')
+    .eq('user_id', user.id)
+    .eq('tax_year', taxYear)
+    .maybeSingle();
+
+  if (profileFetchErr) {
+    log('warn', 'corrections.profile_fetch_failed', { reason: profileFetchErr.message });
+    return NextResponse.json({ error: 'Could not load tax profile' }, { status: 500 });
+  }
+
+  let profileId = profile?.id as string | undefined;
+  if (!profileId) {
+    const { data: createdProfile, error: profileCreateErr } = await supabase
+      .from('tax_profiles')
+      .insert({ user_id: user.id, tax_year: taxYear })
+      .select('id')
+      .single();
+
+    if (profileCreateErr || !createdProfile) {
+      log('warn', 'corrections.profile_create_failed', {
+        reason: profileCreateErr?.message ?? 'No profile row returned',
+      });
+      return NextResponse.json({ error: 'Could not create tax profile' }, { status: 500 });
+    }
+    profileId = createdProfile.id as string;
+  }
+
+  const { data: existingRows, error: existingErr } = await supabase
+    .from('tax_slips')
+    .select('id, slip_type, issuer_name, boxes, created_at, source, file_hash, source_extraction_id')
+    .eq('profile_id', profileId)
+    .order('created_at', { ascending: true });
+
+  if (existingErr) {
+    log('warn', 'corrections.tax_slips_fetch_failed', { reason: existingErr.message });
+    return NextResponse.json({ error: 'Could not load existing slips' }, { status: 500 });
+  }
+
+  const existingSlips: SavedSlip[] = (existingRows ?? []).map((row) => ({
+    id: row.id as string,
+    type: row.slip_type as string,
+    issuerName: (row.issuer_name as string | null) ?? '',
+    data: (row.boxes as Record<string, number | string> | null) ?? {},
+    enteredAt: (row.created_at as string | null) ?? new Date().toISOString(),
+    source: (row.source as string | null) ?? undefined,
+    fileHash: (row.file_hash as string | null) ?? null,
+    sourceExtractionId: (row.source_extraction_id as string | null) ?? null,
+  }));
+
+  const updatedSlips = upsertSlipInList(
+    existingSlips,
+    slipType,
+    typeof issuerName === 'string' ? issuerName : '',
+    correctedBoxes,
+    'ocr',
+    {
+      fileHash: (extraction.file_hash as string | null) ?? null,
+      sourceExtractionId: extractionId,
+    },
+  ).filter((slip) => SUPPORTED_SLIP_TYPES.has(slip.type));
+
+  const { error: deleteErr } = await supabase
+    .from('tax_slips')
+    .delete()
+    .eq('profile_id', profileId);
+
+  if (deleteErr) {
+    log('warn', 'corrections.tax_slips_delete_failed', { reason: deleteErr.message });
+    return NextResponse.json({ error: 'Could not replace saved slips' }, { status: 500 });
+  }
+
+  if (updatedSlips.length > 0) {
+    const rows = updatedSlips.map((slip) => ({
+      user_id: user.id,
+      profile_id: profileId,
+      slip_type: slip.type,
+      issuer_name: slip.issuerName,
+      boxes: slip.data,
+      source: slip.source ?? 'manual',
+      verified: true,
+      created_at: slip.enteredAt,
+      tax_year: taxYear,
+      file_hash: slip.fileHash ?? null,
+      source_extraction_id: slip.sourceExtractionId ?? null,
+    }));
+
+    const { error: insertErr } = await supabase.from('tax_slips').insert(rows);
+    if (insertErr) {
+      log('warn', 'corrections.tax_slips_insert_failed', { reason: insertErr.message });
+      return NextResponse.json({ error: 'Could not save reviewed slip' }, { status: 500 });
+    }
+  }
+
+  return NextResponse.json({ ok: true, reviewedAt, slips: updatedSlips });
 }

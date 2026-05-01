@@ -37,6 +37,38 @@ function makeExtractionSelect(result: unknown) {
   return chain;
 }
 
+function makeProfileSelect(result: unknown) {
+  const chain = {
+    select: vi.fn(() => chain),
+    eq: vi.fn(() => chain),
+    maybeSingle: vi.fn(async () => result),
+  };
+  return chain;
+}
+
+function makeTaxSlipsSelect(result: unknown) {
+  const chain = {
+    select: vi.fn(() => chain),
+    eq: vi.fn(() => chain),
+    order: vi.fn(async () => result),
+  };
+  return chain;
+}
+
+function makeTaxSlipsDelete(result: unknown) {
+  const chain = {
+    delete: vi.fn(() => chain),
+    eq: vi.fn(async () => result),
+  };
+  return chain;
+}
+
+function makeTaxSlipsInsert(result: unknown) {
+  return {
+    insert: vi.fn(async () => result),
+  };
+}
+
 function makeReviewedUpdate(result: unknown) {
   const chain = {
     update: vi.fn(() => chain),
@@ -73,17 +105,31 @@ describe('/api/slips/corrections', () => {
 
   it('marks the extraction reviewed before returning ok when there are no field corrections', async () => {
     const extractionSelect = makeExtractionSelect({
-      data: { id: BODY.extractionId, user_id: 'user-123' },
+      data: { id: BODY.extractionId, user_id: 'user-123', file_hash: 'hash-123' },
       error: null,
     });
     const reviewedUpdate = makeReviewedUpdate({
       data: { id: BODY.extractionId },
       error: null,
     });
+    const profileSelect = makeProfileSelect({
+      data: { id: 'profile-123', tax_year: 2025 },
+      error: null,
+    });
+    const taxSlipsSelect = makeTaxSlipsSelect({
+      data: [],
+      error: null,
+    });
+    const taxSlipsDelete = makeTaxSlipsDelete({ error: null });
+    const taxSlipsInsert = makeTaxSlipsInsert({ error: null });
 
     mockFrom
       .mockReturnValueOnce(extractionSelect)
-      .mockReturnValueOnce(reviewedUpdate);
+      .mockReturnValueOnce(reviewedUpdate)
+      .mockReturnValueOnce(profileSelect)
+      .mockReturnValueOnce(taxSlipsSelect)
+      .mockReturnValueOnce(taxSlipsDelete)
+      .mockReturnValueOnce(taxSlipsInsert);
 
     const res = await POST(makeRequest(BODY));
     const json = await res.json();
@@ -91,11 +137,30 @@ describe('/api/slips/corrections', () => {
     expect(res.status).toBe(200);
     expect(json.ok).toBe(true);
     expect(json.reviewedAt).toEqual(expect.any(String));
+    expect(json.slips).toHaveLength(1);
+    expect(json.slips[0]).toEqual(expect.objectContaining({
+      type: 'T4A',
+      source: 'ocr',
+      fileHash: 'hash-123',
+      sourceExtractionId: BODY.extractionId,
+    }));
     expect(reviewedUpdate.update).toHaveBeenCalledWith({
       reviewed_by_user_at: expect.any(String),
     });
     expect(reviewedUpdate.eq).toHaveBeenCalledWith('id', BODY.extractionId);
     expect(reviewedUpdate.eq).toHaveBeenCalledWith('user_id', 'user-123');
+    expect(taxSlipsDelete.eq).toHaveBeenCalledWith('profile_id', 'profile-123');
+    expect(taxSlipsInsert.insert).toHaveBeenCalledWith([
+      expect.objectContaining({
+        user_id: 'user-123',
+        profile_id: 'profile-123',
+        slip_type: 'T4A',
+        source: 'ocr',
+        tax_year: 2025,
+        file_hash: 'hash-123',
+        source_extraction_id: BODY.extractionId,
+      }),
+    ]);
     expect(mockFrom).not.toHaveBeenCalledWith('slip_corrections');
   });
 
