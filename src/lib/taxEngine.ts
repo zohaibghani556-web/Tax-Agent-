@@ -236,6 +236,7 @@ export interface TaxBreakdown {
     ageCredit:                  number;
     spouseCredit:               number;
     cppCredit:                  number;
+    cpp2Credit:                 number;
     eiCredit:                   number;
     pensionIncomeCredit:        number;
     disabilityCredit:           number;
@@ -686,6 +687,8 @@ export function calculateTaxes(input: TaxInput): TaxBreakdown {
     : 0;
   const ontarioSpouseCredit       = r(ontarioSpouseAmt * ONTARIO_CREDIT_RATE);
   const ontarioCPPCredit          = r(Math.min(cppCredit, CPP.maxEmployeeContribution) * ONTARIO_CREDIT_RATE);
+  // CPP2 enhanced contributions — Ontario NRC, same as federal (ON428)
+  const ontarioCPP2Credit         = r(cpp2Credit * ONTARIO_CREDIT_RATE);
   const ontarioEICredit           = r(eiCredit * ONTARIO_CREDIT_RATE);
   // Ontario pension income amount uses the same eligible base as federal — ITA s.118(3) / OTA s.8(1).
   const ontarioPensionCreditAmt   = Math.min(eligiblePensionBase, ONTARIO_CREDITS.pensionIncomeMax);
@@ -711,7 +714,7 @@ export function calculateTaxes(input: TaxInput): TaxBreakdown {
 
   const ontarioNRC = r(
     ontarioBPACredit + ontarioAgeCreditValue + ontarioSpouseCredit +
-    ontarioCPPCredit + ontarioEICredit + ontarioPensionCredit +
+    ontarioCPPCredit + ontarioCPP2Credit + ontarioEICredit + ontarioPensionCredit +
     ontarioDisabilityCredit + ontarioDisabilitySuppl + ontarioCaregiverCredit +
     ontarioMedicalCredit + ontarioDonationCredit + ontarioPolitical
   );
@@ -915,6 +918,7 @@ export function calculateTaxes(input: TaxInput): TaxBreakdown {
       ageCredit:                  ontarioAgeCreditValue,
       spouseCredit:               ontarioSpouseCredit,
       cppCredit:                  ontarioCPPCredit,
+      cpp2Credit:                 ontarioCPP2Credit,
       eiCredit:                   ontarioEICredit,
       pensionIncomeCredit:        ontarioPensionCredit,
       disabilityCredit:           ontarioDisabilityCredit,
@@ -927,7 +931,7 @@ export function calculateTaxes(input: TaxInput): TaxBreakdown {
       dividendTaxCredit:          ontarioDivTC,
       totalNonRefundableCredits:  ontarioNRC,
       lowIncomeTaxReduction:      litr,
-      netOntarioTax:              ontarioTaxBeforeCredits,
+      netOntarioTax:              ontarioTaxPayable,
       ontarioHealthPremium:       ohp,
       ontarioTaxPayable:          ontarioTaxPayable,
     },
