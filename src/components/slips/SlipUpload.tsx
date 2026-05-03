@@ -1,17 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
-  Upload, FileText, CheckCircle, AlertCircle,
+  Upload, FileText, AlertCircle,
   X, Loader2, Shield, Clipboard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  SLIP_FIELDS,
-  SLIP_TYPE_LABELS,
-  mergeOcrValues,
-} from '@/lib/slips/slip-fields';
 import { BLANK_EXTRACTION_MESSAGE, hasBlankExtractionFlag } from '@/lib/slips/ocr-result';
 import { addCsrfHeader } from '@/lib/csrf-client';
 import type { OcrResult } from '@/app/api/ocr/route';
@@ -22,41 +17,25 @@ export interface OcrSlipMeta {
   sourceExtractionId: string | null;
 }
 
-interface SlipUploadProps {
-  /** source is always 'ocr' for this component — passed through to the caller. */
-  onAdd: (type: string, issuerName: string, data: Record<string, number | string>, source?: string, meta?: OcrSlipMeta) => void;
-}
-
 type UploadState =
   | { status: 'idle' }
   | { status: 'selected'; file: File }
   | { status: 'processing' }
-  | { status: 'extracted'; result: OcrResult }
   | { status: 'error'; message: string };
 
-const HIGH_CONFIDENCE = 0.85;
-
-const SLIP_TYPE_ICONS: Record<string, string> = {
-  T4: '💼', T5: '🏦', T5008: '📈', T3: '📊', T4A: '🏛',
-  T2202: '🎓', T4E: '📋', T5007: '🤝', T4AP: '🍁', T4AOAS: '🍁',
-  T4RSP: '💰', T4RIF: '💰', 'RRSP-Receipt': '💰', T4FHSA: '🏠',
-};
-
-export function SlipUpload({ onAdd }: SlipUploadProps) {
+export function SlipUpload() {
+  const router = useRouter();
   const [uploadState, setUploadState] = useState<UploadState>({ status: 'idle' });
   const [isDragging, setIsDragging] = useState(false);
-  const [formValues, setFormValues] = useState<Record<string, number | string>>({});
-  const [selectedType, setSelectedType] = useState('T4');
   const [pasteHint, setPasteHint] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
     setUploadState({ status: 'idle' });
-    setFormValues({});
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleFile = (file: File) => {
+  const handleFile = useCallback((file: File) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
     if (!allowed.includes(file.type)) {
       setUploadState({ status: 'error', message: 'Unsupported file type. Use PNG, JPG, WebP, or PDF.' });
@@ -67,7 +46,7 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
       return;
     }
     setUploadState({ status: 'selected', file });
-  };
+  }, []);
 
   useEffect(() => {
     function onPaste(e: ClipboardEvent) {
@@ -83,8 +62,7 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
     }
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uploadState.status]);
+  }, [handleFile, uploadState.status]);
 
   useEffect(() => {
     const t = setTimeout(() => setPasteHint(true), 600);
@@ -96,8 +74,7 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
     if (file) handleFile(file);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [handleFile]);
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -122,35 +99,14 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
         setUploadState({ status: 'error', message: BLANK_EXTRACTION_MESSAGE });
         return;
       }
-      const knownTypes = Object.keys(SLIP_TYPE_LABELS);
-      const type = knownTypes.includes(result.slipType) ? result.slipType : 'T4';
-      setSelectedType(type);
-      const issuerKey = type === 'T2202' ? 'institutionName' : 'issuerName';
-      setFormValues(mergeOcrValues(type, { ...(result.boxes ?? {}), [issuerKey]: result.issuerName }));
-      setUploadState({ status: 'extracted', result });
+      if (!result.extractionId) {
+        setUploadState({ status: 'error', message: 'Extraction succeeded but could not be saved. Please try again.' });
+        return;
+      }
+      router.replace(`/slips/review/${result.extractionId}`);
     } catch {
       setUploadState({ status: 'error', message: 'Network error. Please try again.' });
     }
-  };
-
-  const handleFieldChange = (key: string, raw: string, valueType: 'number' | 'text') => {
-    setFormValues((prev) => ({
-      ...prev,
-      [key]: valueType === 'number'
-        ? (raw === '' ? '' : (isNaN(parseFloat(raw)) ? '' : parseFloat(raw)))
-        : raw,
-    }));
-  };
-
-  const handleSave = () => {
-    const issuerKey = selectedType === 'T2202' ? 'institutionName' : 'issuerName';
-    // Mark as 'ocr': the user confirmed AI-extracted values, not typed them manually.
-    // Pass fileHash + extractionId so they propagate to tax_slips for lineage tracking.
-    const meta: OcrSlipMeta = uploadState.status === 'extracted'
-      ? { fileHash: uploadState.result.fileHash ?? null, sourceExtractionId: uploadState.result.extractionId ?? null }
-      : { fileHash: null, sourceExtractionId: null };
-    onAdd(selectedType, String(formValues[issuerKey] ?? ''), formValues, 'ocr', meta);
-    reset();
   };
 
   // ── Idle ─────────────────────────────────────────────────────────────────────
@@ -261,147 +217,5 @@ export function SlipUpload({ onAdd }: SlipUploadProps) {
     );
   }
 
-  // ── Extracted ─────────────────────────────────────────────────────────────────
-  //
-  // All fields shown in a card grid so every box is visible at a glance.
-  // Extracted boxes have large, readable inputs.
-  // Not-found boxes are dimmed — visible so nothing is missed, but clearly absent.
-  // Low-confidence boxes are highlighted amber so the user knows exactly what to check.
-  //
-  const result = uploadState.result;
-  const confidence = result.confidence;
-  const isHighConfidence = confidence >= HIGH_CONFIDENCE;
-  const icon = SLIP_TYPE_ICONS[selectedType] ?? '📄';
-  const slipLabel = SLIP_TYPE_LABELS[selectedType] ?? selectedType;
-  const fields = SLIP_FIELDS[selectedType] ?? [];
-  const lowConfFields = new Set(result.lowConfidenceFields);
-  const issuerKey = selectedType === 'T2202' ? 'institutionName' : 'issuerName';
-
-  // A field was "found" if formValues has a value for it, or it's the issuer field
-  // (which is always populated from OCR metadata even if empty).
-  const foundKeys = new Set([
-    ...Object.keys(formValues),
-    issuerKey,
-  ]);
-
-  return (
-    <div className="space-y-5">
-
-      {/* ── Slip identity + confidence ─────────────────────────────────────── */}
-      <div className="flex items-center gap-3 rounded-xl px-4 py-3"
-        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}>
-        <span className="text-2xl leading-none shrink-0">{icon}</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-white truncate">{slipLabel}</p>
-          <p className="text-[11px] text-white/40 mt-0.5">Tax year {result.taxYear}</p>
-        </div>
-        <span className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full"
-          style={{
-            background: isHighConfidence ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
-            color: isHighConfidence ? 'var(--emerald)' : '#F59E0B',
-          }}>
-          {isHighConfidence ? `✓ ${Math.round(confidence * 100)}% read` : `⚠ ${Math.round(confidence * 100)}% — check values`}
-        </span>
-      </div>
-
-      {/* ── Low-confidence warning ─────────────────────────────────────────── */}
-      {result.lowConfidenceFields.length > 0 && (
-        <div className="flex items-start gap-2.5 rounded-xl px-4 py-3"
-          style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.20)' }}>
-          <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-300 leading-relaxed">
-            {result.lowConfidenceFields.length === 1 ? '1 value was' : `${result.lowConfidenceFields.length} values were`}
-            {' '}hard to read from the image — highlighted in orange below. Please verify before saving.
-          </p>
-        </div>
-      )}
-
-      {/* ── All boxes — card grid ──────────────────────────────────────────── */}
-      {/*
-        Every field defined for this slip type is shown so nothing can be missed.
-        Fields OCR found:     solid card, value pre-filled, editable.
-        Fields OCR missed:    dimmed card, placeholder "not found", still editable
-                              in case the user needs to add it manually.
-        Low-confidence:       amber border and label.
-      */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {fields.map((field) => {
-          const found = foundKeys.has(field.key);
-          const isUncertain = lowConfFields.has(field.key);
-
-          // Card appearance changes based on state
-          const cardBg = isUncertain
-            ? 'rgba(245,158,11,0.07)'
-            : found
-            ? 'rgba(255,255,255,0.04)'
-            : 'rgba(255,255,255,0.015)';
-          const cardBorder = isUncertain
-            ? '1px solid rgba(245,158,11,0.30)'
-            : found
-            ? '1px solid rgba(255,255,255,0.09)'
-            : '1px dashed rgba(255,255,255,0.07)';
-
-          const labelColor = isUncertain
-            ? 'text-amber-300/90'
-            : found
-            ? 'text-white/55'
-            : 'text-white/25';
-
-          const inputClass = [
-            'w-full h-11 text-base font-mono',
-            field.valueType === 'number' ? 'text-right' : 'text-left',
-            isUncertain
-              ? 'bg-amber-400/5 border-amber-400/35 text-amber-100 focus-visible:ring-amber-400/30'
-              : found
-              ? 'bg-white/5 border-white/10 text-white'
-              : 'bg-transparent border-white/6 text-white/30 placeholder:text-white/15',
-          ].join(' ');
-
-          return (
-            <div key={field.key} className="rounded-xl p-3.5 flex flex-col gap-2"
-              style={{ background: cardBg, border: cardBorder }}>
-
-              {/* Label row */}
-              <div className="flex items-center justify-between gap-2">
-                <label htmlFor={`ocr-${field.key}`}
-                  className={`text-xs font-medium leading-tight cursor-pointer ${labelColor}`}>
-                  {isUncertain && <span className="mr-1 font-bold">⚠</span>}
-                  {field.label}
-                  {field.required && <span className="text-red-400/70 ml-1">*</span>}
-                </label>
-                {!found && (
-                  <span className="text-[10px] text-white/20 font-medium shrink-0">not found</span>
-                )}
-              </div>
-
-              {/* Value input — full width, tall enough to read comfortably */}
-              <Input
-                id={`ocr-${field.key}`}
-                type={field.valueType === 'number' ? 'number' : 'text'}
-                placeholder={found ? (field.valueType === 'number' ? '0.00' : '') : '—'}
-                value={formValues[field.key] ?? ''}
-                onChange={(e) => handleFieldChange(field.key, e.target.value, field.valueType)}
-                className={inputClass}
-                step={field.valueType === 'number' ? '0.01' : undefined}
-                min={field.valueType === 'number' ? '0' : undefined}
-              />
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ── Save / Cancel ─────────────────────────────────────────────────── */}
-      <div className="flex gap-3 pt-1">
-        <Button onClick={handleSave}
-          className="flex-1 bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] gap-2">
-          <CheckCircle className="h-4 w-4" />
-          {isHighConfidence ? `Save ${selectedType} slip` : 'Confirm & save'}
-        </Button>
-        <Button variant="outline" onClick={reset}
-          className="border-white/10 text-white/50 hover:text-white">
-          Cancel
-        </Button>
-      </div>
-    </div>
-  );
+  return null;
 }
