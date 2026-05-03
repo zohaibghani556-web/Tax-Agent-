@@ -3,8 +3,9 @@
  *
  * The in-memory slip list used by My Slips must not accumulate duplicates when
  * the user re-submits the same slip. Strong OCR lineage signals are used for
- * all slip types; T2202 also has a narrow logical duplicate rule because the
- * historical bug created duplicates before OCR metadata was reliable.
+ * all slip types; T2202 and T4 also have narrow logical duplicate rules that
+ * match on issuer name + key box value. T4 dedup prevents the most damaging
+ * bug: doubled employment income from a re-uploaded slip.
  *
  * Pure functions — no side effects, no Supabase calls. DB-level dedup is
  * handled by the unique indexes in 20260427000001_align_tax_slips_to_live.sql
@@ -21,9 +22,8 @@ import type { SavedSlip } from '@/lib/supabase/tax-data';
  *   2. Same source_extraction_id.
  *   3. Same slip type and file_hash.
  *
- * This intentionally does not collapse two manual T4s that happen to have the
- * same issuer and box values. That case should be reviewed or warned about,
- * not silently deduplicated.
+ * For manual T4s with the same issuer and box values, see isLogicalT4Duplicate()
+ * which handles that case separately — same employer + same box14 = duplicate.
  */
 export function isExactSlipDuplicate(
   candidate: SavedSlip,
@@ -92,6 +92,63 @@ export function isLogicalT2202Duplicate(
 }
 
 /**
+ * Returns true when `candidate` is a logical duplicate of a T4 being added.
+ *
+ * Two T4 slips are considered duplicates when they share:
+ *   1. The same slip type (T4).
+ *   2. Matching issuer names after normalization (case-insensitive, trimmed).
+ *      If either name is blank the name check is skipped — a blank issuer
+ *      is treated as a potential match so we don't silently duplicate a slip
+ *      that was saved without a name.
+ *   3. Identical box14 (employment income) values when both are non-zero.
+ *      If either is zero the amount check is skipped.
+ *
+ * Rationale: a user never receives two T4s from the same employer in the same
+ * tax year. Duplicate T4s double employment income, CPP, EI, and withholding —
+ * the single most damaging calculation error. Two T4s from different employers
+ * are legitimate and will NOT match because their issuer names differ.
+ */
+export function isLogicalT4Duplicate(
+  candidate: SavedSlip,
+  type: string,
+  issuerName: string,
+  data: Record<string, number | string>,
+): boolean {
+  if (type !== 'T4' || candidate.type !== 'T4') return false;
+
+  const normCandidate = (candidate.issuerName ?? '').trim().toLowerCase();
+  const normNew = issuerName.trim().toLowerCase();
+
+  // Two different employers → different slips.
+  if (normCandidate && normNew && normCandidate !== normNew) return false;
+
+  const existingBox14 =
+    typeof candidate.data['box14'] === 'number' ? candidate.data['box14'] : 0;
+  const newBox14 =
+    typeof data['box14'] === 'number' ? data['box14'] : 0;
+
+  // Two different employment income amounts → different slips (e.g. employer
+  // issued a corrected T4 — user should review and remove the old one).
+  if (existingBox14 > 0 && newBox14 > 0 && existingBox14 !== newBox14) return false;
+
+  return true;
+}
+
+/**
+ * Dispatches to the appropriate logical duplicate check based on slip type.
+ * Returns true if the candidate matches the incoming slip by type-specific rules.
+ */
+function isLogicalSlipDuplicate(
+  candidate: SavedSlip,
+  type: string,
+  issuerName: string,
+  data: Record<string, number | string>,
+): boolean {
+  return isLogicalT2202Duplicate(candidate, type, issuerName, data)
+    || isLogicalT4Duplicate(candidate, type, issuerName, data);
+}
+
+/**
  * Given the current slip list and a newly submitted slip, returns the updated
  * list with duplicates replaced rather than appended.
  *
@@ -112,7 +169,7 @@ export function upsertSlipInList(
 ): SavedSlip[] {
   const dupIdx = slips.findIndex((s) =>
     isExactSlipDuplicate(s, type, meta)
-    || isLogicalT2202Duplicate(s, type, issuerName, data),
+    || isLogicalSlipDuplicate(s, type, issuerName, data),
   );
 
   if (dupIdx !== -1) {
@@ -153,9 +210,10 @@ export function upsertSlipInList(
  * most complete version.
  *
  * All slip types are deduplicated on strong identity signals: same row id,
- * same sourceExtractionId, or same slip type + fileHash. T2202 also gets the
- * historical logical duplicate rule above. Non-T2202 manual rows without OCR
- * metadata are left unchanged because multiple T4s can be legitimate.
+ * same sourceExtractionId, or same slip type + fileHash. T2202 and T4 also
+ * have type-specific logical duplicate rules. Multiple T4s from different
+ * employers are legitimate and pass through — only same-employer duplicates
+ * are collapsed.
  *
  * This is the safety net called inside upsertSlips() before every DB write,
  * and during page init when loading from Supabase or localStorage. Any
@@ -176,7 +234,7 @@ export function dedupeSlipList(slips: SavedSlip[]): SavedSlip[] {
         fileHash: candidate.fileHash,
         sourceExtractionId: candidate.sourceExtractionId,
       })
-      || isLogicalT2202Duplicate(s, candidate.type, candidate.issuerName, candidate.data),
+      || isLogicalSlipDuplicate(s, candidate.type, candidate.issuerName, candidate.data),
     );
 
     if (existingIdx === -1) {

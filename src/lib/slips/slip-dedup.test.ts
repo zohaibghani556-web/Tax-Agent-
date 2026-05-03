@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { isExactSlipDuplicate, isLogicalT2202Duplicate, upsertSlipInList, dedupeSlipList } from './slip-dedup';
+import { isExactSlipDuplicate, isLogicalT2202Duplicate, isLogicalT4Duplicate, upsertSlipInList, dedupeSlipList } from './slip-dedup';
 import type { SavedSlip } from '@/lib/supabase/tax-data';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -367,7 +367,7 @@ describe('dedupeSlipList', () => {
     expect(afterSecond[0].id).toBe(afterFirst[0].id); // Same DB row preserved.
   });
 
-  it('manual non-T2202 slips are untouched (two T4s from different employers kept)', () => {
+  it('collapses same-employer same-box14 T4s as logical duplicates', () => {
     const t4a: SavedSlip = {
       id: 'e1',
       type: 'T4',
@@ -378,7 +378,26 @@ describe('dedupeSlipList', () => {
     const t4b: SavedSlip = {
       id: 'e2',
       type: 'T4',
-      issuerName: 'Employer A', // same employer, allowed
+      issuerName: 'Employer A',
+      data: { box14: 50000 },
+      enteredAt: new Date().toISOString(),
+    };
+
+    expect(dedupeSlipList([t4a, t4b])).toHaveLength(1);
+  });
+
+  it('keeps two T4s from genuinely different employers', () => {
+    const t4a: SavedSlip = {
+      id: 'e1',
+      type: 'T4',
+      issuerName: 'Employer A',
+      data: { box14: 50000 },
+      enteredAt: new Date().toISOString(),
+    };
+    const t4b: SavedSlip = {
+      id: 'e2',
+      type: 'T4',
+      issuerName: 'Employer B',
       data: { box14: 50000 },
       enteredAt: new Date().toISOString(),
     };
@@ -721,5 +740,141 @@ describe('review page save path — OCR lineage end-to-end', () => {
     expect(updated[0].id).toBe('stale-t2202');
     expect(updated[0].fileHash).toBe('new-hash-from-reupload');
     expect(updated[0].sourceExtractionId).toBe('new-ext-id');
+  });
+});
+
+// ── T4 logical duplicate detection ──────────────────────────────────────────
+
+const makeT4 = (
+  overrides: Partial<SavedSlip> & { box14?: number; box22?: number; box16?: number; box18?: number } = {},
+): SavedSlip => {
+  const { box14 = 75000, box22 = 14000, box16 = 4034.10, box18 = 1077.48, ...rest } = overrides;
+  return {
+    id: crypto.randomUUID(),
+    type: 'T4',
+    issuerName: 'Acme Corp',
+    data: { box14, box22, box16, box18 },
+    enteredAt: new Date().toISOString(),
+    ...rest,
+  };
+};
+
+describe('isLogicalT4Duplicate', () => {
+  it('detects same employer + same box14 as duplicate', () => {
+    const existing = makeT4();
+    expect(isLogicalT4Duplicate(existing, 'T4', 'Acme Corp', { box14: 75000 })).toBe(true);
+  });
+
+  it('matches case-insensitively on issuer name', () => {
+    const existing = makeT4({ issuerName: 'ACME CORP' });
+    expect(isLogicalT4Duplicate(existing, 'T4', 'acme corp', { box14: 75000 })).toBe(true);
+  });
+
+  it('matches when candidate has blank issuer (conservative)', () => {
+    const existing = makeT4({ issuerName: '' });
+    expect(isLogicalT4Duplicate(existing, 'T4', 'Acme Corp', { box14: 75000 })).toBe(true);
+  });
+
+  it('matches when new slip has blank issuer (conservative)', () => {
+    const existing = makeT4();
+    expect(isLogicalT4Duplicate(existing, 'T4', '', { box14: 75000 })).toBe(true);
+  });
+
+  it('does NOT match different employers', () => {
+    const existing = makeT4({ issuerName: 'Acme Corp' });
+    expect(isLogicalT4Duplicate(existing, 'T4', 'Beta Inc', { box14: 75000 })).toBe(false);
+  });
+
+  it('does NOT match different box14 amounts (different or corrected T4)', () => {
+    const existing = makeT4({ box14: 75000 });
+    expect(isLogicalT4Duplicate(existing, 'T4', 'Acme Corp', { box14: 80000 })).toBe(false);
+  });
+
+  it('does NOT match non-T4 types', () => {
+    const existing = makeT4();
+    expect(isLogicalT4Duplicate(existing, 'T5', 'Acme Corp', { box14: 75000 })).toBe(false);
+  });
+
+  it('matches when either box14 is zero (partial entry)', () => {
+    const existing = makeT4({ box14: 0 });
+    expect(isLogicalT4Duplicate(existing, 'T4', 'Acme Corp', { box14: 75000 })).toBe(true);
+  });
+});
+
+// ── T4 duplicate: upsertSlipInList ──────────────────────────────────────────
+
+describe('upsertSlipInList — T4 logical dedup', () => {
+  it('replaces duplicate T4 from same employer instead of appending', () => {
+    const existing = [makeT4({ issuerName: 'Acme Corp', box14: 75000, box22: 14000 })];
+    const updated = upsertSlipInList(
+      existing, 'T4', 'Acme Corp', { box14: 75000, box22: 14000 }, 'ocr',
+    );
+    expect(updated).toHaveLength(1);
+  });
+
+  it('appends legitimate second T4 from different employer', () => {
+    const existing = [makeT4({ issuerName: 'Acme Corp', box14: 50000 })];
+    const updated = upsertSlipInList(
+      existing, 'T4', 'Beta Inc', { box14: 40000 }, 'manual',
+    );
+    expect(updated).toHaveLength(2);
+  });
+
+  it('appends corrected T4 from same employer with different income', () => {
+    const existing = [makeT4({ issuerName: 'Acme Corp', box14: 75000 })];
+    const updated = upsertSlipInList(
+      existing, 'T4', 'Acme Corp', { box14: 80000 }, 'ocr',
+    );
+    // Different box14 = could be correction → don't silently replace
+    expect(updated).toHaveLength(2);
+  });
+});
+
+// ── T4 duplicate: dedupeSlipList ────────────────────────────────────────────
+
+describe('dedupeSlipList — T4 duplicates', () => {
+  it('collapses two identical T4s from same employer to one', () => {
+    const slips = [
+      makeT4({ issuerName: 'Acme Corp', box14: 75000, box22: 14000 }),
+      makeT4({ issuerName: 'Acme Corp', box14: 75000, box22: 14000 }),
+    ];
+    const result = dedupeSlipList(slips);
+    expect(result).toHaveLength(1);
+    expect(result[0].data['box14']).toBe(75000);
+  });
+
+  it('preserves two T4s from different employers', () => {
+    const slips = [
+      makeT4({ issuerName: 'Acme Corp', box14: 50000 }),
+      makeT4({ issuerName: 'Beta Inc', box14: 40000 }),
+    ];
+    const result = dedupeSlipList(slips);
+    expect(result).toHaveLength(2);
+  });
+
+  it('preserves T4 + T2202 (different types, same employer name irrelevant)', () => {
+    const slips: SavedSlip[] = [
+      makeT4({ issuerName: 'University of Toronto' }),
+      makeT2202({ issuerName: 'University of Toronto' }),
+    ];
+    const result = dedupeSlipList(slips);
+    expect(result).toHaveLength(2);
+  });
+
+  it('prefers OCR slip over manual when collapsing T4 duplicate', () => {
+    const manual = makeT4({
+      issuerName: 'Acme Corp', box14: 75000,
+      source: 'manual', fileHash: null, sourceExtractionId: null,
+      enteredAt: '2026-04-01T00:00:00Z',
+    });
+    const ocr = makeT4({
+      issuerName: 'Acme Corp', box14: 75000,
+      source: 'ocr', fileHash: 'hash-abc', sourceExtractionId: 'ext-123',
+      enteredAt: '2026-04-02T00:00:00Z',
+    });
+    const result = dedupeSlipList([manual, ocr]);
+    expect(result).toHaveLength(1);
+    expect(result[0].source).toBe('ocr');
+    expect(result[0].fileHash).toBe('hash-abc');
   });
 });
