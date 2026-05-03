@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Pencil, Trash2, FileText, Check, ArrowRight, ChevronRight, Cloud, Upload, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -523,7 +522,7 @@ export default function SlipsPage() {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="upload">
-            <SlipUpload onAdd={addSlip} />
+            <SlipUpload />
           </TabsContent>
           <TabsContent value="manual">
             <ManualEntryForm onAdd={addSlip} />
