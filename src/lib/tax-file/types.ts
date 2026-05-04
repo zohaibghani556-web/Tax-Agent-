@@ -11,7 +11,7 @@
  */
 
 import type { ProvenanceRecord } from '@/lib/tax-engine/types/provenance';
-import type { TaxCalculationResult, TaxWarning } from '@/lib/tax-engine/types';
+import type { TaxCalculationResult } from '@/lib/tax-engine/types';
 
 // ============================================================
 // GRAPH STATUS MODEL
