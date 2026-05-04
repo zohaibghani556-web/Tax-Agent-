@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   BookOpen,
   Calculator,
+  ClipboardCheck,
   Clock,
   ExternalLink,
   FileSearch,
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { href: '/slips', icon: FileText, label: 'My Slips' },
   { href: '/calculator', icon: Calculator, label: 'Calculator' },
   { href: '/tax-file', icon: FileSearch, label: 'Tax File' },
+  { href: '/review-queue', icon: ClipboardCheck, label: 'Review Queue' },
   { href: '/recovery', icon: RotateCcw, label: 'Recovery' },
   { href: '/family', icon: Users, label: 'Family' },
   { href: '/filing-guide', icon: BookOpen, label: 'Filing Guide' },
