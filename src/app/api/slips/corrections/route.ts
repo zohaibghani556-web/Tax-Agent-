@@ -30,6 +30,7 @@ import { validateCsrfToken } from '@/lib/csrf';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { log } from '@/lib/logger';
 import { upsertSlipInList } from '@/lib/slips/slip-dedup';
+import { validateReviewFieldValues, sanitizeReviewFieldValues } from '@/lib/slips/review-values';
 import { SUPPORTED_SLIP_TYPES, type SavedSlip } from '@/lib/supabase/tax-data';
 
 interface CorrectionEntry {
@@ -93,6 +94,27 @@ export async function POST(req: NextRequest) {
   if (!correctedBoxes || typeof correctedBoxes !== 'object') {
     return NextResponse.json({ error: 'correctedBoxes required' }, { status: 400 });
   }
+
+  // --- Server-side required field validation (don't trust client) ---
+  // Merge issuerName into boxes for validation (review page sends it separately)
+  const issuerKey = slipType === 'T2202' ? 'institutionName' : 'issuerName';
+  const boxesForValidation = { ...correctedBoxes };
+  if (typeof issuerName === 'string' && issuerName.trim().length > 0) {
+    boxesForValidation[issuerKey] = issuerName.trim();
+  }
+  const fieldIssues = validateReviewFieldValues(slipType, boxesForValidation);
+  if (fieldIssues.length > 0) {
+    return NextResponse.json(
+      {
+        error: 'Slip has missing or invalid required fields',
+        fieldErrors: fieldIssues,
+      },
+      { status: 422 },
+    );
+  }
+
+  // Sanitize values — strip blanks, coerce types, reject garbage
+  const sanitizedBoxes = sanitizeReviewFieldValues(slipType, boxesForValidation);
 
   // Verify this extraction belongs to the caller (RLS double-check)
   const { data: extraction, error: fetchErr } = await supabase
@@ -216,7 +238,7 @@ export async function POST(req: NextRequest) {
     existingSlips,
     slipType,
     typeof issuerName === 'string' ? issuerName : '',
-    correctedBoxes,
+    sanitizedBoxes,
     'ocr',
     {
       fileHash: (extraction.file_hash as string | null) ?? null,

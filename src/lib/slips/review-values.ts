@@ -3,6 +3,12 @@ import { SLIP_FIELDS } from './slip-fields';
 export type ReviewFieldValue = number | string;
 export type ReviewFieldValues = Record<string, ReviewFieldValue>;
 
+/**
+ * Maximum reasonable dollar amount for any single slip field.
+ * CRA T1 individual filers won't exceed this; catches OCR garbage like 999999999.
+ */
+const MAX_MONETARY_VALUE = 10_000_000; // $10M
+
 export interface ReviewFieldIssue {
   field: string;
   message: string;
@@ -58,15 +64,24 @@ export function validateReviewFieldValues(
       continue;
     }
 
-    if (
-      !isBlankReviewValue(value)
-      && field.valueType === 'number'
-      && (typeof value !== 'number' || !Number.isFinite(value))
-    ) {
-      issues.push({
-        field: field.key,
-        message: `${field.label} must be a valid number.`,
-      });
+    if (!isBlankReviewValue(value) && field.valueType === 'number') {
+      const numVal = typeof value === 'number' ? value : Number(value);
+      if (!Number.isFinite(numVal)) {
+        issues.push({
+          field: field.key,
+          message: `${field.label} must be a valid number.`,
+        });
+      } else if (numVal < 0) {
+        issues.push({
+          field: field.key,
+          message: `${field.label} cannot be negative.`,
+        });
+      } else if (numVal > MAX_MONETARY_VALUE) {
+        issues.push({
+          field: field.key,
+          message: `${field.label} exceeds the maximum allowed value ($${MAX_MONETARY_VALUE.toLocaleString()}).`,
+        });
+      }
     }
   }
 
@@ -85,8 +100,9 @@ export function sanitizeReviewFieldValues(
     if (isBlankReviewValue(value)) continue;
 
     if (field.valueType === 'number') {
-      if (typeof value === 'number' && Number.isFinite(value)) {
-        sanitized[field.key] = value;
+      const numVal = typeof value === 'number' ? value : Number(value);
+      if (Number.isFinite(numVal) && numVal >= 0 && numVal <= MAX_MONETARY_VALUE) {
+        sanitized[field.key] = numVal;
       }
       continue;
     }

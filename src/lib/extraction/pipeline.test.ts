@@ -71,6 +71,64 @@ describe('validateExtraction', () => {
     );
   });
 
+  it('marks T4 invalid when box14 is missing but other boxes exist', () => {
+    // Before this fix, a T4 with box22 but no box14 would be valid=true (only needs_review).
+    // Now missing_required causes valid=false → status becomes validation_failed.
+    const result = validateExtraction(
+      extraction({
+        fields: {
+          box22: { value: 5000, confidence: 0.99 },
+          box16: { value: 1200, confidence: 0.95 },
+        },
+      }),
+      't4',
+    );
+
+    expect(result.valid).toBe(false);
+    expect(result.flags).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: 'box14',
+          reason: 'missing_required',
+        }),
+      ]),
+    );
+  });
+
+  it('marks T5008 invalid when required box21 is missing', () => {
+    const result = validateExtraction(
+      extraction({
+        fields: {
+          box20: { value: 8000, confidence: 0.95 },
+        },
+      }),
+      't5008',
+    );
+
+    expect(result.valid).toBe(false);
+    expect(result.flags).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          field: 'box21',
+          reason: 'missing_required',
+        }),
+      ]),
+    );
+  });
+
+  it('marks valid when all required fields are present', () => {
+    const result = validateExtraction(
+      extraction({
+        fields: {
+          box14: { value: 50000, confidence: 0.99 },
+        },
+      }),
+      't4',
+    );
+
+    expect(result.valid).toBe(true);
+  });
+
   it('maps missing T2202 issuer metadata to institutionName', () => {
     const result = validateExtraction(
       extraction({

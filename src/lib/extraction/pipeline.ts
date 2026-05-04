@@ -858,7 +858,11 @@ export function validateExtraction(
   }
 
   return {
-    valid: flags.filter((f) => f.reason === 'zod_error' || f.reason === 'blank_extraction').length === 0,
+    valid: flags.filter((f) =>
+      f.reason === 'zod_error' ||
+      f.reason === 'blank_extraction' ||
+      f.reason === 'missing_required',
+    ).length === 0,
     flags,
   };
 }
