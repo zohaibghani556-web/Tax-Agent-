@@ -2,7 +2,7 @@
  * TaxAgent.ai — Contact / CPA Lead Capture API Route
  *
  * POST /api/contact
- * Accepts { name, email, message, type } and emails zohaibghani556@gmail.com via Resend.
+ * Accepts { name, email, message, type } and emails SUPPORT_EMAIL (fallback: support@taxagent.ai) via Resend.
  *
  * Security:
  *   - Public route (no auth required — pre-login contact form)
