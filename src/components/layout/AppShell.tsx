@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  BarChart2,
   BookOpen,
   Calculator,
   Clock,
   ExternalLink,
+  FileSearch,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -25,6 +25,7 @@ const NAV_ITEMS = [
   { href: '/onboarding', icon: MessageSquare, label: 'Assessment' },
   { href: '/slips', icon: FileText, label: 'My Slips' },
   { href: '/calculator', icon: Calculator, label: 'Calculator' },
+  { href: '/tax-file', icon: FileSearch, label: 'Tax File' },
   { href: '/recovery', icon: RotateCcw, label: 'Recovery' },
   { href: '/family', icon: Users, label: 'Family' },
   { href: '/filing-guide', icon: BookOpen, label: 'Filing Guide' },
