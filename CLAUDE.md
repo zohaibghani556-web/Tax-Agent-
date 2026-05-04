@@ -1,5 +1,12 @@
 # TaxAgent.ai — Canadian T1 Filing Platform
 
+## Session Start (after /clear)
+- Tell Claude what was just completed and what's next (2-3 lines of context)
+- Name target files when known — saves exploratory reads
+- State exit criteria: what "done" looks like for this session
+- Say "autonomous" (just do it, commit incrementally) or "check in" (confirm approach before building)
+- Commit after each logical unit — if the session dies mid-task, nothing is lost
+
 ## Mission
 Turn scattered client tax documents into review-ready, source-linked T1 files for Canadian accounting firms — and help individual Canadians understand and prepare their own returns.
 
