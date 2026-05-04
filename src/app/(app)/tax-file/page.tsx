@@ -456,7 +456,7 @@ export default function TaxFilePage() {
 
         const data: TaxFileGraph = await res.json();
         setGraph(data);
-      } catch (err) {
+      } catch {
         setError('Failed to load tax file');
       } finally {
         setLoading(false);
