@@ -17,7 +17,6 @@ import {
   Filter,
   Loader2,
   Search,
-  XCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { addCsrfHeader } from '@/lib/csrf-client';
